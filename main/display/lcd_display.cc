@@ -711,8 +711,166 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_text_color(screen, current_theme_.text, 0);
     lv_obj_set_style_bg_color(screen, current_theme_.background, 0);
 
+    /* Status bar */
+    status_bar_ = lv_obj_create(screen);
+    lv_obj_set_size(status_bar_, LV_HOR_RES, fonts_.text_font->line_height);
+    lv_obj_set_style_radius(status_bar_, 0, 0);
+    lv_obj_set_style_bg_color(status_bar_, current_theme_.background, 0);
+    lv_obj_set_style_text_color(status_bar_, current_theme_.text, 0);
+
+    /* 创建一个TabView，然后添加3个页面，分别是聊天、虚拟币和设置*/
+    tab_view_ = lv_tabview_create(screen);
+    lv_obj_set_size(tab_view_, LV_HOR_RES, LV_VER_RES - fonts_.text_font->line_height);
+    lv_obj_set_y(tab_view_, fonts_.text_font->line_height);
+    lv_obj_set_style_bg_color(tab_view_, current_theme_.background, 0);
+    lv_obj_set_style_border_color(tab_view_, current_theme_.border, 0);
+
+    // 添加聊天页面
+    chat_page_ = lv_tabview_add_tab(tab_view_, "Chat");
+    lv_obj_set_style_bg_color(chat_page_, current_theme_.background, 0);
+    lv_obj_set_style_border_color(chat_page_, current_theme_.border, 0);
+    lv_obj_set_style_text_color(chat_page_, current_theme_.text, 0);
+
+    // 添加虚拟币页面
+    coin_page_ = lv_tabview_add_tab(tab_view_, "Coins");
+    lv_obj_set_style_bg_color(coin_page_, current_theme_.background, 0);
+    lv_obj_set_style_border_color(coin_page_, current_theme_.border, 0);
+    lv_obj_set_style_text_color(coin_page_, current_theme_.text, 0);
+
+    // 创建虚拟币选择器
+    lv_obj_t* coin_selector = lv_dropdown_create(coin_page_);
+    lv_dropdown_set_options(coin_selector, "BTC\nETH\nXRP");
+    lv_obj_align(coin_selector, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_set_size(coin_selector, 100, 30);
+
+    // 虚拟币选择器事件
+    lv_obj_add_event_cb(coin_selector, [](lv_event_t* e) {
+        lv_obj_t* dropdown = (lv_obj_t*)lv_event_get_target(e);
+        char buf[32];
+        lv_dropdown_get_selected_str(dropdown, buf, sizeof(buf));
+        
+        // 更新价格
+        lv_obj_t* price_label = lv_obj_get_child(lv_obj_get_parent(dropdown), 1);
+        
+        // 根据选择的币种显示不同的模拟价格
+        float price = 0.0;
+        if(strcmp(buf, "BTC") == 0) {
+            price = 45000.0;
+        } else if(strcmp(buf, "ETH") == 0) {
+            price = 3200.0;
+        } else if(strcmp(buf, "XRP") == 0) {
+            price = 0.55;
+        }
+        
+        lv_label_set_text_fmt(price_label, "Price: $%.2f", price);
+        
+        // 更新折线图数据
+        lv_obj_t* chart_container = lv_obj_get_child(lv_obj_get_parent(dropdown), 2);
+        lv_obj_t* chart = lv_obj_get_child(chart_container, 0);
+        lv_chart_series_t* series = lv_chart_get_series_next(chart, NULL);
+        
+        // 根据选择的币种生成不同的模拟数据
+        for(int i = 0; i < 30; i++) {
+            int base = 0;
+            if(strcmp(buf, "BTC") == 0) {
+                base = 150;
+            } else if(strcmp(buf, "ETH") == 0) {
+                base = 120;
+            } else if(strcmp(buf, "XRP") == 0) {
+                base = 80;
+            }
+            lv_chart_set_next_value(chart, series, lv_rand(base - 20, base + 20));
+        }
+        lv_chart_refresh(chart);
+    }, LV_EVENT_VALUE_CHANGED, nullptr);
+
+    // 创建价格显示标签
+    lv_obj_t* price_label = lv_label_create(coin_page_);
+    lv_label_set_text(price_label, "Price: $0.00");
+    lv_obj_align(price_label, LV_ALIGN_TOP_MID, 0, 50);
+
+    // 创建K线图容器
+    lv_obj_t* chart_container = lv_obj_create(coin_page_);
+    lv_obj_set_size(chart_container, LV_HOR_RES - 20, LV_VER_RES - 100);
+    lv_obj_align(chart_container, LV_ALIGN_BOTTOM_MID, 0, -10);
+    lv_obj_set_style_bg_color(chart_container, current_theme_.background, 0);
+    lv_obj_set_style_border_color(chart_container, current_theme_.border, 0);
+
+    // 创建折线图（替代K线图，因为LVGL不支持K线图类型）
+    lv_obj_t* chart = lv_chart_create(chart_container);
+    lv_chart_set_type(chart, LV_CHART_TYPE_LINE);
+    lv_obj_set_size(chart, lv_obj_get_width(chart_container) - 10, lv_obj_get_height(chart_container) - 10);
+    lv_obj_center(chart);
+    lv_chart_set_point_count(chart, 30);
+    lv_chart_set_div_line_count(chart, 5, 5);
+    
+    // 添加数据系列
+    lv_chart_series_t* price_series = lv_chart_add_series(chart, lv_palette_main(LV_PALETTE_RED), LV_CHART_AXIS_PRIMARY_Y);
+    
+    // 添加一些模拟数据
+    for(int i = 0; i < 30; i++) {
+        lv_chart_set_next_value(chart, price_series, lv_rand(100, 200));
+    }
+
+    // 添加设置页面
+    settings_page_ = lv_tabview_add_tab(tab_view_, "Settings");
+    lv_obj_set_style_bg_color(settings_page_, current_theme_.background, 0);
+    lv_obj_set_style_border_color(settings_page_, current_theme_.border, 0);
+    lv_obj_set_style_text_color(settings_page_, current_theme_.text, 0);
+
+    // 创建默认虚拟币设置
+    lv_obj_t* default_coin_label = lv_label_create(settings_page_);
+    lv_label_set_text(default_coin_label, "Default Coin:");
+    lv_obj_align(default_coin_label, LV_ALIGN_TOP_LEFT, 10, 20);
+
+    lv_obj_t* default_coin_dropdown = lv_dropdown_create(settings_page_);
+    lv_dropdown_set_options(default_coin_dropdown, "BTC\nETH\nXRP");
+    lv_obj_align(default_coin_dropdown, LV_ALIGN_TOP_LEFT, 150, 20);
+    lv_obj_set_size(default_coin_dropdown, 100, 30);
+
+    // 保存按钮
+    lv_obj_t* save_btn = lv_button_create(settings_page_);
+    lv_obj_set_size(save_btn, 100, 40);
+    lv_obj_align(save_btn, LV_ALIGN_TOP_MID, 0, 100);
+    lv_obj_t* save_label = lv_label_create(save_btn);
+    lv_label_set_text(save_label, "Save");
+    lv_obj_center(save_label);
+
+    // 保存按钮事件
+    lv_obj_add_event_cb(save_btn, [](lv_event_t* e) {
+        // 获取设置页面
+        lv_obj_t* settings_page = lv_obj_get_parent((lv_obj_t*)lv_event_get_target(e));
+        // 获取下拉菜单（第二个子对象）
+        lv_obj_t* dropdown = lv_obj_get_child(settings_page, 1);
+        
+        char buf[32];
+        lv_dropdown_get_selected_str(dropdown, buf, sizeof(buf));
+        
+        // 保存默认虚拟币设置
+        Settings settings("display", false);
+        settings.SetString("default_coin", buf);
+        
+        // 显示保存成功提示
+        lv_obj_t* screen = lv_screen_active();
+        lv_obj_t* toast = lv_obj_create(screen);
+        lv_obj_set_size(toast, 150, 40);
+        lv_obj_set_style_bg_color(toast, lv_color_hex(0x333333), 0);
+        lv_obj_set_style_radius(toast, 10, 0);
+        lv_obj_align(toast, LV_ALIGN_BOTTOM_MID, 0, -20);
+        
+        lv_obj_t* toast_label = lv_label_create(toast);
+        lv_label_set_text(toast_label, "Settings saved!");
+        lv_obj_set_style_text_color(toast_label, lv_color_white(), 0);
+        lv_obj_center(toast_label);
+        
+    }, LV_EVENT_CLICKED, nullptr);
+
+    lv_obj_set_style_text_font(tab_view_, fonts_.text_font, 0);
+    lv_obj_set_style_text_color(tab_view_, current_theme_.text, 0);
+    lv_obj_set_style_bg_color(tab_view_, current_theme_.background, 0);
+
     /* Container */
-    container_ = lv_obj_create(screen);
+    container_ = lv_obj_create(tab_view_);
     lv_obj_set_size(container_, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_flex_flow(container_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(container_, 0, 0);
@@ -720,13 +878,6 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_pad_row(container_, 0, 0);
     lv_obj_set_style_bg_color(container_, current_theme_.background, 0);
     lv_obj_set_style_border_color(container_, current_theme_.border, 0);
-
-    /* Status bar */
-    status_bar_ = lv_obj_create(container_);
-    lv_obj_set_size(status_bar_, LV_HOR_RES, fonts_.text_font->line_height);
-    lv_obj_set_style_radius(status_bar_, 0, 0);
-    lv_obj_set_style_bg_color(status_bar_, current_theme_.background, 0);
-    lv_obj_set_style_text_color(status_bar_, current_theme_.text, 0);
     
     /* Content */
     content_ = lv_obj_create(container_);

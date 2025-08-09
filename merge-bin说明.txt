@@ -1,0 +1,6 @@
+设置target:
+idf.py set-target esp32s3
+编译:
+idf.py build
+合并:
+idf.py merge-bin

@@ -35,6 +35,11 @@ protected:
     lv_obj_t* side_bar_ = nullptr;
     lv_obj_t* preview_image_ = nullptr;
 
+    lv_obj_t* tab_view_ = nullptr;
+    lv_obj_t* chat_page_ = nullptr;
+    lv_obj_t* coin_page_ = nullptr;
+    lv_obj_t* settings_page_ = nullptr;
+
     DisplayFonts fonts_;
     ThemeColors current_theme_;
 
