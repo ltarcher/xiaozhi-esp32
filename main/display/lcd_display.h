@@ -22,7 +22,6 @@ struct ThemeColors {
     lv_color_t low_battery;
 };
 
-
 class LcdDisplay : public Display {
 protected:
     esp_lcd_panel_io_handle_t panel_io_ = nullptr;
@@ -35,12 +34,37 @@ protected:
     lv_obj_t* side_bar_ = nullptr;
     lv_obj_t* preview_image_ = nullptr;
 
+    // 添加roller相关成员变量
+    lv_obj_t* roller_ = nullptr;
+    lv_obj_t* chat_page_ = nullptr;
+    lv_obj_t* crypto_page_ = nullptr;
+    lv_obj_t* settings_page_ = nullptr;
+    
+    // 添加加密货币页面相关成员变量
+    lv_obj_t* crypto_selector_ = nullptr;
+    lv_obj_t* price_label_ = nullptr;
+    lv_obj_t* change_label_ = nullptr;
+    lv_obj_t* chart_ = nullptr;
+    lv_obj_t* interval_selector_ = nullptr;
+
     DisplayFonts fonts_;
     ThemeColors current_theme_;
 
     void SetupUI();
     virtual bool Lock(int timeout_ms = 0) override;
     virtual void Unlock() override;
+
+    // 初始化聊天页面UI
+    void InitChatPage();
+
+    // 初始化虚拟币页面UI
+    void InitCryptoPage();
+    
+    // 初始化设置页面UI
+    void InitSettingsPage();
+    
+    // 更新加密货币数据
+    void UpdateCryptoData();
 
 protected:
     // 添加protected构造函数
