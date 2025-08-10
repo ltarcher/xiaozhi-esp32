@@ -270,6 +270,25 @@ MipiLcdDisplay::MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel
 }
 
 LcdDisplay::~LcdDisplay() {
+    
+    // 释放roller相关对象
+    if (roller_ != nullptr) {
+        lv_obj_del(roller_);
+        roller_ = nullptr;
+    }
+    if (chat_page_ != nullptr) {
+        lv_obj_del(chat_page_);
+        chat_page_ = nullptr;
+    }
+    if (crypto_page_ != nullptr) {
+        lv_obj_del(crypto_page_);
+        crypto_page_ = nullptr;
+    }
+    if (settings_page_ != nullptr) {
+        lv_obj_del(settings_page_);
+        settings_page_ = nullptr;
+    }
+    
     // 然后再清理 LVGL 对象
     if (content_ != nullptr) {
         lv_obj_del(content_);
@@ -711,8 +730,90 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_text_color(screen, current_theme_.text, 0);
     lv_obj_set_style_bg_color(screen, current_theme_.background, 0);
 
+        /* Create roller for pages */
+    roller_ = lv_roller_create(screen);
+    lv_obj_set_style_text_font(roller_, fonts_.text_font, 0);
+    lv_obj_set_style_text_color(roller_, current_theme_.text, 0);
+    lv_obj_set_size(roller_, LV_HOR_RES, LV_VER_RES - 30);
+    lv_obj_set_style_bg_color(roller_, current_theme_.background, 0);
+    lv_obj_set_style_border_width(roller_, 0, 0);
+
+    /* 启用水平滚动 */
+    lv_obj_set_scroll_dir(roller_, LV_DIR_HOR);
+    lv_obj_set_scroll_snap_x(roller_, LV_SCROLL_SNAP_CENTER);
+    lv_obj_set_scrollbar_mode(roller_, LV_SCROLLBAR_MODE_OFF);
+    
+    /* Add pages to roller */
+    // 创建聊天页面
+    chat_page_ = lv_obj_create(roller_);
+    lv_obj_set_size(chat_page_, LV_HOR_RES, LV_VER_RES - 30);
+    lv_obj_set_style_bg_color(chat_page_, current_theme_.background, 0);
+    lv_obj_set_style_border_width(chat_page_, 0, 0);
+    
+    // 创建虚拟币页面
+    crypto_page_ = lv_obj_create(roller_);
+    lv_obj_set_size(crypto_page_, LV_HOR_RES, LV_VER_RES - 30);
+    lv_obj_set_style_bg_color(crypto_page_, current_theme_.background, 0);
+    lv_obj_set_style_border_width(crypto_page_, 0, 0);
+    
+    // 创建设置页面
+    settings_page_ = lv_obj_create(roller_);
+    lv_obj_set_size(settings_page_, LV_HOR_RES, LV_VER_RES - 30);
+    lv_obj_set_style_bg_color(settings_page_, current_theme_.background, 0);
+    lv_obj_set_style_border_width(settings_page_, 0, 0);
+
+    // 初始化聊天页面UI
+    InitChatPage();
+    
+    // 初始化虚拟币页面UI
+    InitCryptoPage();
+    
+    // 初始化设置页面UI
+    InitSettingsPage();
+    
+    // 添加触摸事件处理，支持左右滑动切换页面
+    static lv_point_t tabview_start_point;
+    lv_obj_add_event_cb(roller_, [](lv_event_t* e) {
+        lv_event_code_t code = lv_event_get_code(e);
+        lv_obj_t* obj = (lv_obj_t*)lv_event_get_target(e);
+        
+        if (code == LV_EVENT_PRESSED) {
+            // 记录触摸起始点
+            lv_indev_t* indev = lv_indev_get_act();
+            if (indev) {
+                lv_indev_get_point(indev, &tabview_start_point);
+            }
+        } else if (code == LV_EVENT_RELEASED) {
+            // 计算滑动距离
+            lv_indev_t* indev = lv_indev_get_act();
+            lv_point_t end_point;
+            if (indev) {
+                lv_indev_get_point(indev, &end_point);
+                int16_t diff_x = end_point.x - tabview_start_point.x;
+                int16_t diff_y = end_point.y - tabview_start_point.y;
+                
+                // 只有在水平滑动距离足够且垂直滑动距离较小时才切换页面
+                if (abs(diff_x) > 50 && abs(diff_y) < 30) {
+                    uint16_t current_page = lv_roller_get_selected(obj);
+                    
+                    if (diff_x > 0 && current_page > 0) {
+                        // 向右滑动，切换到前一个页面
+                        lv_roller_set_selected(obj, current_page - 1, LV_ANIM_ON);
+                    } else if (diff_x < 0) {
+                        // 向左滑动，切换到后一个页面
+                        lv_roller_set_selected(obj, current_page + 1, LV_ANIM_ON);
+                    }
+                }
+            }
+        }
+    }, LV_EVENT_ALL, nullptr);
+}
+
+void LcdDisplay::InitChatPage() {
+    if (!chat_page_) return;
+
     /* Container */
-    container_ = lv_obj_create(screen);
+    container_ = lv_obj_create(chat_page_);
     lv_obj_set_size(container_, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_flex_flow(container_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(container_, 0, 0);
@@ -794,7 +895,7 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_text_font(battery_label_, fonts_.icon_font, 0);
     lv_obj_set_style_text_color(battery_label_, current_theme_.text, 0);
 
-    low_battery_popup_ = lv_obj_create(screen);
+    low_battery_popup_ = lv_obj_create(chat_page_);
     lv_obj_set_scrollbar_mode(low_battery_popup_, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_size(low_battery_popup_, LV_HOR_RES * 0.9, fonts_.text_font->line_height * 2);
     lv_obj_align(low_battery_popup_, LV_ALIGN_BOTTOM_MID, 0, 0);
@@ -805,6 +906,180 @@ void LcdDisplay::SetupUI() {
     lv_obj_set_style_text_color(low_battery_label_, lv_color_white(), 0);
     lv_obj_center(low_battery_label_);
     lv_obj_add_flag(low_battery_popup_, LV_OBJ_FLAG_HIDDEN);
+}
+
+void LcdDisplay::InitCryptoPage() {
+    if (!crypto_page_) return;
+    
+    DisplayLockGuard lock(this);
+    
+    // 创建标题
+    lv_obj_t* title = lv_label_create(crypto_page_);
+    lv_label_set_text(title, "虚拟币行情");
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_set_style_text_font(title, fonts_.text_font, 0);
+    lv_obj_set_style_text_color(title, current_theme_.text, 0);
+    
+    // 创建币种选择器
+    crypto_selector_ = lv_dropdown_create(crypto_page_);
+    lv_dropdown_set_options(crypto_selector_, "BTC\nETH\nXRP");
+    lv_obj_align(crypto_selector_, LV_ALIGN_TOP_LEFT, 10, 40);
+    lv_obj_set_width(crypto_selector_, 80);
+    lv_obj_add_event_cb(crypto_selector_, [](lv_event_t* e) {
+        LcdDisplay* display = static_cast<LcdDisplay*>(lv_event_get_user_data(e));
+        display->UpdateCryptoData();
+    }, LV_EVENT_VALUE_CHANGED, this);
+    
+    // 创建价格显示标签
+    price_label_ = lv_label_create(crypto_page_);
+    lv_label_set_text(price_label_, "BTC: $0.00");
+    lv_obj_align(price_label_, LV_ALIGN_TOP_MID, 0, 40);
+    lv_obj_set_style_text_font(price_label_, fonts_.text_font, 0);
+    lv_obj_set_style_text_color(price_label_, current_theme_.text, 0);
+    
+    // 创建涨跌幅标签
+    change_label_ = lv_label_create(crypto_page_);
+    lv_label_set_text(change_label_, "0.00%");
+    lv_obj_align(change_label_, LV_ALIGN_TOP_RIGHT, -10, 40);
+    lv_obj_set_style_text_font(change_label_, fonts_.text_font, 0);
+    lv_obj_set_style_text_color(change_label_, current_theme_.text, 0);
+    
+    // 创建K线图表
+    chart_ = lv_chart_create(crypto_page_);
+    lv_obj_set_size(chart_, 300, 150);
+    lv_obj_align(chart_, LV_ALIGN_BOTTOM_MID, 0, -20);
+    lv_chart_set_type(chart_, LV_CHART_TYPE_LINE);
+    lv_obj_set_style_bg_color(chart_, current_theme_.chat_background, 0);
+    lv_obj_set_style_border_color(chart_, current_theme_.border, 0);
+    
+    // 创建时间间隔选择器
+    interval_selector_ = lv_dropdown_create(crypto_page_);
+    lv_dropdown_set_options(interval_selector_, "1m\n5m\n15m\n30m\n1h\n4h\n1d\n1w");
+    lv_obj_align_to(interval_selector_, chart_, LV_ALIGN_OUT_TOP_RIGHT, 0, -10);
+    lv_obj_set_width(interval_selector_, 80);
+    lv_obj_add_event_cb(interval_selector_, [](lv_event_t* e) {
+        LcdDisplay* display = static_cast<LcdDisplay*>(lv_event_get_user_data(e));
+        display->UpdateCryptoData();
+    }, LV_EVENT_VALUE_CHANGED, this);
+}
+
+void LcdDisplay::InitSettingsPage() {
+    if (!settings_page_) return;
+    
+    DisplayLockGuard lock(this);
+    
+    // 创建标题
+    lv_obj_t* title = lv_label_create(settings_page_);
+    lv_label_set_text(title, "设置");
+    lv_obj_align(title, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_set_style_text_font(title, fonts_.text_font, 0);
+    lv_obj_set_style_text_color(title, current_theme_.text, 0);
+    
+    // 创建背景颜色设置标签
+    lv_obj_t* bg_color_label = lv_label_create(settings_page_);
+    lv_label_set_text(bg_color_label, "背景颜色:");
+    lv_obj_align(bg_color_label, LV_ALIGN_TOP_LEFT, 10, 50);
+    lv_obj_set_style_text_font(bg_color_label, fonts_.text_font, 0);
+    lv_obj_set_style_text_color(bg_color_label, current_theme_.text, 0);
+    
+    // 创建背景颜色选择器
+    lv_obj_t* bg_color_dropdown = lv_dropdown_create(settings_page_);
+    lv_dropdown_set_options(bg_color_dropdown, "黑色\n白色\n灰色");
+    lv_obj_align_to(bg_color_dropdown, bg_color_label, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
+    lv_obj_set_width(bg_color_dropdown, 100);
+    lv_obj_add_event_cb(bg_color_dropdown, [](lv_event_t* e) {
+        LcdDisplay* display = static_cast<LcdDisplay*>(lv_event_get_user_data(e));
+        // 处理背景颜色更改
+        uint16_t selected = lv_dropdown_get_selected((lv_obj_t*)lv_event_get_target(e));
+        switch (selected) {
+            case 0: // 黑色
+                display->current_theme_.background = lv_color_black();
+                break;
+            case 1: // 白色
+                display->current_theme_.background = lv_color_white();
+                break;
+            case 2: // 灰色
+                display->current_theme_.background = lv_color_hex(0x808080);
+                break;
+        }
+        // 更新背景颜色
+        lv_obj_set_style_bg_color(display->container_, display->current_theme_.background, 0);
+        lv_obj_set_style_bg_color(display->status_bar_, display->current_theme_.background, 0);
+        lv_obj_set_style_bg_color(display->chat_page_, display->current_theme_.background, 0);
+        lv_obj_set_style_bg_color(display->crypto_page_, display->current_theme_.background, 0);
+        lv_obj_set_style_bg_color(display->settings_page_, display->current_theme_.background, 0);
+    }, LV_EVENT_VALUE_CHANGED, this);
+    
+    // 创建默认虚拟币设置标签
+    lv_obj_t* default_crypto_label = lv_label_create(settings_page_);
+    lv_label_set_text(default_crypto_label, "默认虚拟币:");
+    lv_obj_align(default_crypto_label, LV_ALIGN_TOP_LEFT, 10, 100);
+    lv_obj_set_style_text_font(default_crypto_label, fonts_.text_font, 0);
+    lv_obj_set_style_text_color(default_crypto_label, current_theme_.text, 0);
+    
+    // 创建默认虚拟币选择器
+    lv_obj_t* default_crypto_dropdown = lv_dropdown_create(settings_page_);
+    lv_dropdown_set_options(default_crypto_dropdown, "BTC\nETH\nXRP");
+    lv_obj_align_to(default_crypto_dropdown, default_crypto_label, LV_ALIGN_OUT_RIGHT_MID, 10, 0);
+    lv_obj_set_width(default_crypto_dropdown, 100);
+}
+
+void LcdDisplay::UpdateCryptoData() {
+    DisplayLockGuard lock(this);
+    
+    if (!price_label_ || !change_label_) return;
+    
+    // 获取当前选择的币种和时间间隔
+    char crypto_buf[16];
+    char interval_buf[16];
+    lv_dropdown_get_selected_str(crypto_selector_, crypto_buf, sizeof(crypto_buf));
+    lv_dropdown_get_selected_str(interval_selector_, interval_buf, sizeof(interval_buf));
+    
+    // 模拟数据更新
+    float price = 0.0f;
+    float change = 0.0f;
+    
+    // 根据选择的币种设置价格
+    if (strcmp(crypto_buf, "BTC") == 0) {
+        price = 45000.0f + (rand() % 1000) - 500;  // 模拟价格在44500-45500之间波动
+        change = ((rand() % 100) - 50) / 10.0f;    // 模拟涨跌幅在-5%到5%之间
+    } else if (strcmp(crypto_buf, "ETH") == 0) {
+        price = 3000.0f + (rand() % 200) - 100;    // 模拟价格在2900-3100之间波动
+        change = ((rand() % 80) - 40) / 10.0f;     // 模拟涨跌幅在-4%到4%之间
+    } else if (strcmp(crypto_buf, "XRP") == 0) {
+        price = 0.5f + (rand() % 100) / 100.0f;    // 模拟价格在0.5-1.5之间波动
+        change = ((rand() % 200) - 100) / 10.0f;   // 模拟涨跌幅在-10%到10%之间
+    }
+    
+    // 更新UI显示
+    lv_label_set_text_fmt(price_label_, "%s: $%.2f", crypto_buf, price);
+    
+    // 根据涨跌情况设置颜色
+    if (change >= 0) {
+        lv_obj_set_style_text_color(change_label_, lv_color_hex(0x00FF00), 0);  // 绿色
+        lv_label_set_text_fmt(change_label_, "+%.2f%%", change);
+    } else {
+        lv_obj_set_style_text_color(change_label_, lv_color_hex(0xFF0000), 0);  // 红色
+        lv_label_set_text_fmt(change_label_, "%.2f%%", change);
+    }
+    
+    // 更新K线图表数据（模拟）
+    if (chart_) {
+        // 清除现有数据
+        lv_chart_series_t* ser = lv_chart_get_series_next(chart_, NULL);
+        while (ser) {
+            lv_chart_remove_series(chart_, ser);
+            ser = lv_chart_get_series_next(chart_, NULL);
+        }
+        
+        // 添加新数据系列
+        ser = lv_chart_add_series(chart_, lv_palette_main(LV_PALETTE_BLUE), LV_CHART_AXIS_PRIMARY_Y);
+        
+        // 添加模拟数据点
+        for (int i = 0; i < 10; i++) {
+            lv_chart_set_next_value(chart_, ser, rand() % 100);
+        }
+    }
 }
 
 void LcdDisplay::SetPreviewImage(const lv_img_dsc_t* img_dsc) {
