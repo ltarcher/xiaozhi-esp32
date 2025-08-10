@@ -271,24 +271,6 @@ MipiLcdDisplay::MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel
 
 LcdDisplay::~LcdDisplay() {
     
-    // 释放roller相关对象
-    if (roller_ != nullptr) {
-        lv_obj_del(roller_);
-        roller_ = nullptr;
-    }
-    if (chat_page_ != nullptr) {
-        lv_obj_del(chat_page_);
-        chat_page_ = nullptr;
-    }
-    if (crypto_page_ != nullptr) {
-        lv_obj_del(crypto_page_);
-        crypto_page_ = nullptr;
-    }
-    if (settings_page_ != nullptr) {
-        lv_obj_del(settings_page_);
-        settings_page_ = nullptr;
-    }
-    
     // 然后再清理 LVGL 对象
     if (content_ != nullptr) {
         lv_obj_del(content_);
@@ -311,6 +293,25 @@ LcdDisplay::~LcdDisplay() {
     }
     if (panel_io_ != nullptr) {
         esp_lcd_panel_io_del(panel_io_);
+    }
+
+        if (chat_page_ != nullptr) {
+        lv_obj_del(chat_page_);
+        chat_page_ = nullptr;
+    }
+    if (crypto_page_ != nullptr) {
+        lv_obj_del(crypto_page_);
+        crypto_page_ = nullptr;
+    }
+    if (settings_page_ != nullptr) {
+        lv_obj_del(settings_page_);
+        settings_page_ = nullptr;
+    }
+
+    // 释放roller相关对象
+    if (roller_ != nullptr) {
+        lv_obj_del(roller_);
+        roller_ = nullptr;
     }
 }
 
@@ -734,7 +735,7 @@ void LcdDisplay::SetupUI() {
     roller_ = lv_roller_create(screen);
     lv_obj_set_style_text_font(roller_, fonts_.text_font, 0);
     lv_obj_set_style_text_color(roller_, current_theme_.text, 0);
-    lv_obj_set_size(roller_, LV_HOR_RES, LV_VER_RES - 30);
+    lv_obj_set_size(roller_, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_style_bg_color(roller_, current_theme_.background, 0);
     lv_obj_set_style_border_width(roller_, 0, 0);
 
@@ -746,21 +747,27 @@ void LcdDisplay::SetupUI() {
     /* Add pages to roller */
     // 创建聊天页面
     chat_page_ = lv_obj_create(roller_);
-    lv_obj_set_size(chat_page_, LV_HOR_RES, LV_VER_RES - 30);
+    lv_obj_set_size(chat_page_, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_style_bg_color(chat_page_, current_theme_.background, 0);
     lv_obj_set_style_border_width(chat_page_, 0, 0);
+    lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(chat_page_, 0, 0);
     
     // 创建虚拟币页面
     crypto_page_ = lv_obj_create(roller_);
-    lv_obj_set_size(crypto_page_, LV_HOR_RES, LV_VER_RES - 30);
+    lv_obj_set_size(crypto_page_, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_style_bg_color(crypto_page_, current_theme_.background, 0);
     lv_obj_set_style_border_width(crypto_page_, 0, 0);
+    lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(crypto_page_, 0, 0);
     
     // 创建设置页面
     settings_page_ = lv_obj_create(roller_);
-    lv_obj_set_size(settings_page_, LV_HOR_RES, LV_VER_RES - 30);
+    lv_obj_set_size(settings_page_, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_style_bg_color(settings_page_, current_theme_.background, 0);
     lv_obj_set_style_border_width(settings_page_, 0, 0);
+    lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(settings_page_, 0, 0);
 
     // 初始化聊天页面UI
     InitChatPage();
@@ -805,8 +812,15 @@ void LcdDisplay::SetupUI() {
                     }
                 }
             }
+        } else if (code == LV_EVENT_SCROLL_END) {
+            // 滚动结束后确保选中正确的页面
+            lv_obj_t* roller = (lv_obj_t*)lv_event_get_target(e);
+            uint16_t selected = lv_roller_get_selected(roller);
+            lv_roller_set_selected(roller, selected, LV_ANIM_ON);
         }
     }, LV_EVENT_ALL, nullptr);
+    // 设置roller初始选中第一页（聊天页面）
+    lv_roller_set_selected(roller_, 0, LV_ANIM_OFF);
 }
 
 void LcdDisplay::InitChatPage() {
