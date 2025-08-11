@@ -410,25 +410,25 @@ void WXT185Display::CreateScreensaverPage() {
     // 创建虚拟币名称标签
     screensaver_crypto_name_ = lv_label_create(screensaver_container_);
     lv_label_set_text(screensaver_crypto_name_, "Bitcoin");
-    lv_obj_set_style_text_font(screensaver_crypto_name_, &lv_font_montserrat_20, 0);
+    lv_obj_set_style_text_font(screensaver_crypto_name_, fonts_.text_font, 0);
     lv_obj_align(screensaver_crypto_name_, LV_ALIGN_TOP_MID, 0, 20);
     
     // 创建价格标签
     screensaver_crypto_price_ = lv_label_create(screensaver_container_);
     lv_label_set_text(screensaver_crypto_price_, "$45,000.00");
-    lv_obj_set_style_text_font(screensaver_crypto_price_, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_font(screensaver_crypto_price_, fonts_.text_font, 0);
     lv_obj_align(screensaver_crypto_price_, LV_ALIGN_TOP_MID, 0, 60);
     
     // 创建涨跌幅标签
     screensaver_crypto_change_ = lv_label_create(screensaver_container_);
     lv_label_set_text(screensaver_crypto_change_, "+2.50%");
-    lv_obj_set_style_text_font(screensaver_crypto_change_, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(screensaver_crypto_change_, fonts_.text_font, 0);
     lv_obj_align(screensaver_crypto_change_, LV_ALIGN_TOP_MID, 0, 100);
     
     // 创建时间标签
     screensaver_time_ = lv_label_create(screensaver_container_);
     lv_label_set_text(screensaver_time_, "12:00:00");
-    lv_obj_set_style_text_font(screensaver_time_, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_font(screensaver_time_, fonts_.text_font, 0);
     lv_obj_align(screensaver_time_, LV_ALIGN_BOTTOM_MID, 0, -20);
     
     // 初始隐藏屏保页面
@@ -806,7 +806,6 @@ void WXT185Display::DrawKLineChart() {
 void WXT185Display::TouchEventHandler(lv_event_t* e) {
     WXT185Display* self = static_cast<WXT185Display*>(lv_event_get_user_data(e));
     lv_event_code_t code = lv_event_get_code(e);
-    lv_obj_t* target = lv_event_get_target(e);
     
     // 触摸事件视为用户活动
     self->OnActivity();
@@ -830,10 +829,6 @@ void WXT185Display::TouchEventHandler(lv_event_t* e) {
     }
 }
 
-void WXT185Display::OnWakeWordDetected() {
-    // 检测到唤醒词时退出屏保
-    OnActivity();
-}
 
 void WXT185Display::HandleTouchStart(lv_point_t point) {
     touch_start_point_ = point;
