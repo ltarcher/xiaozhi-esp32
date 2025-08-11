@@ -35,6 +35,8 @@ public:
     inline int width() const { return width_; }
     inline int height() const { return height_; }
 
+    virtual void OnDeviceStateChanged(int previous_state, int current_state) {}; // 设备状态改变时调用
+
 protected:
     int width_ = 0;
     int height_ = 0;
