@@ -185,7 +185,12 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     esp_timer_create(&timer_args, &screensaver_timer_);
     
     // 初始化币界虚拟币行情数据支持
-    bijie_coins_ = std::make_unique<BiJieCoins>();
+    bijie_coins_ = nullptr;
+    bijie_coins_connected_ = false;
+    //bijie_coins_ = std::make_unique<BiJieCoins>();
+
+    // 初始化UI
+    SetupUI();
 }
 
 WXT185Display::~WXT185Display() {
@@ -202,10 +207,6 @@ WXT185Display::~WXT185Display() {
 }
 
 void WXT185Display::SetupUI() {
-    // 先调用父类的SetupUI来初始化基础界面元素
-    // 完全是重构界面了，不需要调用原谅的SetupUI
-    // SpiLcdDisplay::SetupUI();
-    
     DisplayLockGuard lock(this);
     
     ESP_LOGI(TAG, "Setting up WXT185 UI");
