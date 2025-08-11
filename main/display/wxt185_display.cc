@@ -200,38 +200,59 @@ WXT185Display::~WXT185Display() {
 
 void WXT185Display::SetupUI() {
     // 先调用父类的SetupUI来初始化基础界面元素
-    SpiLcdDisplay::SetupUI();
+    // 完全是重构界面了，不需要调用原谅的SetupUI
+    // SpiLcdDisplay::SetupUI();
     
     DisplayLockGuard lock(this);
     
+    ESP_LOGI(TAG, "Setting up WXT185 UI");
+    
     // 获取屏幕对象
     main_screen_ = lv_screen_active();
+    lv_obj_set_style_text_font(main_screen_, fonts_.text_font, 0);
+    lv_obj_set_style_text_color(main_screen_, current_theme_.text, 0);
+    lv_obj_set_style_bg_color(main_screen_, current_theme_.background, 0);
     
     // 创建页面视图容器（针对360*360圆形屏幕优化）
     page_view_ = lv_obj_create(main_screen_);
+    lv_obj_set_style_text_font(page_view_, fonts_.text_font, 0);
+    lv_obj_set_style_text_color(page_view_, current_theme_.text, 0);
+    lv_obj_set_style_bg_color(page_view_, current_theme_.background, 0);
     lv_obj_set_size(page_view_, width_, height_);
     lv_obj_set_style_pad_all(page_view_, 0, 0);
     lv_obj_set_style_border_width(page_view_, 0, 0);
     lv_obj_set_style_bg_opa(page_view_, LV_OPA_TRANSP, 0);
     lv_obj_center(page_view_);
     
+    ESP_LOGI(TAG, "Created page view container");
+    
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
     // 添加触摸事件处理（仅在有触摸屏时添加）
     lv_obj_add_event_cb(page_view_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(page_view_, TouchEventHandler, LV_EVENT_RELEASED, this);
+    ESP_LOGI(TAG, "Added touch event handlers to page view");
 #endif
     
     // 创建四个页面
     CreateChatPage();
+    ESP_LOGI(TAG, "Created chat page");
+    
     CreateCryptoPage();
+    ESP_LOGI(TAG, "Created crypto page");
+    
     CreateSettingsPage();
+    ESP_LOGI(TAG, "Created settings page");
+    
     CreateScreensaverPage(); // 创建屏保页面
+    ESP_LOGI(TAG, "Created screensaver page");
     
     // 应用主题
     ApplyTheme();
+    ESP_LOGI(TAG, "Applied theme");
     
     // 启动屏保定时器（无论是否有触摸屏都需要）
     StartScreensaverTimer();
+    ESP_LOGI(TAG, "Started screensaver timer");
     
     // 设置币界虚拟币行情数据回调
     if (bijie_coins_) {
@@ -247,10 +268,15 @@ void WXT185Display::SetupUI() {
         
         // 连接到币界虚拟币行情数据
         ConnectToBiJieCoins();
+        ESP_LOGI(TAG, "Connected to BiJie coins");
     }
+    
+    ESP_LOGI(TAG, "WXT185 UI setup completed");
 }
 
 void WXT185Display::CreateChatPage() {
+    ESP_LOGI(TAG, "Creating chat page");
+    
     chat_page_ = lv_obj_create(page_view_);
     lv_obj_set_size(chat_page_, width_, height_);
     lv_obj_set_style_pad_all(chat_page_, 0, 0);
@@ -261,9 +287,12 @@ void WXT185Display::CreateChatPage() {
     // 添加触摸事件处理（仅在有触摸屏时添加）
     lv_obj_add_event_cb(chat_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(chat_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
+    ESP_LOGV(TAG, "Added touch event handlers to chat page");
 #endif
     
 #if CONFIG_USE_WECHAT_MESSAGE_STYLE
+    ESP_LOGV(TAG, "Using WeChat message style layout");
+    
     // 微信对话样式布局
     // 创建聊天状态栏（针对360*360屏幕优化高度）
     chat_status_bar_ = lv_obj_create(chat_page_);
@@ -271,6 +300,7 @@ void WXT185Display::CreateChatPage() {
     lv_obj_set_style_radius(chat_status_bar_, 0, 0);
     lv_obj_set_style_pad_all(chat_status_bar_, 5, 0);
     lv_obj_align(chat_status_bar_, LV_ALIGN_TOP_MID, 0, 0);
+    ESP_LOGV(TAG, "Created chat status bar");
     
     // 创建聊天内容区域（为圆形屏幕优化显示区域）
     chat_content_ = lv_obj_create(chat_page_);
@@ -279,12 +309,14 @@ void WXT185Display::CreateChatPage() {
     lv_obj_set_style_pad_all(chat_content_, 5, 0);
     lv_obj_set_style_border_width(chat_content_, 1, 0);
     lv_obj_set_scrollbar_mode(chat_content_, LV_SCROLLBAR_MODE_AUTO);
+    ESP_LOGV(TAG, "Created chat content area");
     
     // 创建输入区域
     chat_input_area_ = lv_obj_create(chat_page_);
     lv_obj_set_size(chat_input_area_, width_ - 20, 35);
     lv_obj_align(chat_input_area_, LV_ALIGN_BOTTOM_MID, 0, -10);
     lv_obj_set_style_pad_all(chat_input_area_, 5, 0);
+    ESP_LOGV(TAG, "Created chat input area");
     
     // 在状态栏添加组件
     emotion_label_ = lv_label_create(chat_status_bar_);
@@ -298,7 +330,11 @@ void WXT185Display::CreateChatPage() {
     battery_label_ = lv_label_create(chat_status_bar_);
     lv_label_set_text(battery_label_, "100%");
     lv_obj_align(battery_label_, LV_ALIGN_RIGHT_MID, 0, 0);
+    
+    ESP_LOGV(TAG, "Added components to chat status bar");
 #else
+    ESP_LOGV(TAG, "Using simple message style layout");
+    
     // 非微信对话样式布局（使用更简单的布局）
     // 创建状态栏
     chat_status_bar_ = lv_obj_create(chat_page_);
@@ -306,6 +342,7 @@ void WXT185Display::CreateChatPage() {
     lv_obj_set_style_radius(chat_status_bar_, 0, 0);
     lv_obj_set_style_pad_all(chat_status_bar_, 5, 0);
     lv_obj_align(chat_status_bar_, LV_ALIGN_TOP_MID, 0, 0);
+    ESP_LOGV(TAG, "Created chat status bar");
     
     // 创建聊天内容区域（简化布局）
     chat_content_ = lv_obj_create(chat_page_);
@@ -314,6 +351,7 @@ void WXT185Display::CreateChatPage() {
     lv_obj_set_style_pad_all(chat_content_, 10, 0);
     lv_obj_set_style_border_width(chat_content_, 1, 0);
     lv_obj_set_scrollbar_mode(chat_content_, LV_SCROLLBAR_MODE_AUTO);
+    ESP_LOGV(TAG, "Created chat content area");
     
     // 在状态栏添加组件
     emotion_label_ = lv_label_create(chat_status_bar_);
@@ -327,10 +365,16 @@ void WXT185Display::CreateChatPage() {
     battery_label_ = lv_label_create(chat_status_bar_);
     lv_label_set_text(battery_label_, "100%");
     lv_obj_align(battery_label_, LV_ALIGN_RIGHT_MID, 0, 0);
+    
+    ESP_LOGV(TAG, "Added components to chat status bar");
 #endif
+    
+    ESP_LOGI(TAG, "Chat page creation completed");
 }
 
 void WXT185Display::CreateCryptoPage() {
+    ESP_LOGI(TAG, "Creating crypto page");
+    
     crypto_page_ = lv_obj_create(page_view_);
     lv_obj_set_size(crypto_page_, width_, height_);
     lv_obj_set_style_pad_all(crypto_page_, 0, 0);
@@ -343,6 +387,7 @@ void WXT185Display::CreateCryptoPage() {
     // 添加触摸事件处理（仅在有触摸屏时添加）
     lv_obj_add_event_cb(crypto_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(crypto_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
+    ESP_LOGV(TAG, "Added touch event handlers to crypto page");
 #endif
     
     // 创建头部区域
@@ -351,6 +396,7 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_set_style_pad_all(crypto_header_, 5, 0);
     lv_obj_set_style_border_width(crypto_header_, 0, 0);
     lv_obj_set_flex_grow(crypto_header_, 0);
+    ESP_LOGV(TAG, "Created crypto header");
     
     // 创建K线图表区域（为360*360屏幕优化大小）
     crypto_chart_ = lv_obj_create(crypto_page_);
@@ -358,6 +404,7 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_set_style_pad_all(crypto_chart_, 5, 0);
     lv_obj_set_style_border_width(crypto_chart_, 1, 0);
     lv_obj_set_flex_grow(crypto_chart_, 1);
+    ESP_LOGV(TAG, "Created crypto chart area");
     
     // 创建虚拟币列表区域
     crypto_list_ = lv_obj_create(crypto_page_);
@@ -366,6 +413,7 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_set_style_border_width(crypto_list_, 1, 0);
     lv_obj_set_flex_grow(crypto_list_, 2);
     lv_obj_set_scrollbar_mode(crypto_list_, LV_SCROLLBAR_MODE_AUTO);
+    ESP_LOGV(TAG, "Created crypto list area");
     
     // 创建时间选择器
     crypto_time_selector_ = lv_obj_create(crypto_page_);
@@ -373,6 +421,7 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_set_style_pad_all(crypto_time_selector_, 2, 0);
     lv_obj_set_style_border_width(crypto_time_selector_, 1, 0);
     lv_obj_set_flex_grow(crypto_time_selector_, 0);
+    ESP_LOGV(TAG, "Created crypto time selector");
     
     // 添加标题
     lv_obj_t* title = lv_label_create(crypto_header_);
@@ -387,9 +436,13 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_t* refresh_label = lv_label_create(refresh_btn);
     lv_label_set_text(refresh_label, "Refresh");
     lv_obj_center(refresh_label);
+    
+    ESP_LOGI(TAG, "Crypto page creation completed");
 }
 
 void WXT185Display::CreateSettingsPage() {
+    ESP_LOGI(TAG, "Creating settings page");
+    
     settings_page_ = lv_obj_create(page_view_);
     lv_obj_set_size(settings_page_, width_, height_);
     lv_obj_set_style_pad_all(settings_page_, 0, 0);
@@ -402,6 +455,7 @@ void WXT185Display::CreateSettingsPage() {
     // 添加触摸事件处理（仅在有触摸屏时添加）
     lv_obj_add_event_cb(settings_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(settings_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
+    ESP_LOGV(TAG, "Added touch event handlers to settings page");
 #endif
     
     // 创建设置页面头部
@@ -410,6 +464,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_set_style_pad_all(settings_header_, 5, 0);
     lv_obj_set_style_border_width(settings_header_, 0, 0);
     lv_obj_set_flex_grow(settings_header_, 0);
+    ESP_LOGV(TAG, "Created settings header");
     
     // 创建主题选择区域
     settings_theme_selector_ = lv_obj_create(settings_page_);
@@ -417,6 +472,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_set_style_pad_all(settings_theme_selector_, 5, 0);
     lv_obj_set_style_border_width(settings_theme_selector_, 1, 0);
     lv_obj_set_flex_grow(settings_theme_selector_, 0);
+    ESP_LOGV(TAG, "Created theme selector area");
     
     // 创建虚拟币选择区域
     settings_crypto_selector_ = lv_obj_create(settings_page_);
@@ -425,6 +481,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_set_style_border_width(settings_crypto_selector_, 1, 0);
     lv_obj_set_flex_grow(settings_crypto_selector_, 1);
     lv_obj_set_scrollbar_mode(settings_crypto_selector_, LV_SCROLLBAR_MODE_AUTO);
+    ESP_LOGV(TAG, "Created crypto selector area");
     
     // 创建时间框架选择区域
     settings_timeframe_selector_ = lv_obj_create(settings_page_);
@@ -433,6 +490,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_set_style_border_width(settings_timeframe_selector_, 1, 0);
     lv_obj_set_flex_grow(settings_timeframe_selector_, 1);
     lv_obj_set_scrollbar_mode(settings_timeframe_selector_, LV_SCROLLBAR_MODE_AUTO);
+    ESP_LOGV(TAG, "Created timeframe selector area");
     
     // 创建屏保虚拟币选择区域
     settings_screensaver_crypto_selector_ = lv_obj_create(settings_page_);
@@ -441,6 +499,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_set_style_border_width(settings_screensaver_crypto_selector_, 1, 0);
     lv_obj_set_flex_grow(settings_screensaver_crypto_selector_, 1);
     lv_obj_set_scrollbar_mode(settings_screensaver_crypto_selector_, LV_SCROLLBAR_MODE_AUTO);
+    ESP_LOGV(TAG, "Created screensaver crypto selector area");
     
     // 添加标题
     lv_obj_t* title = lv_label_create(settings_header_);
@@ -466,9 +525,13 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_t* screensaver_crypto_title = lv_label_create(settings_screensaver_crypto_selector_);
     lv_label_set_text(screensaver_crypto_title, "Screensaver Cryptocurrency:");
     lv_obj_align(screensaver_crypto_title, LV_ALIGN_TOP_LEFT, 0, 0);
+    
+    ESP_LOGI(TAG, "Settings page creation completed");
 }
 
 void WXT185Display::CreateScreensaverPage() {
+    ESP_LOGI(TAG, "Creating screensaver page");
+    
     screensaver_page_ = lv_obj_create(page_view_);
     lv_obj_set_size(screensaver_page_, width_, height_);
     lv_obj_set_style_pad_all(screensaver_page_, 0, 0);
@@ -479,6 +542,7 @@ void WXT185Display::CreateScreensaverPage() {
     // 添加触摸事件处理（仅在有触摸屏时添加）
     lv_obj_add_event_cb(screensaver_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(screensaver_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
+    ESP_LOGV(TAG, "Added touch event handlers to screensaver page");
 #endif
     
     // 创建屏保容器
@@ -488,24 +552,28 @@ void WXT185Display::CreateScreensaverPage() {
     lv_obj_set_style_border_width(screensaver_container_, 0, 0);
     lv_obj_set_style_radius(screensaver_container_, 15, 0);
     lv_obj_center(screensaver_container_);
+    ESP_LOGV(TAG, "Created screensaver container");
     
     // 创建虚拟币名称标签
     screensaver_crypto_name_ = lv_label_create(screensaver_container_);
     lv_label_set_text(screensaver_crypto_name_, "Bitcoin");
     lv_obj_set_style_text_font(screensaver_crypto_name_, fonts_.text_font, 0);
     lv_obj_align(screensaver_crypto_name_, LV_ALIGN_TOP_MID, 0, 20);
+    ESP_LOGV(TAG, "Created screensaver crypto name label");
     
     // 创建价格标签
     screensaver_crypto_price_ = lv_label_create(screensaver_container_);
     lv_label_set_text(screensaver_crypto_price_, "$45,000.00");
     lv_obj_set_style_text_font(screensaver_crypto_price_, fonts_.text_font, 0);
     lv_obj_align(screensaver_crypto_price_, LV_ALIGN_TOP_MID, 0, 60);
+    ESP_LOGV(TAG, "Created screensaver crypto price label");
     
     // 创建涨跌幅标签
     screensaver_crypto_change_ = lv_label_create(screensaver_container_);
     lv_label_set_text(screensaver_crypto_change_, "+2.50%");
     lv_obj_set_style_text_font(screensaver_crypto_change_, fonts_.text_font, 0);
     lv_obj_align(screensaver_crypto_change_, LV_ALIGN_TOP_MID, 0, 100);
+    ESP_LOGV(TAG, "Created screensaver crypto change label");
     
     // 创建K线图表容器
     lv_obj_t* kline_container = lv_obj_create(screensaver_container_);
@@ -513,6 +581,7 @@ void WXT185Display::CreateScreensaverPage() {
     lv_obj_set_style_pad_all(kline_container, 5, 0);
     lv_obj_set_style_border_width(kline_container, 1, 0);
     lv_obj_align(kline_container, LV_ALIGN_BOTTOM_MID, 0, -40);
+    ESP_LOGV(TAG, "Created screensaver K-line container");
     
     // 创建K线图表标题
     lv_obj_t* kline_title = lv_label_create(kline_container);
@@ -529,21 +598,35 @@ void WXT185Display::CreateScreensaverPage() {
     lv_label_set_text(screensaver_time_, "12:00:00");
     lv_obj_set_style_text_font(screensaver_time_, fonts_.text_font, 0);
     lv_obj_align(screensaver_time_, LV_ALIGN_BOTTOM_MID, 0, -10);
+    ESP_LOGV(TAG, "Created screensaver time label");
     
     // 初始隐藏屏保页面
     lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
+    
+    ESP_LOGI(TAG, "Screensaver page creation completed");
 }
 
 void WXT185Display::ApplyTheme() {
+    ESP_LOGI(TAG, "Applying theme");
+    
     DisplayLockGuard lock(this);
     
     // 应用主屏幕背景色
     lv_obj_set_style_bg_color(main_screen_, current_wxt185_theme_.background, 0);
     
     ApplyChatPageTheme();
+    ESP_LOGV(TAG, "Applied chat page theme");
+    
     ApplyCryptoPageTheme();
+    ESP_LOGV(TAG, "Applied crypto page theme");
+    
     ApplySettingsPageTheme();
+    ESP_LOGV(TAG, "Applied settings page theme");
+    
     ApplyScreensaverTheme(); // 应用屏保主题
+    ESP_LOGV(TAG, "Applied screensaver theme");
+    
+    ESP_LOGI(TAG, "Theme applied successfully");
 }
 
 void WXT185Display::ApplyChatPageTheme() {
