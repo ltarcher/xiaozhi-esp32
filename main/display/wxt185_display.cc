@@ -745,17 +745,11 @@ void WXT185Display::ApplyScreensaverTheme() {
 }
 
 void WXT185Display::SetEmotion(const char* emotion) {
-    DisplayLockGuard lock(this);
-    if (emotion_label_ != nullptr) {
-        lv_label_set_text(emotion_label_, emotion);
-    }
+    SpiLcdDisplay::SetEmotion(emotion);
 }
 
 void WXT185Display::SetIcon(const char* icon) {
-    DisplayLockGuard lock(this);
-    if (emotion_label_ != nullptr) {
-        lv_label_set_text(emotion_label_, icon);
-    }
+    SpiLcdDisplay::SetIcon(icon);
 }
 
 void WXT185Display::SetPreviewImage(const lv_img_dsc_t* img_dsc) {
