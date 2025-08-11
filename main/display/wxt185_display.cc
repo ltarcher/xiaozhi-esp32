@@ -185,6 +185,10 @@ void WXT185Display::SetupUI() {
     lv_obj_set_style_bg_opa(page_view_, LV_OPA_TRANSP, 0);
     lv_obj_center(page_view_);
     
+    // 添加触摸事件处理
+    lv_obj_add_event_cb(page_view_, TouchEventHandler, LV_EVENT_PRESSED, this);
+    lv_obj_add_event_cb(page_view_, TouchEventHandler, LV_EVENT_RELEASED, this);
+    
     // 创建三个页面
     CreateChatPage();
     CreateCryptoPage();
@@ -200,6 +204,10 @@ void WXT185Display::CreateChatPage() {
     lv_obj_set_style_pad_all(chat_page_, 0, 0);
     lv_obj_set_style_border_width(chat_page_, 0, 0);
     lv_obj_set_style_bg_opa(chat_page_, LV_OPA_TRANSP, 0);
+    
+    // 添加触摸事件处理
+    lv_obj_add_event_cb(chat_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
+    lv_obj_add_event_cb(chat_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
     
     // 创建聊天状态栏（针对360*360屏幕优化高度）
     chat_status_bar_ = lv_obj_create(chat_page_);
@@ -244,6 +252,10 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_set_style_bg_opa(crypto_page_, LV_OPA_TRANSP, 0);
     lv_obj_set_style_pad_row(crypto_page_, 5, 0);
     lv_obj_set_flex_flow(crypto_page_, LV_FLEX_FLOW_COLUMN);
+    
+    // 添加触摸事件处理
+    lv_obj_add_event_cb(crypto_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
+    lv_obj_add_event_cb(crypto_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
     
     // 创建头部区域
     crypto_header_ = lv_obj_create(crypto_page_);
@@ -297,6 +309,10 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_set_style_bg_opa(settings_page_, LV_OPA_TRANSP, 0);
     lv_obj_set_style_pad_row(settings_page_, 5, 0);
     lv_obj_set_flex_flow(settings_page_, LV_FLEX_FLOW_COLUMN);
+    
+    // 添加触摸事件处理
+    lv_obj_add_event_cb(settings_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
+    lv_obj_add_event_cb(settings_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
     
     // 创建设置页面头部
     settings_header_ = lv_obj_create(settings_page_);
@@ -685,14 +701,85 @@ void WXT185Display::DrawKLineChart() {
     lv_obj_center(chart_title);
 }
 
+void WXT185Display::TouchEventHandler(lv_event_t* e) {
+    WXT185Display* self = static_cast<WXT185Display*>(lv_event_get_user_data(e));
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t* target = lv_event_get_target(e);
+    
+    if (code == LV_EVENT_PRESSED) {
+        // 记录触摸开始点
+        lv_indev_t* indev = lv_indev_get_act();
+        if (indev) {
+            lv_point_t point;
+            lv_indev_get_point(indev, &point);
+            self->HandleTouchStart(point);
+        }
+    } else if (code == LV_EVENT_RELEASED) {
+        // 处理触摸释放
+        lv_indev_t* indev = lv_indev_get_act();
+        if (indev) {
+            lv_point_t point;
+            lv_indev_get_point(indev, &point);
+            self->HandleTouchEnd(point);
+        }
+    }
+}
+
+void WXT185Display::HandleTouchStart(lv_point_t point) {
+    touch_start_point_ = point;
+    is_touching_ = true;
+}
+
+void WXT185Display::HandleTouchEnd(lv_point_t point) {
+    if (!is_touching_) return;
+    
+    is_touching_ = false;
+    
+    // 计算滑动距离
+    int16_t diff_x = point.x - touch_start_point_.x;
+    int16_t diff_y = point.y - touch_start_point_.y;
+    
+    // 判断是否为水平滑动且距离足够
+    if (abs(diff_x) > abs(diff_y) && abs(diff_x) > 30) {
+        if (diff_x > 0) {
+            // 向右滑动，切换到上一个页面
+            if (current_page_index_ > 0) {
+                SwitchToPage(current_page_index_ - 1);
+            }
+        } else {
+            // 向左滑动，切换到下一个页面
+            if (current_page_index_ < 2) {
+                SwitchToPage(current_page_index_ + 1);
+            }
+        }
+    }
+}
+
 void WXT185Display::SwitchToPage(int page_index) {
     DisplayLockGuard lock(this);
-    if (page_view_ == nullptr) return;
+    if (page_view_ == nullptr || page_index < 0 || page_index > 2) return;
+    
+    current_page_index_ = page_index;
     
     // 滚动到指定页面
-    lv_obj_scroll_to_view_recursive(page_index == 0 ? chat_page_ : 
-                                   (page_index == 1 ? crypto_page_ : settings_page_), 
-                                   LV_ANIM_ON);
+    lv_obj_t* target_page = nullptr;
+    switch (page_index) {
+        case 0:
+            target_page = chat_page_;
+            break;
+        case 1:
+            target_page = crypto_page_;
+            break;
+        case 2:
+            target_page = settings_page_;
+            break;
+        default:
+            return;
+    }
+    
+    if (target_page) {
+        lv_obj_scroll_to_view_recursive(target_page, LV_ANIM_ON);
+    }
 }
 
 void WXT185Display::PageEventHandler(lv_event_t* e) {

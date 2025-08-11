@@ -84,6 +84,11 @@ protected:
     // 主题颜色
     WXT185ThemeColors current_wxt185_theme_;
     
+    // 触摸滑动相关
+    int current_page_index_ = 0;
+    lv_point_t touch_start_point_ = {0, 0};
+    bool is_touching_ = false;
+    
     void SetupUI() override;
     
     // 页面创建函数
@@ -106,6 +111,11 @@ protected:
     static void CryptoSelectorEventHandler(lv_event_t* e);
     static void ThemeSelectorEventHandler(lv_event_t* e);
     static void TimeframeSelectorEventHandler(lv_event_t* e);
+    
+    // 触摸事件处理
+    static void TouchEventHandler(lv_event_t* e);
+    void HandleTouchStart(lv_point_t point);
+    void HandleTouchEnd(lv_point_t point);
 
 public:
     WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
