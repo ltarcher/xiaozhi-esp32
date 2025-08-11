@@ -5,6 +5,7 @@
 #include "assets/lang_config.h"
 #include "device_state.h"
 #include <font_awesome_symbols.h>
+#include <esp_lvgl_port.h>
 
 #define TAG "WXT185Display"
 
@@ -150,9 +151,64 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
                            int width, int height, int offset_x, int offset_y,
                            bool mirror_x, bool mirror_y, bool swap_xy,
                            DisplayFonts fonts)
-    : SpiLcdDisplay(panel_io, panel, width, height, offset_x, offset_y, 
-                    mirror_x, mirror_y, swap_xy, fonts) {
+    : LcdDisplay(panel_io, panel, fonts, width, height) {
     ESP_LOGI(TAG, "Initializing WXT185 Display");
+
+    // draw white
+    std::vector<uint16_t> buffer(width_, 0xFFFF);
+    for (int y = 0; y < height_; y++) {
+        esp_lcd_panel_draw_bitmap(panel_, 0, y, width_, y + 1, buffer.data());
+    }
+
+    // Set the display to on
+    ESP_LOGI(TAG, "Turning display on");
+    ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_, true));
+
+    ESP_LOGI(TAG, "Initialize LVGL library");
+    lv_init();
+
+    ESP_LOGI(TAG, "Initialize LVGL port");
+    lvgl_port_cfg_t port_cfg = ESP_LVGL_PORT_INIT_CONFIG();
+    port_cfg.task_priority = 1;
+    port_cfg.timer_period_ms = 50;
+    lvgl_port_init(&port_cfg);
+
+    ESP_LOGI(TAG, "Adding LCD display");
+    const lvgl_port_display_cfg_t display_cfg = {
+        .io_handle = panel_io_,
+        .panel_handle = panel_,
+        .control_handle = nullptr,
+        .buffer_size = static_cast<uint32_t>(width_ * 20),
+        .double_buffer = false,
+        .trans_size = 0,
+        .hres = static_cast<uint32_t>(width_),
+        .vres = static_cast<uint32_t>(height_),
+        .monochrome = false,
+        .rotation = {
+            .swap_xy = swap_xy,
+            .mirror_x = mirror_x,
+            .mirror_y = mirror_y,
+        },
+        .color_format = LV_COLOR_FORMAT_RGB565,
+        .flags = {
+            .buff_dma = 1,
+            .buff_spiram = 0,
+            .sw_rotate = 0,
+            .swap_bytes = 1,
+            .full_refresh = 0,
+            .direct_mode = 0,
+        },
+    };
+
+    display_ = lvgl_port_add_disp(&display_cfg);
+    if (display_ == nullptr) {
+        ESP_LOGE(TAG, "Failed to add display");
+        return;
+    }
+
+    if (offset_x != 0 || offset_y != 0) {
+        lv_display_set_offset(display_, offset_x, offset_y);
+    }
 
     // 初始化默认设置
     current_timeframe_ = "1h";
@@ -175,6 +231,7 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     last_activity_time_ = esp_timer_get_time() / 1000; // 转换为毫秒
     
     // 创建屏保定时器（无论是否有触摸屏都需要）
+    /*
     esp_timer_create_args_t timer_args = {
         .callback = ScreensaverTimerCallback,
         .arg = this,
@@ -183,6 +240,7 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
         .skip_unhandled_events = false,
     };
     esp_timer_create(&timer_args, &screensaver_timer_);
+    */
     
     // 初始化币界虚拟币行情数据支持
     bijie_coins_ = nullptr;
@@ -746,16 +804,15 @@ void WXT185Display::ApplyScreensaverTheme() {
 }
 
 void WXT185Display::SetEmotion(const char* emotion) {
-    SpiLcdDisplay::SetEmotion(emotion);
+    LcdDisplay::SetEmotion(emotion);
 }
 
 void WXT185Display::SetIcon(const char* icon) {
-    SpiLcdDisplay::SetIcon(icon);
+    LcdDisplay::SetIcon(icon);
 }
 
 void WXT185Display::SetPreviewImage(const lv_img_dsc_t* img_dsc) {
-    // 在这个UI中暂时不实现预览图像功能
-    SpiLcdDisplay::SetPreviewImage(img_dsc);
+    LcdDisplay::SetPreviewImage(img_dsc);
 }
 
 void WXT185Display::SetChatMessage(const char* role, const char* content) {
@@ -917,9 +974,6 @@ void WXT185Display::SetChatMessage(const char* role, const char* content) {
 
 void WXT185Display::SetTheme(const std::string& theme_name) {
     DisplayLockGuard lock(this);
-    
-    // 先调用父类方法设置基础主题
-    SpiLcdDisplay::SetTheme(theme_name);
     
     // 然后处理自定义主题
     if (theme_name == "dark" || theme_name == "DARK") {

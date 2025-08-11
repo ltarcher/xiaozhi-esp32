@@ -53,7 +53,7 @@ struct WXT185ThemeColors {
     lv_color_t selector;
 };
 
-class WXT185Display : public SpiLcdDisplay {
+class WXT185Display : public LcdDisplay {
 protected:
     lv_obj_t* main_screen_ = nullptr;
     lv_obj_t* page_view_ = nullptr;
