@@ -169,7 +169,7 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     // 初始化最后活动时间为当前时间
     last_activity_time_ = esp_timer_get_time() / 1000; // 转换为毫秒
     
-    // 创建屏保定时器
+    // 创建屏保定时器（无论是否有触摸屏都需要）
     esp_timer_create_args_t timer_args = {
         .callback = ScreensaverTimerCallback,
         .arg = this,
@@ -181,7 +181,7 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
 }
 
 WXT185Display::~WXT185Display() {
-    // 删除屏保定时器
+    // 删除屏保定时器（无论是否有触摸屏都需要）
     if (screensaver_timer_) {
         esp_timer_stop(screensaver_timer_);
         esp_timer_delete(screensaver_timer_);
@@ -205,9 +205,11 @@ void WXT185Display::SetupUI() {
     lv_obj_set_style_bg_opa(page_view_, LV_OPA_TRANSP, 0);
     lv_obj_center(page_view_);
     
-    // 添加触摸事件处理
+#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH
+    // 添加触摸事件处理（仅在有触摸屏时添加）
     lv_obj_add_event_cb(page_view_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(page_view_, TouchEventHandler, LV_EVENT_RELEASED, this);
+#endif
     
     // 创建四个页面
     CreateChatPage();
@@ -218,7 +220,7 @@ void WXT185Display::SetupUI() {
     // 应用主题
     ApplyTheme();
     
-    // 启动屏保定时器
+    // 启动屏保定时器（无论是否有触摸屏都需要）
     StartScreensaverTimer();
 }
 
@@ -229,9 +231,11 @@ void WXT185Display::CreateChatPage() {
     lv_obj_set_style_border_width(chat_page_, 0, 0);
     lv_obj_set_style_bg_opa(chat_page_, LV_OPA_TRANSP, 0);
     
-    // 添加触摸事件处理
+#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH
+    // 添加触摸事件处理（仅在有触摸屏时添加）
     lv_obj_add_event_cb(chat_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(chat_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
+#endif
     
 #if CONFIG_USE_WECHAT_MESSAGE_STYLE
     // 微信对话样式布局
@@ -309,9 +313,11 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_set_style_pad_row(crypto_page_, 5, 0);
     lv_obj_set_flex_flow(crypto_page_, LV_FLEX_FLOW_COLUMN);
     
-    // 添加触摸事件处理
+#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH
+    // 添加触摸事件处理（仅在有触摸屏时添加）
     lv_obj_add_event_cb(crypto_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(crypto_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
+#endif
     
     // 创建头部区域
     crypto_header_ = lv_obj_create(crypto_page_);
@@ -366,9 +372,11 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_set_style_pad_row(settings_page_, 5, 0);
     lv_obj_set_flex_flow(settings_page_, LV_FLEX_FLOW_COLUMN);
     
-    // 添加触摸事件处理
+#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH
+    // 添加触摸事件处理（仅在有触摸屏时添加）
     lv_obj_add_event_cb(settings_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(settings_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
+#endif
     
     // 创建设置页面头部
     settings_header_ = lv_obj_create(settings_page_);
@@ -428,9 +436,11 @@ void WXT185Display::CreateScreensaverPage() {
     lv_obj_set_style_border_width(screensaver_page_, 0, 0);
     lv_obj_set_style_bg_opa(screensaver_page_, LV_OPA_TRANSP, 0);
     
-    // 添加触摸事件处理
+#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH
+    // 添加触摸事件处理（仅在有触摸屏时添加）
     lv_obj_add_event_cb(screensaver_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(screensaver_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
+#endif
     
     // 创建屏保容器
     screensaver_container_ = lv_obj_create(screensaver_page_);
@@ -871,6 +881,7 @@ void WXT185Display::DrawKLineChart() {
 }
 
 void WXT185Display::TouchEventHandler(lv_event_t* e) {
+#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH
     WXT185Display* self = static_cast<WXT185Display*>(lv_event_get_user_data(e));
     lv_event_code_t code = lv_event_get_code(e);
     
@@ -894,6 +905,7 @@ void WXT185Display::TouchEventHandler(lv_event_t* e) {
             self->HandleTouchEnd(point);
         }
     }
+#endif
 }
 
 
@@ -1091,7 +1103,7 @@ void WXT185Display::UpdateScreensaverContent() {
 void WXT185Display::OnActivity() {
     // 更新最后活动时间
     last_activity_time_ = esp_timer_get_time() / 1000; // 转换为毫秒
-    
+
     // 如果当前处于屏保状态，则退出屏保
     if (screensaver_active_) {
         ExitScreensaver();

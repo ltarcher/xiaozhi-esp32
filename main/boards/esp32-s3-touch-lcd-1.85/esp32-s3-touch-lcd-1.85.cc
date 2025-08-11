@@ -372,6 +372,7 @@ private:
                                     });
     }
  
+#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH
     void InitializeTouch()
     {
         esp_lcd_touch_handle_t tp;
@@ -414,6 +415,7 @@ private:
         lvgl_port_add_touch(&touch_cfg);
         ESP_LOGI(TAG, "Touch panel initialized successfully");
     }
+#endif
 
     void InitializeButtonsCustom() {
         gpio_reset_pin(BOOT_BUTTON_GPIO);                                     
@@ -480,7 +482,12 @@ public:
         InitializeSpi();
         Initializest77916Display();
         InitializeButtons();
+        
+#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH
+        // Only initialize touch panel if the board has touch capability
         InitializeTouch();
+#endif
+        
         GetBacklight()->RestoreBrightness();
         
         // 注册设备状态改变事件监听器
