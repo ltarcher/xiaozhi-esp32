@@ -4,8 +4,10 @@
 #include <ctime>
 #include "assets/lang_config.h"
 #include "device_state.h"
+#include <font_awesome_symbols.h>
 
 #define TAG "WXT185Display"
+
 #define SCREENSAVER_TIMEOUT_MS 10000 // 10秒超时进入屏保
 
 // 颜色定义 - LIGHT主题
@@ -150,7 +152,8 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
                            DisplayFonts fonts)
     : SpiLcdDisplay(panel_io, panel, width, height, offset_x, offset_y, 
                     mirror_x, mirror_y, swap_xy, fonts) {
-    
+    ESP_LOGI(TAG, "Initializing WXT185 Display");
+
     // 初始化默认设置
     current_timeframe_ = "1h";
     current_theme_style_ = ThemeStyle::TECHNOLOGY;
@@ -354,9 +357,15 @@ void WXT185Display::CreateChatPage() {
     ESP_LOGV(TAG, "Created chat content area");
     
     // 在状态栏添加组件
-    emotion_label_ = lv_label_create(chat_status_bar_);
-    lv_label_set_text(emotion_label_, "AI");
+    emotion_label_ = lv_label_create(chat_content_);
+    lv_label_set_text(emotion_label_, FONT_AWESOME_AI_CHIP);
+    lv_obj_set_style_text_color(emotion_label_, current_theme_.text, 0);
     lv_obj_align(emotion_label_, LV_ALIGN_LEFT_MID, 0, 0);
+
+    preview_image_ = lv_image_create(chat_content_);
+    lv_obj_set_size(preview_image_, width_ * 0.5, height_ * 0.5);
+    lv_obj_align(preview_image_, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_add_flag(preview_image_, LV_OBJ_FLAG_HIDDEN);
     
     status_label_ = lv_label_create(chat_status_bar_);
     lv_label_set_text(status_label_, Lang::Strings::INITIALIZING);
@@ -631,6 +640,7 @@ void WXT185Display::ApplyTheme() {
 
 void WXT185Display::ApplyChatPageTheme() {
     if (!chat_page_ || !chat_status_bar_ || !chat_content_) return;
+    ESP_LOGI(TAG, "Applying chat page theme");
     
     // 应用聊天页面主题
     lv_obj_set_style_bg_color(chat_page_, current_wxt185_theme_.background, 0);
@@ -655,6 +665,7 @@ void WXT185Display::ApplyChatPageTheme() {
 
 void WXT185Display::ApplyCryptoPageTheme() {
     if (!crypto_page_ || !crypto_header_ || !crypto_chart_ || !crypto_list_) return;
+    ESP_LOGI(TAG, "Applying crypto page theme");
     
     // 应用虚拟币页面主题
     lv_obj_set_style_bg_color(crypto_page_, current_wxt185_theme_.background, 0);
@@ -681,6 +692,7 @@ void WXT185Display::ApplyCryptoPageTheme() {
 void WXT185Display::ApplySettingsPageTheme() {
     if (!settings_page_ || !settings_header_ || !settings_theme_selector_ || 
         !settings_crypto_selector_ || !settings_timeframe_selector_) return;
+    ESP_LOGI(TAG, "Applying settings page theme");
     
     // 应用设置页面主题
     lv_obj_set_style_bg_color(settings_page_, current_wxt185_theme_.background, 0);
@@ -704,6 +716,8 @@ void WXT185Display::ApplySettingsPageTheme() {
 
 void WXT185Display::ApplyScreensaverTheme() {
     if (!screensaver_page_ || !screensaver_container_) return;
+
+    ESP_LOGI(TAG, "Applying screensaver theme");
     
     // 应用屏保页面主题
     lv_obj_set_style_bg_color(screensaver_page_, current_wxt185_theme_.background, 0);
