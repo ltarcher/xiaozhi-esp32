@@ -1,10 +1,12 @@
 #include "wifi_board.h"
 #include "codecs/no_audio_codec.h"
 #include "display/lcd_display.h"
+#include "display/wxt185_display.h"  // 添加新的显示类头文件
 #include "system_reset.h"
 #include "application.h"
 #include "button.h"
 #include "config.h"
+#include "device_state_event.h"  // 添加设备状态事件头文件
 
 #include <esp_log.h>
 #include "i2c_device.h"
@@ -16,6 +18,9 @@
 #include <esp_lcd_st77916.h>
 #include <esp_timer.h>
 #include "esp_io_expander_tca9554.h"
+#include <esp_lcd_touch.h>
+#include <esp_lcd_touch_cst816s.h>
+#include <esp_lvgl_port.h>
 
 #define TAG "waveshare_lcd_1_85c"
 
@@ -219,7 +224,12 @@ private:
     Button boot_button_;
     i2c_master_bus_handle_t i2c_bus_;
     esp_io_expander_handle_t io_expander = NULL;
-    LcdDisplay* display_;
+    WXT185Display* display_;  // 修改为使用新的显示类
+    button_handle_t boot_btn, pwr_btn;
+    button_driver_t* boot_btn_driver_ = nullptr;
+    button_driver_t* pwr_btn_driver_ = nullptr;
+    static CustomBoard* instance_;
+
 
     void InitializeI2c() {
         // Initialize I2C peripheral
@@ -354,7 +364,8 @@ private:
         esp_lcd_panel_swap_xy(panel, DISPLAY_SWAP_XY);
         esp_lcd_panel_mirror(panel, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y);
 
-        display_ = new SpiLcdDisplay(panel_io, panel,
+        // 使用新的显示类替换原有的SpiLcdDisplay
+        display_ = new WXT185Display(panel_io, panel,
                                     DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY,
                                     {
                                         .text_font = &font_puhui_16_4,
@@ -362,6 +373,50 @@ private:
                                         .emoji_font = font_emoji_64_init(),
                                     });
     }
+#if CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+    void InitializeTouch()
+    {
+        esp_lcd_touch_handle_t tp;
+        esp_lcd_touch_config_t tp_cfg = {
+            .x_max = DISPLAY_WIDTH,
+            .y_max = DISPLAY_HEIGHT,
+            .rst_gpio_num = TP_PIN_NUM_RST,
+            .int_gpio_num = TP_PIN_NUM_INT,
+            .levels = {
+                .reset = 0,
+                .interrupt = 0,
+            },
+            .flags = {
+                .swap_xy = 0,
+                .mirror_x = 0,
+                .mirror_y = 0,
+            },
+        };
+        
+        // Create a separate I2C bus for touch controller
+        i2c_master_bus_handle_t tp_i2c_bus;
+        i2c_master_bus_config_t i2c_bus_cfg = {
+            .i2c_port = TP_PORT,
+            .sda_io_num = TP_PIN_NUM_SDA,
+            .scl_io_num = TP_PIN_NUM_SCL,
+            .clk_source = I2C_CLK_SRC_DEFAULT,
+        };
+        ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &tp_i2c_bus));
+        
+        esp_lcd_panel_io_handle_t tp_io_handle = NULL;
+        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
+        tp_io_config.scl_speed_hz = 400 * 1000;
+        ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(tp_i2c_bus, &tp_io_config, &tp_io_handle));
+        ESP_LOGI(TAG, "Initialize touch controller CST816S");
+        ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_cst816s(tp_io_handle, &tp_cfg, &tp));
+        const lvgl_port_touch_cfg_t touch_cfg = {
+            .disp = lv_display_get_default(), 
+            .handle = tp,
+        };
+        lvgl_port_add_touch(&touch_cfg);
+        ESP_LOGI(TAG, "Touch panel initialized successfully");
+    }
+#endif
 
     void InitializeButtons() {
         boot_button_.OnClick([this]() {
@@ -381,7 +436,22 @@ public:
         InitializeSpi();
         Initializest77916Display();
         InitializeButtons();
+        
+#if CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+        // Only initialize touch panel if the board has touch capability
+        InitializeTouch();
+#endif
+        
         GetBacklight()->RestoreBrightness();
+        
+        // 注册设备状态改变事件监听器
+        DeviceStateEventManager::GetInstance().RegisterStateChangeCallback(
+            [this](DeviceState previous_state, DeviceState current_state) {
+                if (display_) {
+                    display_->OnDeviceStateChanged(static_cast<int>(previous_state), static_cast<int>(current_state));
+                }
+            }
+        );
     }
 
     virtual AudioCodec* GetAudioCodec() override {

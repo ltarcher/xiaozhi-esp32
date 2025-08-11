@@ -154,8 +154,15 @@ choice BOARD_TYPE
         bool "Waveshare ESP32-S3-Touch-AMOLED-1.75"
         depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_ESP32S3_Touch_LCD_1_85C
-        bool "Waveshare ESP32-S3-Touch-LCD-1.85C"
+        bool "Waveshare ESP32-S3-Touch-LCD-1.85C (Waveshare 1.85寸触摸彩屏)"
         depends on IDF_TARGET_ESP32S3
+        help
+            Waveshare ESP32-S3-Touch-LCD-1.85C board with 1.85 inch 360x360 circular LCD and touch panel.
+
+            This board comes in two variants:
+            1. With touch panel (default)
+            2. Without touch panel
+
     config BOARD_TYPE_ESP32S3_Touch_LCD_1_85
         bool "Waveshare ESP32-S3-Touch-LCD-1.85 (Waveshare 1.85寸触摸彩屏)"
         depends on IDF_TARGET_ESP32S3
@@ -397,6 +404,24 @@ choice DISPLAY_ESP32S3_KORVO2_V3
         bool "ST7789, 分辨率240*280"
     config LCD_ILI9341
         bool "ILI9341, 分辨率240*320"
+endchoice
+
+choice
+    prompt "ESP32-S3-Touch-LCD-1.85C Touch Panel Configuration"
+    default ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+    depends on BOARD_TYPE_ESP32S3_Touch_LCD_1_85C
+    help
+        Select the touch panel configuration for ESP32-S3-Touch-LCD-1.85C board
+
+    config ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+        bool "With Touch Panel (default)"
+        help
+            Use this option if your ESP32-S3-Touch-LCD-1.85C board has a touch panel.
+            
+    config ESP32_S3_TOUCH_LCD_185C_WITHOUT_TOUCH
+        bool "Without Touch Panel"
+        help
+            Use this option if your ESP32-S3-Touch-LCD-1.85C board does NOT have a touch panel.
 endchoice
 
 choice
