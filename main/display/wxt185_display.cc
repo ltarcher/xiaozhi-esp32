@@ -1,9 +1,11 @@
 #include "wxt185_display.h"
 #include <esp_log.h>
 #include <algorithm>
+#include <ctime>
 #include "assets/lang_config.h"
 
 #define TAG "WXT185Display"
+#define SCREENSAVER_TIMEOUT_MS 10000 // 10秒超时进入屏保
 
 // 颜色定义 - LIGHT主题
 #define LIGHT_BACKGROUND_COLOR       lv_color_white()
@@ -162,10 +164,27 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     crypto_data_.push_back(btc);
     crypto_data_.push_back(eth);
     crypto_data_.push_back(ada);
+    
+    // 初始化最后活动时间为当前时间
+    last_activity_time_ = esp_timer_get_time() / 1000; // 转换为毫秒
+    
+    // 创建屏保定时器
+    esp_timer_create_args_t timer_args = {
+        .callback = ScreensaverTimerCallback,
+        .arg = this,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "screensaver_timer",
+        .skip_unhandled_events = false,
+    };
+    esp_timer_create(&timer_args, &screensaver_timer_);
 }
 
 WXT185Display::~WXT185Display() {
-    // 析构函数
+    // 删除屏保定时器
+    if (screensaver_timer_) {
+        esp_timer_stop(screensaver_timer_);
+        esp_timer_delete(screensaver_timer_);
+    }
 }
 
 void WXT185Display::SetupUI() {
@@ -189,13 +208,17 @@ void WXT185Display::SetupUI() {
     lv_obj_add_event_cb(page_view_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(page_view_, TouchEventHandler, LV_EVENT_RELEASED, this);
     
-    // 创建三个页面
+    // 创建四个页面
     CreateChatPage();
     CreateCryptoPage();
     CreateSettingsPage();
+    CreateScreensaverPage(); // 创建屏保页面
     
     // 应用主题
     ApplyTheme();
+    
+    // 启动屏保定时器
+    StartScreensaverTimer();
 }
 
 void WXT185Display::CreateChatPage() {
@@ -365,6 +388,53 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_align(timeframe_title, LV_ALIGN_TOP_LEFT, 0, 0);
 }
 
+void WXT185Display::CreateScreensaverPage() {
+    screensaver_page_ = lv_obj_create(page_view_);
+    lv_obj_set_size(screensaver_page_, width_, height_);
+    lv_obj_set_style_pad_all(screensaver_page_, 0, 0);
+    lv_obj_set_style_border_width(screensaver_page_, 0, 0);
+    lv_obj_set_style_bg_opa(screensaver_page_, LV_OPA_TRANSP, 0);
+    
+    // 添加触摸事件处理
+    lv_obj_add_event_cb(screensaver_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
+    lv_obj_add_event_cb(screensaver_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
+    
+    // 创建屏保容器
+    screensaver_container_ = lv_obj_create(screensaver_page_);
+    lv_obj_set_size(screensaver_container_, width_ - 40, height_ - 40);
+    lv_obj_set_style_pad_all(screensaver_container_, 20, 0);
+    lv_obj_set_style_border_width(screensaver_container_, 0, 0);
+    lv_obj_set_style_radius(screensaver_container_, 15, 0);
+    lv_obj_center(screensaver_container_);
+    
+    // 创建虚拟币名称标签
+    screensaver_crypto_name_ = lv_label_create(screensaver_container_);
+    lv_label_set_text(screensaver_crypto_name_, "Bitcoin");
+    lv_obj_set_style_text_font(screensaver_crypto_name_, &lv_font_montserrat_20, 0);
+    lv_obj_align(screensaver_crypto_name_, LV_ALIGN_TOP_MID, 0, 20);
+    
+    // 创建价格标签
+    screensaver_crypto_price_ = lv_label_create(screensaver_container_);
+    lv_label_set_text(screensaver_crypto_price_, "$45,000.00");
+    lv_obj_set_style_text_font(screensaver_crypto_price_, &lv_font_montserrat_24, 0);
+    lv_obj_align(screensaver_crypto_price_, LV_ALIGN_TOP_MID, 0, 60);
+    
+    // 创建涨跌幅标签
+    screensaver_crypto_change_ = lv_label_create(screensaver_container_);
+    lv_label_set_text(screensaver_crypto_change_, "+2.50%");
+    lv_obj_set_style_text_font(screensaver_crypto_change_, &lv_font_montserrat_16, 0);
+    lv_obj_align(screensaver_crypto_change_, LV_ALIGN_TOP_MID, 0, 100);
+    
+    // 创建时间标签
+    screensaver_time_ = lv_label_create(screensaver_container_);
+    lv_label_set_text(screensaver_time_, "12:00:00");
+    lv_obj_set_style_text_font(screensaver_time_, &lv_font_montserrat_16, 0);
+    lv_obj_align(screensaver_time_, LV_ALIGN_BOTTOM_MID, 0, -20);
+    
+    // 初始隐藏屏保页面
+    lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
+}
+
 void WXT185Display::ApplyTheme() {
     DisplayLockGuard lock(this);
     
@@ -374,6 +444,7 @@ void WXT185Display::ApplyTheme() {
     ApplyChatPageTheme();
     ApplyCryptoPageTheme();
     ApplySettingsPageTheme();
+    ApplyScreensaverTheme(); // 应用屏保主题
 }
 
 void WXT185Display::ApplyChatPageTheme() {
@@ -447,6 +518,34 @@ void WXT185Display::ApplySettingsPageTheme() {
     lv_obj_set_style_border_color(settings_timeframe_selector_, current_wxt185_theme_.border, 0);
 }
 
+void WXT185Display::ApplyScreensaverTheme() {
+    if (!screensaver_page_ || !screensaver_container_) return;
+    
+    // 应用屏保页面主题
+    lv_obj_set_style_bg_color(screensaver_page_, current_wxt185_theme_.background, 0);
+    
+    // 应用屏保容器主题
+    lv_obj_set_style_bg_color(screensaver_container_, current_wxt185_theme_.header, 0);
+    lv_obj_set_style_bg_opa(screensaver_container_, LV_OPA_90, 0);
+    
+    // 应用文本颜色
+    if (screensaver_crypto_name_) {
+        lv_obj_set_style_text_color(screensaver_crypto_name_, current_wxt185_theme_.text, 0);
+    }
+    
+    if (screensaver_crypto_price_) {
+        lv_obj_set_style_text_color(screensaver_crypto_price_, current_wxt185_theme_.text, 0);
+    }
+    
+    if (screensaver_crypto_change_) {
+        lv_obj_set_style_text_color(screensaver_crypto_change_, current_wxt185_theme_.text, 0);
+    }
+    
+    if (screensaver_time_) {
+        lv_obj_set_style_text_color(screensaver_time_, current_wxt185_theme_.text, 0);
+    }
+}
+
 void WXT185Display::SetEmotion(const char* emotion) {
     DisplayLockGuard lock(this);
     if (emotion_label_ != nullptr) {
@@ -467,6 +566,9 @@ void WXT185Display::SetPreviewImage(const lv_img_dsc_t* img_dsc) {
 }
 
 void WXT185Display::SetChatMessage(const char* role, const char* content) {
+    // 用户活动时更新活动时间
+    OnActivity();
+    
     DisplayLockGuard lock(this);
     if (chat_content_ == nullptr) return;
     
@@ -706,6 +808,9 @@ void WXT185Display::TouchEventHandler(lv_event_t* e) {
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t* target = lv_event_get_target(e);
     
+    // 触摸事件视为用户活动
+    self->OnActivity();
+    
     if (code == LV_EVENT_PRESSED) {
         // 记录触摸开始点
         lv_indev_t* indev = lv_indev_get_act();
@@ -723,6 +828,11 @@ void WXT185Display::TouchEventHandler(lv_event_t* e) {
             self->HandleTouchEnd(point);
         }
     }
+}
+
+void WXT185Display::OnWakeWordDetected() {
+    // 检测到唤醒词时退出屏保
+    OnActivity();
 }
 
 void WXT185Display::HandleTouchStart(lv_point_t point) {
@@ -796,4 +906,168 @@ void WXT185Display::ThemeSelectorEventHandler(lv_event_t* e) {
 
 void WXT185Display::TimeframeSelectorEventHandler(lv_event_t* e) {
     // 时间框架选择事件处理
+}
+
+void WXT185Display::ScreensaverTimerCallback(void* arg) {
+    WXT185Display* self = static_cast<WXT185Display*>(arg);
+    
+    // 检查是否超时
+    int64_t current_time = esp_timer_get_time() / 1000; // 转换为毫秒
+    if (current_time - self->last_activity_time_ >= SCREENSAVER_TIMEOUT_MS) {
+        // 进入屏保模式
+        self->EnterScreensaver();
+    }
+}
+
+void WXT185Display::StartScreensaverTimer() {
+    if (screensaver_timer_) {
+        esp_timer_stop(screensaver_timer_);
+        esp_timer_start_periodic(screensaver_timer_, 1000000); // 每秒检查一次
+    }
+}
+
+void WXT185Display::StopScreensaverTimer() {
+    if (screensaver_timer_) {
+        esp_timer_stop(screensaver_timer_);
+    }
+}
+
+void WXT185Display::EnterScreensaver() {
+    DisplayLockGuard lock(this);
+    
+    if (screensaver_active_ || !screensaver_page_) return;
+    
+    screensaver_active_ = true;
+    
+    // 隐藏当前页面
+    lv_obj_add_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
+    
+    // 显示屏保页面
+    lv_obj_clear_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
+    
+    // 更新屏保内容
+    UpdateScreensaverContent();
+    
+    ESP_LOGI(TAG, "Entered screensaver mode");
+}
+
+void WXT185Display::ExitScreensaver() {
+    DisplayLockGuard lock(this);
+    
+    if (!screensaver_active_ || !screensaver_page_) return;
+    
+    screensaver_active_ = false;
+    
+    // 隐藏屏保页面
+    lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
+    
+    // 显示当前页面
+    switch (current_page_index_) {
+        case 0:
+            lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
+            break;
+        case 1:
+            lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
+            break;
+        case 2:
+            lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
+            break;
+    }
+    
+    ESP_LOGI(TAG, "Exited screensaver mode");
+}
+
+void WXT185Display::UpdateScreensaverContent() {
+    DisplayLockGuard lock(this);
+    
+    if (!screensaver_active_ || crypto_data_.empty()) return;
+    
+    // 使用第一个虚拟币数据作为屏保显示内容
+    const CryptocurrencyData& crypto = crypto_data_[0];
+    
+    // 更新虚拟币名称
+    if (screensaver_crypto_name_) {
+        lv_label_set_text(screensaver_crypto_name_, crypto.name.c_str());
+    }
+    
+    // 更新价格
+    if (screensaver_crypto_price_) {
+        char price_text[32];
+        snprintf(price_text, sizeof(price_text), "$%.2f", crypto.price);
+        lv_label_set_text(screensaver_crypto_price_, price_text);
+    }
+    
+    // 更新涨跌幅
+    if (screensaver_crypto_change_) {
+        char change_text[32];
+        snprintf(change_text, sizeof(change_text), "%.2f%%", crypto.change_24h);
+        lv_label_set_text(screensaver_crypto_change_, change_text);
+        
+        // 根据涨跌设置颜色
+        if (crypto.change_24h >= 0) {
+            lv_obj_set_style_text_color(screensaver_crypto_change_, lv_color_hex(0x00FF00), 0); // 绿色
+        } else {
+            lv_obj_set_style_text_color(screensaver_crypto_change_, lv_color_hex(0xFF0000), 0); // 红色
+        }
+    }
+    
+    // 更新时间
+    if (screensaver_time_) {
+        time_t now;
+        time(&now);
+        struct tm timeinfo;
+        localtime_r(&now, &timeinfo);
+        
+        char time_str[32];
+        strftime(time_str, sizeof(time_str), "%H:%M:%S", &timeinfo);
+        lv_label_set_text(screensaver_time_, time_str);
+    }
+}
+
+void WXT185Display::OnActivity() {
+    // 更新最后活动时间
+    last_activity_time_ = esp_timer_get_time() / 1000; // 转换为毫秒
+    
+    // 如果当前处于屏保状态，则退出屏保
+    if (screensaver_active_) {
+        ExitScreensaver();
+    }
+}
+
+void WXT185Display::OnConversationStart() {
+    // 对话开始时视为用户活动
+    OnActivity();
+}
+
+void WXT185Display::OnConversationEnd() {
+    // 对话结束时更新活动时间，10秒后可能进入屏保
+    last_activity_time_ = esp_timer_get_time() / 1000; // 转换为毫秒
+}
+
+void WXT185Display::OnIdle() {
+    // 空闲状态时更新活动时间，10秒后可能进入屏保
+    last_activity_time_ = esp_timer_get_time() / 1000; // 转换为毫秒
+}
+
+void WXT185Display::OnDeviceStateChanged(int previous_state, int current_state) {
+    // 根据设备状态变化控制屏保
+    switch (current_state) {
+        case 3: // kDeviceStateIdle
+            // 设备进入空闲状态，设置屏保计时器
+            OnIdle();
+            break;
+            
+        case 6: // kDeviceStateListening
+        case 7: // kDeviceStateSpeaking
+            // 设备开始对话，视为用户活动
+            OnConversationStart();
+            break;
+            
+        default:
+            // 其他状态变化也视为用户活动
+            OnActivity();
+            break;
+    }
 }

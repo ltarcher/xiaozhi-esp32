@@ -75,6 +75,14 @@ protected:
     lv_obj_t* settings_crypto_selector_ = nullptr;
     lv_obj_t* settings_timeframe_selector_ = nullptr;
     
+    // 屏幕保护相关组件
+    lv_obj_t* screensaver_page_ = nullptr;
+    lv_obj_t* screensaver_container_ = nullptr;
+    lv_obj_t* screensaver_crypto_name_ = nullptr;
+    lv_obj_t* screensaver_crypto_price_ = nullptr;
+    lv_obj_t* screensaver_crypto_change_ = nullptr;
+    lv_obj_t* screensaver_time_ = nullptr;
+    
     // 数据
     std::vector<CryptocurrencyData> crypto_data_;
     std::vector<std::string> selected_cryptos_;
@@ -89,18 +97,25 @@ protected:
     lv_point_t touch_start_point_ = {0, 0};
     bool is_touching_ = false;
     
+    // 屏幕保护相关
+    bool screensaver_active_ = false;
+    int64_t last_activity_time_ = 0;
+    esp_timer_handle_t screensaver_timer_ = nullptr;
+    
     void SetupUI() override;
     
     // 页面创建函数
     void CreateChatPage();
     void CreateCryptoPage();
     void CreateSettingsPage();
+    void CreateScreensaverPage(); // 新增屏幕保护页面创建函数
     
     // 主题应用函数
     void ApplyTheme();
     void ApplyChatPageTheme();
     void ApplyCryptoPageTheme();
     void ApplySettingsPageTheme();
+    void ApplyScreensaverTheme(); // 新增屏幕保护主题应用函数
     
     // 虚拟币数据处理函数
     void UpdateCryptoData();
@@ -116,6 +131,14 @@ protected:
     static void TouchEventHandler(lv_event_t* e);
     void HandleTouchStart(lv_point_t point);
     void HandleTouchEnd(lv_point_t point);
+    
+    // 屏幕保护相关函数
+    static void ScreensaverTimerCallback(void* arg);
+    void StartScreensaverTimer();
+    void StopScreensaverTimer();
+    void EnterScreensaver();
+    void ExitScreensaver();
+    void UpdateScreensaverContent();
 
 public:
     WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
@@ -139,6 +162,15 @@ public:
     
     // 页面切换函数
     void SwitchToPage(int page_index);
+    
+    // 屏幕保护公共接口
+    void OnActivity(); // 用户活动时调用
+    void OnConversationStart(); // 对话开始时调用
+    void OnConversationEnd(); // 对话结束时调用
+    void OnIdle(); // 空闲状态时调用
+    
+    // 与Application集成的屏幕保护控制方法
+    void OnDeviceStateChanged(int previous_state, int current_state); // 设备状态改变时调用
 };
 
 #endif // _WXT185_DISPLAY_H_

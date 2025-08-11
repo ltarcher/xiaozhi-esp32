@@ -6,6 +6,7 @@
 #include "application.h"
 #include "button.h"
 #include "config.h"
+#include "device_state_event.h"  // 添加设备状态事件头文件
 
 #include <esp_log.h>
 #include "i2c_device.h"
@@ -481,6 +482,15 @@ public:
         InitializeButtons();
         InitializeTouch();
         GetBacklight()->RestoreBrightness();
+        
+        // 注册设备状态改变事件监听器
+        DeviceStateEventManager::GetInstance().RegisterStateChangeListener(
+            [this](int previous_state, int current_state) {
+                if (display_) {
+                    display_->OnDeviceStateChanged(previous_state, current_state);
+                }
+            }
+        );
     }
 
     virtual AudioCodec* GetAudioCodec() override {
