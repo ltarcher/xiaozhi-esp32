@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <ctime>
 #include "assets/lang_config.h"
+#include "device_state.h"
 
 #define TAG "WXT185Display"
 #define SCREENSAVER_TIMEOUT_MS 10000 // 10秒超时进入屏保
@@ -1049,17 +1050,25 @@ void WXT185Display::OnIdle() {
 void WXT185Display::OnDeviceStateChanged(int previous_state, int current_state) {
     // 根据设备状态变化控制屏保
     switch (current_state) {
-        case 3: // kDeviceStateIdle
+        case kDeviceStateIdle:
             // 设备进入空闲状态，设置屏保计时器
             OnIdle();
             break;
             
-        case 6: // kDeviceStateListening
-        case 7: // kDeviceStateSpeaking
+        case kDeviceStateListening:
+        case kDeviceStateSpeaking:
             // 设备开始对话，视为用户活动
             OnConversationStart();
             break;
-            
+        
+        case kDeviceStateConnecting:
+            // 设备连接状态变化也视为用户活动
+            OnActivity();
+            break;
+        case kDeviceStateWifiConfiguring:
+            // 设备进入WiFi配置状态也视为用户活动
+            OnActivity();
+            break;
         default:
             // 其他状态变化也视为用户活动
             OnActivity();
