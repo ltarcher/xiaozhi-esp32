@@ -102,7 +102,7 @@ protected:
     int64_t last_activity_time_ = 0;
     esp_timer_handle_t screensaver_timer_ = nullptr;
     
-    void SetupUI() override;
+    void SetupUI(); // 移除override关键字
     
     // 页面创建函数
     void CreateChatPage();

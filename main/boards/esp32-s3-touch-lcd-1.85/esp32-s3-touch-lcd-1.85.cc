@@ -484,10 +484,10 @@ public:
         GetBacklight()->RestoreBrightness();
         
         // 注册设备状态改变事件监听器
-        DeviceStateEventManager::GetInstance().RegisterStateChangeListener(
-            [this](int previous_state, int current_state) {
+        DeviceStateEventManager::GetInstance().RegisterStateChangeCallback(
+            [this](DeviceState previous_state, DeviceState current_state) {
                 if (display_) {
-                    display_->OnDeviceStateChanged(previous_state, current_state);
+                    display_->OnDeviceStateChanged(static_cast<int>(previous_state), static_cast<int>(current_state));
                 }
             }
         );
