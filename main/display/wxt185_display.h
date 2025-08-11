@@ -2,9 +2,12 @@
 #define _WXT185_DISPLAY_H_
 
 #include "lcd_display.h"
+#include "protocols/bijie_coins.h"
 #include <lvgl.h>
 #include <vector>
 #include <string>
+#include <memory>
+#include "http_client.h"  // 添加HTTP客户端头文件
 
 // 虚拟币数据结构
 struct CryptocurrencyData {
@@ -12,6 +15,8 @@ struct CryptocurrencyData {
     std::string name;
     float price;
     float change_24h;
+    int currency_id; // 货币ID
+    
     // K线数据
     std::vector<std::pair<float, float>> kline_data_1m;
     std::vector<std::pair<float, float>> kline_data_5m;
@@ -74,6 +79,7 @@ protected:
     lv_obj_t* settings_theme_selector_ = nullptr;
     lv_obj_t* settings_crypto_selector_ = nullptr;
     lv_obj_t* settings_timeframe_selector_ = nullptr;
+    lv_obj_t* settings_screensaver_crypto_selector_ = nullptr; // 屏保虚拟币选择器
     
     // 屏幕保护相关组件
     lv_obj_t* screensaver_page_ = nullptr;
@@ -101,8 +107,18 @@ protected:
     bool screensaver_active_ = false;
     int64_t last_activity_time_ = 0;
     esp_timer_handle_t screensaver_timer_ = nullptr;
+    int screensaver_crypto_id_ = 1; // 屏保显示的虚拟币ID，默认为BTC(1)
+    std::vector<std::pair<float, float>> screensaver_kline_data_; // 屏保K线数据
     
-    void SetupUI(); // 移除override关键字
+    // 代理配置
+    ProxyConfig proxy_config_;
+    
+    // 币界虚拟币行情数据支持
+    std::unique_ptr<BiJieCoins> bijie_coins_;
+    bool bijie_coins_connected_ = false;
+    int current_crypto_id_ = 1; // 当前虚拟币页面显示的虚拟币ID，默认为BTC(1)
+    
+    void SetupUI();
     
     // 页面创建函数
     void CreateChatPage();
@@ -126,6 +142,7 @@ protected:
     static void CryptoSelectorEventHandler(lv_event_t* e);
     static void ThemeSelectorEventHandler(lv_event_t* e);
     static void TimeframeSelectorEventHandler(lv_event_t* e);
+    static void ScreensaverCryptoSelectorEventHandler(lv_event_t* e); // 屏保虚拟币选择事件处理
     
     // 触摸事件处理
     static void TouchEventHandler(lv_event_t* e);
@@ -171,6 +188,13 @@ public:
     
     // 与Application集成的屏幕保护控制方法
     void OnDeviceStateChanged(int previous_state, int current_state); // 设备状态改变时调用
+        
+    // 币界虚拟币行情数据相关函数
+    void InitializeBiJieCoins(); // 初始化币界虚拟币行情数据
+    void ConnectToBiJieCoins(); // 连接到币界虚拟币行情数据
+    void UpdateCryptoDataFromBiJie(); // 从币界更新虚拟币数据
+    void SwitchCrypto(int currency_id); // 切换当前显示的虚拟币
+    void SetScreensaverCrypto(int currency_id); // 设置屏保显示的虚拟币
 };
 
 #endif // _WXT185_DISPLAY_H_

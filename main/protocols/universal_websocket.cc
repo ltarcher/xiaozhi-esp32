@@ -21,6 +21,14 @@ public:
         }
     }
 
+    void SetProxy(const WebSocketProxyConfig& proxy) {
+        proxy_config_ = proxy;
+    }
+
+    WebSocketProxyConfig GetProxy() const {
+        return proxy_config_;
+    }
+
     bool Connect(const std::string& url, const std::vector<std::pair<std::string, std::string>>& headers) {
         // 获取网络接口
         auto network = Board::GetInstance().GetNetwork();
@@ -42,6 +50,17 @@ public:
         // 设置HTTP头
         for (const auto& header : headers) {
             websocket_->SetHeader(header.first.c_str(), header.second.c_str());
+        }
+
+        // 设置代理（如果配置了代理）
+        if (proxy_config_.IsValid()) {
+            ESP_LOGI(TAG, "Setting proxy: %s:%d", proxy_config_.host.c_str(), proxy_config_.port);
+            // 检查WebSocket是否支持SetProxy方法（通过编译时检查）
+#if defined(WEBSOCKET_HAS_SET_PROXY)
+            websocket_->SetProxy(proxy_config_.host.c_str(), proxy_config_.port);
+#else
+            ESP_LOGW(TAG, "WebSocket implementation does not support SetProxy method");
+#endif
         }
 
         // 连接WebSocket服务器
@@ -119,6 +138,7 @@ private:
 private:
     UniversalWebSocket* parent_;
     std::unique_ptr<WebSocket> websocket_;
+    WebSocketProxyConfig proxy_config_; // 代理配置
 };
 
 // UniversalWebSocket类的实现
@@ -127,6 +147,14 @@ UniversalWebSocket::UniversalWebSocket()
 }
 
 UniversalWebSocket::~UniversalWebSocket() = default;
+
+void UniversalWebSocket::SetProxy(const WebSocketProxyConfig& proxy) {
+    impl_->SetProxy(proxy);
+}
+
+WebSocketProxyConfig UniversalWebSocket::GetProxy() const {
+    return impl_->GetProxy();
+}
 
 bool UniversalWebSocket::Connect(const std::string& url, const std::vector<std::pair<std::string, std::string>>& headers) {
     return impl_->Connect(url, headers);

@@ -23,6 +23,8 @@ set(SOURCES "audio/audio_codec.cc"
             "ota.cc"
             "settings.cc"
             "device_state_event.cc"
+            "protocols/universal_websocket.cc"
+            "protocols/bijie_coins.cc"
             "display/wxt185_display.cc"
             "main.cc"
             )

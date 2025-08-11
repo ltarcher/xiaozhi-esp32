@@ -8,6 +8,18 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 
+// 代理配置结构
+struct WebSocketProxyConfig {
+    std::string host;
+    int port;
+    std::string username;
+    std::string password;
+    
+    bool IsValid() const {
+        return !host.empty() && port > 0;
+    }
+};
+
 // 通用WebSocket类，支持ws和wss协议
 class UniversalWebSocket {
 public:
@@ -26,6 +38,18 @@ public:
 
     UniversalWebSocket();
     ~UniversalWebSocket();
+
+    /**
+     * @brief 设置代理配置
+     * @param proxy 代理配置
+     */
+    void SetProxy(const WebSocketProxyConfig& proxy);
+    
+    /**
+     * @brief 获取当前代理配置
+     * @return 当前代理配置
+     */
+    WebSocketProxyConfig GetProxy() const;
 
     /**
      * @brief 连接到WebSocket服务器
