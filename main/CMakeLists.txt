@@ -23,7 +23,7 @@ set(SOURCES "audio/audio_codec.cc"
             "ota.cc"
             "settings.cc"
             "device_state_event.cc"
-            "wxt185_display.cc"
+            "display/wxt185_display.cc"
             "main.cc"
             )
 
