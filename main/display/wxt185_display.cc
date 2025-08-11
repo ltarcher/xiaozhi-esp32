@@ -233,6 +233,8 @@ void WXT185Display::CreateChatPage() {
     lv_obj_add_event_cb(chat_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(chat_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
     
+#if CONFIG_USE_WECHAT_MESSAGE_STYLE
+    // 微信对话样式布局
     // 创建聊天状态栏（针对360*360屏幕优化高度）
     chat_status_bar_ = lv_obj_create(chat_page_);
     lv_obj_set_size(chat_status_bar_, width_, 35);
@@ -266,6 +268,36 @@ void WXT185Display::CreateChatPage() {
     battery_label_ = lv_label_create(chat_status_bar_);
     lv_label_set_text(battery_label_, "100%");
     lv_obj_align(battery_label_, LV_ALIGN_RIGHT_MID, 0, 0);
+#else
+    // 非微信对话样式布局（使用更简单的布局）
+    // 创建状态栏
+    chat_status_bar_ = lv_obj_create(chat_page_);
+    lv_obj_set_size(chat_status_bar_, width_, 30);
+    lv_obj_set_style_radius(chat_status_bar_, 0, 0);
+    lv_obj_set_style_pad_all(chat_status_bar_, 5, 0);
+    lv_obj_align(chat_status_bar_, LV_ALIGN_TOP_MID, 0, 0);
+    
+    // 创建聊天内容区域（简化布局）
+    chat_content_ = lv_obj_create(chat_page_);
+    lv_obj_set_size(chat_content_, width_ - 10, height_ - 70);
+    lv_obj_align_to(chat_content_, chat_status_bar_, LV_ALIGN_OUT_BOTTOM_MID, 0, 5);
+    lv_obj_set_style_pad_all(chat_content_, 10, 0);
+    lv_obj_set_style_border_width(chat_content_, 1, 0);
+    lv_obj_set_scrollbar_mode(chat_content_, LV_SCROLLBAR_MODE_AUTO);
+    
+    // 在状态栏添加组件
+    emotion_label_ = lv_label_create(chat_status_bar_);
+    lv_label_set_text(emotion_label_, "AI");
+    lv_obj_align(emotion_label_, LV_ALIGN_LEFT_MID, 0, 0);
+    
+    status_label_ = lv_label_create(chat_status_bar_);
+    lv_label_set_text(status_label_, Lang::Strings::INITIALIZING);
+    lv_obj_align(status_label_, LV_ALIGN_CENTER, 0, 0);
+    
+    battery_label_ = lv_label_create(chat_status_bar_);
+    lv_label_set_text(battery_label_, "100%");
+    lv_obj_align(battery_label_, LV_ALIGN_RIGHT_MID, 0, 0);
+#endif
 }
 
 void WXT185Display::CreateCryptoPage() {
@@ -463,11 +495,13 @@ void WXT185Display::ApplyChatPageTheme() {
     lv_obj_set_style_bg_color(chat_content_, current_wxt185_theme_.chat_background, 0);
     lv_obj_set_style_border_color(chat_content_, current_wxt185_theme_.border, 0);
     
-    // 应用输入区域主题
+#if CONFIG_USE_WECHAT_MESSAGE_STYLE
+    // 微信对话样式 - 应用输入区域主题
     if (chat_input_area_) {
         lv_obj_set_style_bg_color(chat_input_area_, current_wxt185_theme_.selector, 0);
         lv_obj_set_style_border_color(chat_input_area_, current_wxt185_theme_.border, 0);
     }
+#endif
 }
 
 void WXT185Display::ApplyCryptoPageTheme() {
@@ -573,6 +607,8 @@ void WXT185Display::SetChatMessage(const char* role, const char* content) {
     DisplayLockGuard lock(this);
     if (chat_content_ == nullptr) return;
     
+#if CONFIG_USE_WECHAT_MESSAGE_STYLE
+    // 微信对话样式 - 创建气泡式聊天界面
     // 创建消息气泡
     lv_obj_t* msg_bubble = lv_obj_create(chat_content_);
     lv_obj_set_style_radius(msg_bubble, 8, 0);
@@ -689,6 +725,36 @@ void WXT185Display::SetChatMessage(const char* role, const char* content) {
     
     // 存储对最新消息标签的引用
     chat_message_label_ = msg_text;
+#else
+    // 非微信对话样式 - 使用简单文本显示方式
+    // 清除之前的内容
+    lv_obj_clean(chat_content_);
+    
+    // 创建消息标签
+    lv_obj_t* msg_label = lv_label_create(chat_content_);
+    lv_label_set_text(msg_label, content);
+    lv_obj_set_width(msg_label, width_ - 30);
+    lv_label_set_long_mode(msg_label, LV_LABEL_LONG_WRAP);
+    lv_obj_set_style_text_font(msg_label, fonts_.text_font, 0);
+    lv_obj_set_style_text_color(msg_label, current_wxt185_theme_.text, 0);
+    
+    // 根据消息角色设置样式
+    if (strcmp(role, "user") == 0) {
+        lv_obj_set_style_text_color(msg_label, current_wxt185_theme_.user_bubble, 0);
+    } else if (strcmp(role, "assistant") == 0) {
+        lv_obj_set_style_text_color(msg_label, current_wxt185_theme_.assistant_bubble, 0);
+    } else if (strcmp(role, "system") == 0) {
+        lv_obj_set_style_text_color(msg_label, current_wxt185_theme_.system_text, 0);
+    }
+    
+    lv_obj_align(msg_label, LV_ALIGN_TOP_LEFT, 0, 0);
+    
+    // 自动滚动到底部
+    lv_obj_scroll_to_view_recursive(msg_label, LV_ANIM_ON);
+    
+    // 存储对最新消息标签的引用
+    chat_message_label_ = msg_label;
+#endif
 }
 
 void WXT185Display::SetTheme(const std::string& theme_name) {
