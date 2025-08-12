@@ -7,6 +7,7 @@
 #include "device_state.h"
 #include <font_awesome_symbols.h>
 #include <esp_lvgl_port.h>
+#include "settings.h"
 
 #define TAG "WXT185Display"
 
@@ -351,6 +352,21 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     : LcdDisplay(panel_io, panel, fonts, width, height) {
     ESP_LOGI(TAG, "Initializing WXT185 Display");
 
+    // Load theme from settings
+    Settings settings("display", false);
+    theme_name = settings.GetString("theme", "light");
+    if (theme_name == "dark" || theme_name == "DARK") {
+        current_wxt185_theme_ = DARK_THEME_WXT185;
+    } else if (theme_name == "light" || theme_name == "LIGHT") {
+        current_wxt185_theme_ = LIGHT_THEME_WXT185;
+    } else if (theme_name == "metal") {
+        current_wxt185_theme_ = METAL_THEME_WXT185;
+    } else if (theme_name == "technology") {
+        current_wxt185_theme_ = TECHNOLOGY_THEME_WXT185;
+    } else if (theme_name == "cosmic") {
+        current_wxt185_theme_ = COSMIC_THEME_WXT185;
+    }
+
     // draw white
     std::vector<uint16_t> buffer(width_, 0xFFFF);
     for (int y = 0; y < height_; y++) {
@@ -527,8 +543,6 @@ void WXT185Display::SetupUI() {
     ESP_LOGI(TAG, "Created screensaver page");
     
     // 应用主题
-}
-
     ApplyTheme();
     ESP_LOGI(TAG, "Applied theme");
     
