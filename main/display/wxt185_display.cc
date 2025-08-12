@@ -415,6 +415,7 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     // Load theme from settings
     Settings settings("display", false);
     std::string theme_name = settings.GetString("theme", "light");
+    ESP_LOGI(TAG, "Theme: %s", theme_name.c_str())
     if (theme_name == "dark" || theme_name == "DARK") {
         current_wxt185_theme_ = DARK_THEME_WXT185;
     } else if (theme_name == "light" || theme_name == "LIGHT") {
@@ -504,7 +505,8 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     // 初始化屏保虚拟币数据
     screensaver_crypto_ = current_crypto_data_;
     
-    ESP_LOGI(TAG, "Initialized default settings - Theme: TECHNOLOGY, Crypto: BTC, KLine Freq: 3");
+    ESP_LOGI(TAG, "Initialized default settings:");
+    ESP_LOGI(TAG, "Theme: %s, Crypto: %d, KLine Freq: %d", theme_name.c_str(), default_crypto, kline_frequency);
 
     // 初始化最后活动时间为当前时间
     last_activity_time_ = esp_timer_get_time() / 1000; // 转换为毫秒
