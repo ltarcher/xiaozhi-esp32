@@ -154,7 +154,7 @@ const WXT185ThemeColors LIGHT_THEME_WXT185 = {
     .low_battery = LIGHT_LOW_BATTERY_COLOR,
     .header = LIGHT_HEADER_COLOR,
     .selector = LIGHT_SELECTOR_COLOR,
-    .crypto_backgroud = LIGHT_CRYPTO_BACKGROUND_COLOR,
+    .crypto_background = LIGHT_CRYPTO_BACKGROUND_COLOR,
     .crypto_text = LIGHT_CRYPTO_TEXT_COLOR,
     .crypto_sub_text = LIGHT_CRYPTO_SUB_TEXT_COLOR,
     .crypto_up_color = LIGHT_CRYPTO_UP_COLOR,
@@ -178,7 +178,7 @@ const WXT185ThemeColors DARK_THEME_WXT185 = {
     .low_battery = DARK_LOW_BATTERY_COLOR,
     .header = DARK_HEADER_COLOR,
     .selector = DARK_SELECTOR_COLOR,
-    .crypto_backgroud = DARK_CRYPTO_BACKGROUND_COLOR,
+    .crypto_background = DARK_CRYPTO_BACKGROUND_COLOR,
     .crypto_text = DARK_CRYPTO_TEXT_COLOR,
     .crypto_sub_text = DARK_CRYPTO_SUB_TEXT_COLOR,
     .crypto_up_color = DARK_CRYPTO_UP_COLOR,
@@ -202,7 +202,7 @@ const WXT185ThemeColors METAL_THEME_WXT185 = {
     .low_battery = METAL_LOW_BATTERY_COLOR,
     .header = METAL_HEADER_COLOR,
     .selector = METAL_SELECTOR_COLOR,
-    .crypto_backgroud = METAL_CRYPTO_BACKGROUND_COLOR,
+    .crypto_background = METAL_CRYPTO_BACKGROUND_COLOR,
     .crypto_text = METAL_CRYPTO_TEXT_COLOR,
     .crypto_sub_text = METAL_CRYPTO_SUB_TEXT_COLOR,
     .crypto_up_color = METAL_CRYPTO_UP_COLOR,
@@ -226,7 +226,7 @@ const WXT185ThemeColors TECHNOLOGY_THEME_WXT185 = {
     .low_battery = TECHNOLOGY_LOW_BATTERY_COLOR,
     .header = TECHNOLOGY_HEADER_COLOR,
     .selector = TECHNOLOGY_SELECTOR_COLOR,
-    .crypto_backgroud = TECHNOLOGY_CRYPTO_BACKGROUND_COLOR,
+    .crypto_background = TECHNOLOGY_CRYPTO_BACKGROUND_COLOR,
     .crypto_text = TECHNOLOGY_CRYPTO_TEXT_COLOR,
     .crypto_sub_text = TECHNOLOGY_CRYPTO_SUB_TEXT_COLOR,
     .crypto_up_color = TECHNOLOGY_CRYPTO_UP_COLOR,
@@ -250,7 +250,7 @@ const WXT185ThemeColors COSMIC_THEME_WXT185 = {
     .low_battery = COSMIC_LOW_BATTERY_COLOR,
     .header = COSMIC_HEADER_COLOR,
     .selector = COSMIC_SELECTOR_COLOR,
-    .crypto_backgroud = COSMIC_CRYPTO_BACKGROUND_COLOR,
+    .crypto_background = COSMIC_CRYPTO_BACKGROUND_COLOR,
     .crypto_text = COSMIC_CRYPTO_TEXT_COLOR,
     .crypto_sub_text = COSMIC_CRYPTO_SUB_TEXT_COLOR,
     .crypto_up_color = COSMIC_CRYPTO_UP_COLOR,
@@ -802,7 +802,7 @@ void WXT185Display::CreateCryptoPage() {
     crypto_page_ = lv_obj_create(page_container_);
     lv_obj_set_size(crypto_page_, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_style_radius(crypto_page_, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(crypto_page_, current_wxt185_theme_.crypto_backgroud, 0);
+    lv_obj_set_style_bg_color(crypto_page_, current_wxt185_theme_.crypto_background, 0);
     lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_SCROLLABLE);
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH

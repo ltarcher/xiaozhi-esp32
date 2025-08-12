@@ -48,7 +48,7 @@ struct WXT185ThemeColors {
     lv_color_t header;
     lv_color_t selector;
     // 虚拟币页面样式
-    lv_color_t crypto_backgroud;
+    lv_color_t crypto_background;
     lv_color_t crypto_text;
     lv_color_t crypto_sub_text;
     lv_color_t crypto_up_color;
