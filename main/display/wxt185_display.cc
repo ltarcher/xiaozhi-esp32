@@ -1219,38 +1219,32 @@ void WXT185Display::SetChatMessage(const char* role, const char* content) {
     OnActivity();
     
     DisplayLockGuard lock(this);
-    if (chat_content_ == nullptr) return;
+    if (content_ == nullptr) return;
     
-    // 清除之前的内容
-    lv_obj_clean(chat_content_);
-    
-    // 创建消息标签
-    lv_obj_t* msg_label = lv_label_create(chat_content_);
-    lv_label_set_text(msg_label, content);
-    lv_obj_set_width(msg_label, width_ - 30);
-    lv_label_set_long_mode(msg_label, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(msg_label, fonts_.text_font, 0);
-    lv_obj_set_style_text_color(msg_label, current_wxt185_theme_.text, 0);
-    
-    // 根据消息角色设置样式
-    if (strcmp(role, "user") == 0) {
-        lv_obj_set_style_text_color(msg_label, current_wxt185_theme_.user_bubble, 0);
-        ESP_LOGI(TAG, "Set message color to user bubble color");
-    } else if (strcmp(role, "assistant") == 0) {
-        lv_obj_set_style_text_color(msg_label, current_wxt185_theme_.assistant_bubble, 0);
-        ESP_LOGI(TAG, "Set message color to assistant bubble color");
-    } else if (strcmp(role, "system") == 0) {
-        lv_obj_set_style_text_color(msg_label, current_wxt185_theme_.system_text, 0);
-        ESP_LOGI(TAG, "Set message color to system text color");
+    // 确保聊天页面可见
+    if (screensaver_active_) {
+        ExitScreensaver();
     }
     
-    lv_obj_align(msg_label, LV_ALIGN_TOP_LEFT, 0, 0);
-    
-    // 自动滚动到底部
-    lv_obj_scroll_to_view_recursive(msg_label, LV_ANIM_ON);
-    
-    // 存储对最新消息标签的引用
-    chat_message_label_ = msg_label;
+    // 直接更新已创建的消息标签而不是清理整个容器
+    if (chat_message_label_) {
+        lv_label_set_text(chat_message_label_, content);
+        
+        // 根据消息角色设置样式
+        if (strcmp(role, "user") == 0) {
+            lv_obj_set_style_text_color(chat_message_label_, current_wxt185_theme_.user_bubble, 0);
+            ESP_LOGI(TAG, "Set message color to user bubble color");
+        } else if (strcmp(role, "assistant") == 0) {
+            lv_obj_set_style_text_color(chat_message_label_, current_wxt185_theme_.assistant_bubble, 0);
+            ESP_LOGI(TAG, "Set message color to assistant bubble color");
+        } else if (strcmp(role, "system") == 0) {
+            lv_obj_set_style_text_color(chat_message_label_, current_wxt185_theme_.system_text, 0);
+            ESP_LOGI(TAG, "Set message color to system text color");
+        } else {
+            // 默认文本颜色
+            lv_obj_set_style_text_color(chat_message_label_, current_wxt185_theme_.text, 0);
+        }
+    }
 }
 
 void WXT185Display::SetTheme(const std::string& theme_name) {
@@ -1543,6 +1537,9 @@ void WXT185Display::ScreensaverTimerCallback(void* arg) {
         ESP_LOGI(TAG, "Screensaver is disabled, exiting callback");
         return;
     }
+
+    // 需要检查设备当前状态
+    
     
     // 检查是否超时
     int64_t current_time = esp_timer_get_time() / 1000; // 转换为毫秒
