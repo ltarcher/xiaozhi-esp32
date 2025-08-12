@@ -406,12 +406,27 @@ private:
         };
         ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &tp_i2c_bus));
         
+        // Probe for touch controller before initializing
+        esp_err_t ret = i2c_master_probe(tp_i2c_bus, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, 1000);
+        if (ret != ESP_OK) {
+            ESP_LOGW(TAG, "CST816S touch controller not found on I2C bus at address 0x%02X, skipping touch initialization",
+                     ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS);
+            return;
+        }
+        
         esp_lcd_panel_io_handle_t tp_io_handle = NULL;
         esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
         tp_io_config.scl_speed_hz = 400 * 1000;
         ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(tp_i2c_bus, &tp_io_config, &tp_io_handle));
         ESP_LOGI(TAG, "Initialize touch controller CST816S");
-        ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_cst816s(tp_io_handle, &tp_cfg, &tp));
+        
+        // Initialize touch controller with error checking
+        ret = esp_lcd_touch_new_i2c_cst816s(tp_io_handle, &tp_cfg, &tp);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to initialize CST816S touch controller: %s", esp_err_to_name(ret));
+            return;
+        }
+        
         const lvgl_port_touch_cfg_t touch_cfg = {
             .disp = lv_display_get_default(), 
             .handle = tp,

@@ -809,8 +809,6 @@ void WXT185Display::CreateCryptoPage() {
     
     // 1. 创建背景
     crypto_page_ = lv_obj_create(page_container_);
-    lv_obj_set_size(crypto_page_, LV_HOR_RES, LV_VER_RES);
-    lv_obj_set_style_radius(crypto_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(crypto_page_, current_wxt185_theme_.crypto_background, 0);
     lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_SCROLLABLE);
     
@@ -833,7 +831,6 @@ void WXT185Display::CreateSettingsPage() {
     // 1. 初始化背景
     settings_page_ = lv_obj_create(page_container_);
     ESP_LOGI(TAG, "Settings page background created");
-    lv_obj_set_size(settings_page_, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_style_radius(settings_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(settings_page_, current_wxt185_theme_.background, 0);
     lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_SCROLLABLE);
@@ -879,7 +876,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_roller_set_visible_row_count(settings_theme_roller_, 1);
     lv_roller_set_selected(settings_theme_roller_, selected_theme, LV_ANIM_OFF);
     lv_obj_add_event_cb(settings_theme_roller_, theme_roller_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
-    lv_obj_align_to(settings_theme_roller_, settings_theme_label_, LV_ALIGN_OUT_RIGHT_MID, 60, 0);
+    lv_obj_align_to(settings_theme_roller_, settings_theme_label_, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
     lv_obj_set_width(settings_theme_roller_, 100);
 
     // 5. 创建默认虚拟币设置
@@ -917,7 +914,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_roller_set_visible_row_count(settings_default_crypto_roller_, 1);
     lv_roller_set_selected(settings_default_crypto_roller_, default_crypto, LV_ANIM_OFF);
     lv_obj_add_event_cb(settings_default_crypto_roller_, default_crypto_roller_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
-    lv_obj_align_to(settings_default_crypto_roller_, settings_default_crypto_label_, LV_ALIGN_OUT_RIGHT_MID, 60, 0);
+    lv_obj_align_to(settings_default_crypto_roller_, settings_default_crypto_label_, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
     lv_obj_set_width(settings_default_crypto_roller_, 100);
 
     // 6. 创建K线频率设置
@@ -959,7 +956,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_roller_set_visible_row_count(settings_kline_time_roller_, 1);
     lv_roller_set_selected(settings_kline_time_roller_, kline_frequency, LV_ANIM_OFF);
     lv_obj_add_event_cb(settings_kline_time_roller_, kline_frequency_roller_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
-    lv_obj_align_to(settings_kline_time_roller_, settings_kline_time_label_, LV_ALIGN_OUT_RIGHT_MID, 60, 0);
+    lv_obj_align_to(settings_kline_time_roller_, settings_kline_time_label_, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
     lv_obj_set_width(settings_kline_time_roller_, 100);
 
     // 7. 创建屏保开关
@@ -968,7 +965,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_label_set_text(settings_screensaver_label_, "Screensaver:");
     lv_obj_set_style_text_font(settings_screensaver_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(settings_screensaver_label_, current_wxt185_theme_.text, 0);
-    lv_obj_align(settings_screensaver_label_, LV_ALIGN_TOP_MID, -80, 200);
+    lv_obj_align(settings_screensaver_label_, LV_ALIGN_TOP_MID, -80, 150);
 
     settings_screensaver_switch_ = lv_switch_create(settings_page_);
     ESP_LOGI(TAG, "Screensaver switch created");
@@ -977,14 +974,14 @@ void WXT185Display::CreateSettingsPage() {
         lv_obj_add_state(settings_screensaver_switch_, LV_STATE_CHECKED);
     }
     lv_obj_add_event_cb(settings_screensaver_switch_, screensaver_switch_event_handler, LV_EVENT_VALUE_CHANGED, this);
-    lv_obj_align_to(settings_screensaver_switch_, settings_screensaver_label_, LV_ALIGN_OUT_RIGHT_MID, 85, 0);
+    lv_obj_align_to(settings_screensaver_switch_, settings_screensaver_label_, LV_ALIGN_OUT_RIGHT_MID, 55, 0);
     
     // 8. 创建保存按钮
     settings_save_button_ = lv_button_create(settings_page_);
     ESP_LOGI(TAG, "Save button created");
     lv_obj_set_style_bg_color(settings_save_button_, current_wxt185_theme_.settings_screensaver_switch, 0);
     lv_obj_set_size(settings_save_button_, 100, 40);
-    lv_obj_align(settings_save_button_, LV_ALIGN_BOTTOM_MID, 0, -30);
+    lv_obj_align(settings_save_button_, LV_ALIGN_BOTTOM_MID, 0, 0);
     
     lv_obj_t* save_label = lv_label_create(settings_save_button_);
     ESP_LOGI(TAG, "Save button label created");
