@@ -94,6 +94,7 @@ protected:
     lv_obj_t* settings_kline_time_roller_ = nullptr;
     lv_obj_t* settings_screensaver_label_ = nullptr;
     lv_obj_t* settings_screensaver_switch_ = nullptr;
+    lv_obj_t* settings_save_button_ = nullptr;  // 添加保存按钮
     
     // 屏幕保护相关组件
     lv_obj_t* screensaver_page_ = nullptr;
@@ -163,6 +164,7 @@ protected:
     static void ThemeSelectorEventHandler(lv_event_t* e);
     static void TimeframeSelectorEventHandler(lv_event_t* e);
     static void ScreensaverCryptoSelectorEventHandler(lv_event_t* e); // 屏保虚拟币选择事件处理
+    static void SettingsSaveButtonEventHandler(lv_event_t* e); // 保存按钮事件处理
     
     // 触摸事件处理
     static void TouchEventHandler(lv_event_t* e);
@@ -170,6 +172,7 @@ protected:
     void HandleTouchEnd(lv_point_t point);
     
 public:
+    void SaveSettings(); // 保存设置方法
     // 屏幕保护相关函数
     static void ScreensaverTimerCallback(void* arg);
     void StartScreensaverTimer();

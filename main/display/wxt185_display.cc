@@ -9,6 +9,7 @@
 #include <esp_lvgl_port.h>
 #include "settings.h"
 
+
 #define TAG "WXT185Display"
 
 #define SCREENSAVER_TIMEOUT_MS 10000 // 10秒超时进入屏保
@@ -345,6 +346,65 @@ static void screensaver_switch_event_handler(lv_event_t * e) {
     }
 }
 
+void WXT185Display::SaveSettings() {
+    // 获取当前设置值
+    int theme_index = lv_roller_get_selected(settings_theme_roller_);
+    int crypto_index = lv_roller_get_selected(settings_default_crypto_roller_);
+    int kline_index = lv_roller_get_selected(settings_kline_time_roller_);
+    bool screensaver_state = lv_obj_has_state(settings_screensaver_switch_, LV_STATE_CHECKED);
+    
+    // 保存设置到NVS
+    Settings settings("display", true);
+    settings.SetString("theme", ThemeString[theme_index]);
+    settings.SetInt("default_crypto", crypto_index);
+    settings.SetInt("kline_frequency", kline_index);
+    settings.SetInt("screensaver_enabled", screensaver_state ? 1 : 0);
+    
+    ESP_LOGI(TAG, "Settings saved - Theme: %d, Crypto: %d, KLine: %d, Screensaver: %d", 
+             theme_index, crypto_index, kline_index, screensaver_state);
+    
+    // 显示保存成功的提示信息
+    lv_obj_t* save_label = lv_label_create(settings_page_);
+    lv_label_set_text(save_label, "Settings saved!");
+    lv_obj_set_style_text_color(save_label, lv_color_hex(0x00FF00), 0);
+    lv_obj_align(save_label, LV_ALIGN_BOTTOM_MID, 0, -20);
+    
+    // 3秒后自动删除提示
+    struct _timer_data {
+        lv_obj_t* label;
+    };
+    
+    _timer_data* data = new _timer_data{save_label};
+    
+    lv_timer_t* timer = lv_timer_create([](lv_timer_t* timer) {
+        _timer_data* data = static_cast<_timer_data*>(lv_timer_get_user_data(timer));
+        lv_obj_del(data->label);
+        delete data;
+        lv_timer_del(timer);
+    }, 3000, data);
+    
+    lv_timer_set_user_data(timer, data);
+    
+    // 保存当前选择到全局变量，以便在下次启动时使用
+    extern int selected_theme;
+    extern int default_crypto;
+    extern int kline_frequency;
+    extern bool screensaver_enabled;
+    
+    selected_theme = theme_index;
+    default_crypto = crypto_index;
+    kline_frequency = kline_index;
+    screensaver_enabled = screensaver_state;
+}
+
+// 保存按钮事件处理函数
+static void settings_save_button_event_handler(lv_event_t * e) {
+    if (lv_event_get_code(e) == LV_EVENT_CLICKED) {
+        WXT185Display* display = static_cast<WXT185Display*>(lv_event_get_user_data(e));
+        display->SaveSettings();
+    }
+}
+
 WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
                            int width, int height, int offset_x, int offset_y,
                            bool mirror_x, bool mirror_y, bool swap_xy,
@@ -354,7 +414,7 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
 
     // Load theme from settings
     Settings settings("display", false);
-    theme_name = settings.GetString("theme", "light");
+    std::string theme_name = settings.GetString("theme", "light");
     if (theme_name == "dark" || theme_name == "DARK") {
         current_wxt185_theme_ = DARK_THEME_WXT185;
     } else if (theme_name == "light" || theme_name == "LIGHT") {
@@ -366,6 +426,12 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     } else if (theme_name == "cosmic") {
         current_wxt185_theme_ = COSMIC_THEME_WXT185;
     }
+    
+    // 从设置中加载配置值
+    selected_theme = settings.GetInt("theme", 0);             // 默认主题索引
+    default_crypto = settings.GetInt("default_crypto", 0);    // 默认虚拟币索引
+    kline_frequency = settings.GetInt("kline_frequency", 3);  // 默认K线频率 (3=1小时)
+    screensaver_enabled = settings.GetInt("screensaver_enabled", 1) == 1; // 默认启用屏保
 
     // draw white
     std::vector<uint16_t> buffer(width_, 0xFFFF);
@@ -874,6 +940,18 @@ void WXT185Display::CreateSettingsPage() {
     }
     lv_obj_add_event_cb(settings_screensaver_switch_, screensaver_switch_event_handler, LV_EVENT_VALUE_CHANGED, this);
     lv_obj_align_to(settings_screensaver_switch_, settings_screensaver_label_, LV_ALIGN_OUT_RIGHT_MID, 85, 0);
+    
+    // 8. 创建保存按钮
+    settings_save_button_ = lv_button_create(settings_page_);
+    lv_obj_set_style_bg_color(settings_save_button_, current_wxt185_theme_.settings_screensaver_switch, 0);
+    lv_obj_set_size(settings_save_button_, 100, 40);
+    lv_obj_align(settings_save_button_, LV_ALIGN_BOTTOM_MID, 0, -30);
+    
+    lv_obj_t* save_label = lv_label_create(settings_save_button_);
+    lv_label_set_text(save_label, "Save");
+    lv_obj_center(save_label);
+    
+    lv_obj_add_event_cb(settings_save_button_, settings_save_button_event_handler, LV_EVENT_CLICKED, this);
     
     ESP_LOGI(TAG, "Settings page creation completed");
 }
@@ -1409,6 +1487,11 @@ void WXT185Display::ScreensaverCryptoSelectorEventHandler(lv_event_t* e) {
     // 屏保虚拟币选择事件处理
 }
 
+void WXT185Display::SettingsSaveButtonEventHandler(lv_event_t* e) {
+    ESP_LOGI(TAG, "Settings save button event handler called");
+    // 保存按钮事件处理已经在静态函数中实现
+}
+
 void WXT185Display::ScreensaverTimerCallback(void* arg) {
     WXT185Display* self = static_cast<WXT185Display*>(arg);
     ESP_LOGI(TAG, "Screensaver timer callback triggered");
@@ -1435,8 +1518,6 @@ void WXT185Display::StartScreensaverTimer() {
     if (screensaver_timer_) {
         esp_timer_stop(screensaver_timer_);
         esp_timer_start_periodic(screensaver_timer_, 1000000); // 每秒检查一次
-}
-
     }
 }
 
@@ -1612,48 +1693,6 @@ void WXT185Display::OnDeviceStateChanged(int previous_state, int current_state) 
             OnActivity();
             break;
     }
-}
-
-void WXT185Display::ConnectToBiJieCoins() {
-    if (!bijie_coins_) return;
-    
-    // 连接到当前显示的虚拟币行情数据
-    if (bijie_coins_->Connect(current_crypto_data_.currency_id)) {
-        ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for currency %d", current_crypto_data_.currency_id);
-    } else {
-        ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for currency %d", current_crypto_data_.currency_id);
-    }
-    
-    // 连接到屏保显示的虚拟币行情数据（如果不同的话）
-    if (screensaver_crypto_.currency_id != current_crypto_data_.currency_id) {
-        if (bijie_coins_->Connect(screensaver_crypto_.currency_id)) {
-            ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_.currency_id);
-        } else {
-            ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_.currency_id);
-        }
-    }
-    
-    // 获取K线数据用于图表显示
-    bijie_coins_->GetKLineData(current_crypto_data_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
-        ESP_LOGI(TAG, "Received K-line data with %d points", kline_data.size());
-        
-        // 更新当前货币的K线数据
-        for (auto& crypto : crypto_data_) {
-            if (crypto.currency_id == current_crypto_data_.currency_id) {
-                // 转换K线数据格式并存储
-                crypto.kline_data_1h.clear();
-                for (const auto& kline : kline_data) {
-                    crypto.kline_data_1h.emplace_back(kline.open, kline.close);
-                }
-                break;
-            }
-        }
-        
-        // 更新图表显示
-        DrawKLineChart();
-    });
-    
-    bijie_coins_connected_ = true;
 }
 
 void WXT185Display::ConnectToBiJieCoins() {
