@@ -928,7 +928,8 @@ void WXT185Display::CreateSettingsPage() {
     if (bijie_coins_ != nullptr) {
         klinefreq = bijie_coins_->GetKLineTimeFrequencies();
     } else {
-        klinefreq = {"1m", "5m", "15m", "1h", "4h", "1d", "1w", "1mo", "3mo"}
+        static const char* default_freqs[] = {"1m", "5m", "15m", "1h", "4h", "1d", "1w", "1mo", "3mo", nullptr};
+        klinefreq = default_freqs;
     }
     int kline_option_count = 0;
     const char* kline_options[10] = {};
