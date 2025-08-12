@@ -312,8 +312,35 @@ static void kline_frequency_roller_event_handler(lv_event_t * e) {
 // 屏保开关事件处理函数
 static void screensaver_switch_event_handler(lv_event_t * e) {
     lv_obj_t * obj = (lv_obj_t *)lv_event_get_target(e);
+    WXT185Display* display = static_cast<WXT185Display*>(lv_event_get_user_data(e));
     if (lv_event_get_code(e) == LV_EVENT_VALUE_CHANGED) {
         screensaver_enabled = lv_obj_has_state(obj, LV_STATE_CHECKED);
+        
+        if (screensaver_enabled) {
+            // 启用屏保功能
+            if (!display->screensaver_timer_) {
+                esp_timer_create_args_t timer_args = {
+                    .callback = WXT185Display::ScreensaverTimerCallback,
+                    .arg = display,
+                    .dispatch_method = ESP_TIMER_TASK,
+                    .name = "screensaver_timer",
+                    .skip_unhandled_events = false,
+                };
+                esp_timer_create(&timer_args, &display->screensaver_timer_);
+            }
+            // 启动定时器
+            display->StartScreensaverTimer();
+        } else {
+            // 禁用屏保功能
+            if (display->screensaver_timer_) {
+                display->StopScreensaverTimer();
+            }
+            
+            // 如果当前正在屏保状态，则退出屏保
+            if (display->screensaver_active_) {
+                display->ExitScreensaver();
+            }
+        }
     }
 }
 
@@ -381,8 +408,8 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     }
 
     // 初始化默认设置
-    current_timeframe_ = "1h";
-    current_theme_style_ = ThemeStyle::TECHNOLOGY;
+    kline_frequency = 3; // 默认一小时的K线频率
+    screensaver_enabled = true; // 默认启用屏保
     current_wxt185_theme_ = TECHNOLOGY_THEME_WXT185;
     screensaver_crypto_.currency_id = 1; // 默认屏保显示BTC
     // 初始化当前显示的虚拟币数据
@@ -396,15 +423,17 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     last_activity_time_ = esp_timer_get_time() / 1000; // 转换为毫秒
     
     // 创建屏保定时器（无论是否有触摸屏都需要）
-    esp_timer_create_args_t timer_args = {
-        .callback = ScreensaverTimerCallback,
-        .arg = this,
-        .dispatch_method = ESP_TIMER_TASK,
-        .name = "screensaver_timer",
-        .skip_unhandled_events = false,
-    };
-    esp_timer_create(&timer_args, &screensaver_timer_);
-    
+    if (screensaver_enabled) {
+        esp_timer_create_args_t timer_args = {
+            .callback = ScreensaverTimerCallback,
+            .arg = this,
+            .dispatch_method = ESP_TIMER_TASK,
+            .name = "screensaver_timer",
+            .skip_unhandled_events = false,
+        };
+        esp_timer_create(&timer_args, &screensaver_timer_);
+    }
+
     // 初始化币界虚拟币行情数据支持
     bijie_coins_ = std::make_unique<BiJieCoins>();
 
@@ -808,7 +837,7 @@ void WXT185Display::CreateSettingsPage() {
     if (screensaver_enabled) {
         lv_obj_add_state(settings_screensaver_switch_, LV_STATE_CHECKED);
     }
-    lv_obj_add_event_cb(settings_screensaver_switch_, screensaver_switch_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_add_event_cb(settings_screensaver_switch_, screensaver_switch_event_handler, LV_EVENT_VALUE_CHANGED, this);
     lv_obj_align_to(settings_screensaver_switch_, settings_screensaver_label_, LV_ALIGN_OUT_RIGHT_MID, 85, 0);
     
     ESP_LOGI(TAG, "Settings page creation completed");
@@ -1065,22 +1094,17 @@ void WXT185Display::SetChatMessage(const char* role, const char* content) {
 
 void WXT185Display::SetTheme(const std::string& theme_name) {
     DisplayLockGuard lock(this);
-        
+
     // 然后处理自定义主题
     if (theme_name == "dark" || theme_name == "DARK") {
-        current_theme_style_ = ThemeStyle::DARK;
         current_wxt185_theme_ = DARK_THEME_WXT185;
     } else if (theme_name == "light" || theme_name == "LIGHT") {
-        current_theme_style_ = ThemeStyle::LIGHT;
         current_wxt185_theme_ = LIGHT_THEME_WXT185;
     } else if (theme_name == "metal") {
-        current_theme_style_ = ThemeStyle::METAL;
         current_wxt185_theme_ = METAL_THEME_WXT185;
     } else if (theme_name == "technology") {
-        current_theme_style_ = ThemeStyle::TECHNOLOGY;
         current_wxt185_theme_ = TECHNOLOGY_THEME_WXT185;
     } else if (theme_name == "cosmic") {
-        current_theme_style_ = ThemeStyle::COSMIC;
         current_wxt185_theme_ = COSMIC_THEME_WXT185;
     }
     
@@ -1167,7 +1191,7 @@ void WXT185Display::DrawKLineChart() {
     lv_obj_clean(crypto_chart_);
     
     // 获取当前货币的K线数据
-    auto market_data = bijie_coins_->GetMarketData(current_crypto_id_);
+    auto market_data = bijie_coins_->GetMarketData(current_crypto_data_.currency_id);
     if (!market_data) return;
     
     // 检查是否有K线数据
@@ -1317,6 +1341,11 @@ void WXT185Display::ScreensaverCryptoSelectorEventHandler(lv_event_t* e) {
 void WXT185Display::ScreensaverTimerCallback(void* arg) {
     WXT185Display* self = static_cast<WXT185Display*>(arg);
     
+    // 检查屏保功能是否启用
+    if (!self->screensaver_enabled) {
+        return;
+    }
+    
     // 检查是否超时
     int64_t current_time = esp_timer_get_time() / 1000; // 转换为毫秒
     if (current_time - self->last_activity_time_ >= SCREENSAVER_TIMEOUT_MS) {
@@ -1391,13 +1420,13 @@ void WXT185Display::UpdateScreensaverContent() {
     if (!screensaver_active_) return;
     
     // 从币界获取屏保虚拟币数据
-    auto market_data = bijie_coins_->GetMarketData(screensaver_crypto_id_);
+    auto market_data = bijie_coins_->GetMarketData(screensaver_crypto_.currency_id);
     
     if (!market_data) return;
     
     // 获取货币信息
     std::string symbol, name;
-    switch (screensaver_crypto_id_) {
+    switch (screensaver_crypto_.currency_id) {
         case 1:
             symbol = "BTC";
             name = "Bitcoin";
@@ -1483,7 +1512,7 @@ void WXT185Display::UpdateScreensaverContent() {
     }
     
     // 获取K线数据用于屏保显示
-    bijie_coins_->GetKLineData(screensaver_crypto_id_, 2, 30, [this](const std::vector<KLineData>& kline_data) {
+    bijie_coins_->GetKLineData(screensaver_crypto_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
         ESP_LOGI(TAG, "Received K-line data for screensaver with %d points", kline_data.size());
         // 这里可以更新屏保的K线图表，但由于屏保页面结构限制，暂不实现
         // 在完整实现中，可以在这里更新屏保的K线图表显示
@@ -1548,28 +1577,28 @@ void WXT185Display::ConnectToBiJieCoins() {
     if (!bijie_coins_) return;
     
     // 连接到当前显示的虚拟币行情数据
-    if (bijie_coins_->Connect(current_crypto_id_)) {
-        ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for currency %d", current_crypto_id_);
+    if (bijie_coins_->Connect(current_crypto_data_.currency_id)) {
+        ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for currency %d", current_crypto_data_.currency_id);
     } else {
-        ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for currency %d", current_crypto_id_);
+        ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for currency %d", current_crypto_data_.currency_id);
     }
     
     // 连接到屏保显示的虚拟币行情数据（如果不同的话）
-    if (screensaver_crypto_id_ != current_crypto_id_) {
-        if (bijie_coins_->Connect(screensaver_crypto_id_)) {
-            ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_id_);
+    if (screensaver_crypto_.currency_id != current_crypto_data_.currency_id) {
+        if (bijie_coins_->Connect(screensaver_crypto_.currency_id)) {
+            ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_.currency_id);
         } else {
-            ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_id_);
+            ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_.currency_id);
         }
     }
     
     // 获取K线数据用于图表显示
-    bijie_coins_->GetKLineData(current_crypto_id_, 2, 30, [this](const std::vector<KLineData>& kline_data) {
+    bijie_coins_->GetKLineData(current_crypto_data_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
         ESP_LOGI(TAG, "Received K-line data with %d points", kline_data.size());
         
         // 更新当前货币的K线数据
         for (auto& crypto : crypto_data_) {
-            if (crypto.currency_id == current_crypto_id_) {
+            if (crypto.currency_id == current_crypto_data_.currency_id) {
                 // 转换K线数据格式并存储
                 crypto.kline_data_1h.clear();
                 for (const auto& kline : kline_data) {
@@ -1609,32 +1638,32 @@ void WXT185Display::SwitchCrypto(int currency_id) {
     if (!bijie_coins_) return;
     
     // 如果要切换到的虚拟币已经是当前虚拟币，则直接返回
-    if (currency_id == current_crypto_id_) return;
+    if (currency_id == current_crypto_data_.currency_id) return;
     
     // 断开当前连接（如果当前虚拟币不是屏保虚拟币）
-    if (current_crypto_id_ != screensaver_crypto_id_) {
-        bijie_coins_->Disconnect(current_crypto_id_);
+    if (current_crypto_data_.currency_id != screensaver_crypto_.currency_id) {
+        bijie_coins_->Disconnect(current_crypto_data_.currency_id);
     }
     
     // 更新当前虚拟币ID
-    current_crypto_id_ = currency_id;
+    current_crypto_data_.currency_id = currency_id;
     
     // 连接到新的虚拟币（如果新虚拟币不是屏保虚拟币）
-    if (current_crypto_id_ != screensaver_crypto_id_) {
-        if (bijie_coins_->Connect(current_crypto_id_)) {
-            ESP_LOGI(TAG, "Switched to BiJie coins WebSocket for currency %d", current_crypto_id_);
+    if (current_crypto_data_.currency_id != screensaver_crypto_.currency_id) {
+        if (bijie_coins_->Connect(current_crypto_data_.currency_id)) {
+            ESP_LOGI(TAG, "Switched to BiJie coins WebSocket for currency %d", current_crypto_data_.currency_id);
         } else {
-            ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for currency %d", current_crypto_id_);
+            ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for currency %d", current_crypto_data_.currency_id);
         }
     }
     
     // 获取K线数据用于图表显示
-    bijie_coins_->GetKLineData(current_crypto_id_, 2, 30, [this](const std::vector<KLineData>& kline_data) {
+    bijie_coins_->GetKLineData(current_crypto_data_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
         ESP_LOGI(TAG, "Received K-line data with %d points", kline_data.size());
         
         // 更新当前货币的K线数据
         for (auto& crypto : crypto_data_) {
-            if (crypto.currency_id == current_crypto_id_) {
+            if (crypto.currency_id == current_crypto_data_.currency_id) {
                 // 转换K线数据格式并存储
                 crypto.kline_data_1h.clear();
                 for (const auto& kline : kline_data) {
@@ -1656,29 +1685,29 @@ void WXT185Display::SetScreensaverCrypto(int currency_id) {
     if (!bijie_coins_) return;
     
     // 如果要设置的虚拟币已经是屏保虚拟币，则直接返回
-    if (currency_id == screensaver_crypto_id_) return;
+    if (currency_id == screensaver_crypto_.currency_id) return;
     
     // 断开之前的屏保虚拟币连接（如果之前的屏保虚拟币不是当前显示的虚拟币）
-    if (screensaver_crypto_id_ != current_crypto_id_) {
-        bijie_coins_->Disconnect(screensaver_crypto_id_);
+    if (screensaver_crypto_.currency_id != current_crypto_data_.currency_id) {
+        bijie_coins_->Disconnect(screensaver_crypto_.currency_id);
     }
     
     // 更新屏保虚拟币ID
-    screensaver_crypto_id_ = currency_id;
+    screensaver_crypto_.currency_id = currency_id;
     
     // 如果该虚拟币尚未连接，则连接它（如果该虚拟币不是当前显示的虚拟币）
-    if (screensaver_crypto_id_ != current_crypto_id_) {
-        if (!bijie_coins_->IsConnected(screensaver_crypto_id_)) {
-            if (bijie_coins_->Connect(screensaver_crypto_id_)) {
-                ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_id_);
+    if (screensaver_crypto_.currency_id != current_crypto_data_.currency_id) {
+        if (!bijie_coins_->IsConnected(screensaver_crypto_.currency_id)) {
+            if (bijie_coins_->Connect(screensaver_crypto_.currency_id)) {
+                ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_.currency_id);
             } else {
-                ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_id_);
+                ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_.currency_id);
             }
         }
     }
     
     // 请求K线数据用于屏保显示
-    bijie_coins_->GetKLineData(screensaver_crypto_id_, 2, 30, [this](const std::vector<KLineData>& kline_data) {
+    bijie_coins_->GetKLineData(screensaver_crypto_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
         ESP_LOGI(TAG, "Received K-line data for screensaver with %d points", kline_data.size());
 
         // 更新屏保关联的K线数据

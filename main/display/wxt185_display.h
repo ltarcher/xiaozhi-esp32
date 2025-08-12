@@ -29,15 +29,6 @@ struct CryptocurrencyData {
     std::vector<std::pair<float, float>> kline_data_3mo; // 3月K线
 };
 
-// 主题样式枚举
-enum class ThemeStyle {
-    LIGHT,
-    DARK,
-    METAL,
-    TECHNOLOGY,
-    COSMIC
-};
-
 // WXT185主题颜色定义
 struct WXT185ThemeColors {
     lv_color_t background;
@@ -119,7 +110,6 @@ protected:
     CryptocurrencyData current_crypto_data_;
     std::vector<CryptocurrencyData> crypto_data_;
     std::string current_timeframe_;
-    ThemeStyle current_theme_style_;
     
     // 主题颜色
     WXT185ThemeColors current_wxt185_theme_;
@@ -135,10 +125,6 @@ protected:
     esp_timer_handle_t screensaver_timer_ = nullptr;
     CryptocurrencyData screensaver_crypto_;
     std::vector<std::pair<float, float>> screensaver_kline_data_; // 屏保K线数据
-    
-    // 币界虚拟币ID
-    int current_crypto_id_ = 1; // 当前虚拟币页面显示的虚拟币ID，默认为BTC(1)
-    int screensaver_crypto_id_ = 1; // 屏保显示的虚拟币ID，默认为BTC(1)
     
     // 代理配置
     ProxyConfig proxy_config_;
