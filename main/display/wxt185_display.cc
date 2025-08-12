@@ -578,9 +578,9 @@ void WXT185Display::CreateChatPage() {
     
     chat_page_ = lv_obj_create(page_container_);
     lv_obj_set_size(chat_page_, width_, height_);
-    lv_obj_set_style_radius(settings_page_, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(settings_page_, current_wxt185_theme_.background, 0);
-    lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_radius(chat_page_, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(chat_page_, current_wxt185_theme_.background, 0);
+    lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_pad_all(chat_page_, 0, 0);
     lv_obj_set_style_border_width(chat_page_, 0, 0);
     lv_obj_set_style_bg_opa(chat_page_, LV_OPA_TRANSP, 0);
