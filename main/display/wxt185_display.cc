@@ -1427,58 +1427,9 @@ void WXT185Display::UpdateScreensaverContent() {
     
     if (!market_data) return;
     
-    // 获取货币信息
-    std::string symbol, name;
-    switch (screensaver_crypto_.currency_id) {
-        case 1:
-            symbol = "BTC";
-            name = "Bitcoin";
-            break;
-        case 2:
-            symbol = "ETH";
-            name = "Ethereum";
-            break;
-        case 17:
-            symbol = "LTC";
-            name = "Litecoin";
-            break;
-        case 4:
-            symbol = "BNB";
-            name = "Binance Coin";
-            break;
-        case 5:
-            symbol = "XRP";
-            name = "Ripple";
-            break;
-        case 6:
-            symbol = "ADA";
-            name = "Cardano";
-            break;
-        case 7:
-            symbol = "SOL";
-            name = "Solana";
-            break;
-        case 8:
-            symbol = "DOGE";
-            name = "Dogecoin";
-            break;
-        case 14:
-            symbol = "TRX";
-            name = "Tron";
-            break;
-        case 23:
-            symbol = "XLM";
-            name = "Stellar";
-            break;
-        default:
-            symbol = "UNK";
-            name = "Unknown";
-            break;
-    }
-    
     // 更新虚拟币名称
     if (screensaver_crypto_name_) {
-        lv_label_set_text(screensaver_crypto_name_, name.c_str());
+        lv_label_set_text(screensaver_crypto_name_, screensaver_crypto_.name.c_str());
     }
     
     // 更新价格
