@@ -8,6 +8,7 @@
 #include <font_awesome_symbols.h>
 #include <esp_lvgl_port.h>
 #include "settings.h"
+#include "application.h"
 
 
 #define TAG "WXT185Display"
@@ -530,8 +531,8 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
 
     // 初始化币界虚拟币行情数据支持
     bijie_coins_connected_ = false;
-    bijie_coins_ = nullptr;
-    //bijie_coins_ = std::make_unique<BiJieCoins>();
+    //bijie_coins_ = nullptr;
+    bijie_coins_ = std::make_unique<BiJieCoins>();
     ESP_LOGI(TAG, "BiJieCoins initialized");
 
     // 初始化UI
@@ -1537,10 +1538,15 @@ void WXT185Display::ScreensaverTimerCallback(void* arg) {
         ESP_LOGI(TAG, "Screensaver is disabled, exiting callback");
         return;
     }
+    
+    // 检查设备当前状态，避免在配网模式下进入屏保
+    auto& app = Application::GetInstance();
+    DeviceState current_state = app.GetDeviceState();
+    if (current_state == kDeviceStateWifiConfiguring) {
+        ESP_LOGI(TAG, "Device is in WiFi configuring mode, skip screensaver");
+        return;
+    }
 
-    // 需要检查设备当前状态
-    
-    
     // 检查是否超时
     int64_t current_time = esp_timer_get_time() / 1000; // 转换为毫秒
     if (current_time - self->last_activity_time_ >= SCREENSAVER_TIMEOUT_MS) {
@@ -1619,35 +1625,37 @@ void WXT185Display::UpdateScreensaverContent() {
     if (!screensaver_active_) return;
 
     ESP_LOGI(TAG, "Updating screensaver content");
-    
-    // 从币界获取屏保虚拟币数据
-    auto market_data = bijie_coins_->GetMarketData(screensaver_crypto_.currency_id);
-    
-    if (!market_data) return;
-    
+
     // 更新虚拟币名称
     if (screensaver_crypto_name_) {
         lv_label_set_text(screensaver_crypto_name_, screensaver_crypto_.name.c_str());
     }
     
-    // 更新价格
-    if (screensaver_crypto_price_) {
-        char price_text[32];
-        snprintf(price_text, sizeof(price_text), "$%.2f", market_data->close);
-        lv_label_set_text(screensaver_crypto_price_, price_text);
-    }
-    
-    // 更新涨跌幅
-    if (screensaver_crypto_change_) {
-        char change_text[32];
-        snprintf(change_text, sizeof(change_text), "%.2f%%", market_data->change_24h);
-        lv_label_set_text(screensaver_crypto_change_, change_text);
+    if (bijie_coins_) {
+        // 从币界获取屏保虚拟币数据
+        auto market_data = bijie_coins_->GetMarketData(screensaver_crypto_.currency_id);
         
-        // 根据涨跌设置颜色
-        if (market_data->change_24h >= 0) {
-            lv_obj_set_style_text_color(screensaver_crypto_change_, lv_color_hex(0x00FF00), 0); // 绿色
-        } else {
-            lv_obj_set_style_text_color(screensaver_crypto_change_, lv_color_hex(0xFF0000), 0); // 红色
+        if (!market_data) return;
+        
+        // 更新价格
+        if (screensaver_crypto_price_) {
+            char price_text[32];
+            snprintf(price_text, sizeof(price_text), "$%.2f", market_data->close);
+            lv_label_set_text(screensaver_crypto_price_, price_text);
+        }
+        
+        // 更新涨跌幅
+        if (screensaver_crypto_change_) {
+            char change_text[32];
+            snprintf(change_text, sizeof(change_text), "%.2f%%", market_data->change_24h);
+            lv_label_set_text(screensaver_crypto_change_, change_text);
+            
+            // 根据涨跌设置颜色
+            if (market_data->change_24h >= 0) {
+                lv_obj_set_style_text_color(screensaver_crypto_change_, lv_color_hex(0x00FF00), 0); // 绿色
+            } else {
+                lv_obj_set_style_text_color(screensaver_crypto_change_, lv_color_hex(0xFF0000), 0); // 红色
+            }
         }
     }
     
@@ -1666,11 +1674,13 @@ void WXT185Display::UpdateScreensaverContent() {
     ESP_LOGI(TAG, "Screensaver content updated, getting KLine data...");
     
     // 获取K线数据用于屏保显示
-    bijie_coins_->GetKLineData(screensaver_crypto_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
-        ESP_LOGI(TAG, "Received K-line data for screensaver with %d points", kline_data.size());
-        // 这里可以更新屏保的K线图表，但由于屏保页面结构限制，暂不实现
-        // 在完整实现中，可以在这里更新屏保的K线图表显示
-    });
+    if (bijie_coins_) {
+        bijie_coins_->GetKLineData(screensaver_crypto_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
+            ESP_LOGI(TAG, "Received K-line data for screensaver with %d points", kline_data.size());
+            // 这里可以更新屏保的K线图表，但由于屏保页面结构限制，暂不实现
+            // 在完整实现中，可以在这里更新屏保的K线图表显示
+        });
+    }
 }
 
 void WXT185Display::OnActivity() {
