@@ -419,9 +419,13 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     current_crypto_data_.change_24h = 0.0;
     current_crypto_data_.currency_id = 1; // 默认显示BTC
     
+    ESP_LOGI(TAG, "Initialized default settings - Theme: TECHNOLOGY, Crypto: BTC, KLine Freq: 3");
+
     // 初始化最后活动时间为当前时间
     last_activity_time_ = esp_timer_get_time() / 1000; // 转换为毫秒
     
+    ESP_LOGI(TAG, "Last activity time initialized to: %lld", last_activity_time_);
+
     // 创建屏保定时器（无论是否有触摸屏都需要）
     if (screensaver_enabled) {
         esp_timer_create_args_t timer_args = {
@@ -432,37 +436,48 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
             .skip_unhandled_events = false,
         };
         esp_timer_create(&timer_args, &screensaver_timer_);
+        ESP_LOGI(TAG, "Screensaver timer created");
     }
 
     // 初始化币界虚拟币行情数据支持
     bijie_coins_ = std::make_unique<BiJieCoins>();
+    ESP_LOGI(TAG, "BiJieCoins initialized");
 
     // 初始化UI
     SetupUI();
+    ESP_LOGI(TAG, "WXT185Display constructor completed");
 }
 
 WXT185Display::~WXT185Display() {
+    ESP_LOGI(TAG, "Destroying WXT185Display instance");
+    
     // 删除屏保定时器（无论是否有触摸屏都需要）
     if (screensaver_timer_) {
         esp_timer_stop(screensaver_timer_);
         esp_timer_delete(screensaver_timer_);
+        ESP_LOGI(TAG, "Screensaver timer stopped and deleted");
     }
     
     // 断开币界虚拟币行情数据连接
     if (bijie_coins_ && bijie_coins_connected_) {
         bijie_coins_->DisconnectAll();
+        ESP_LOGI(TAG, "Disconnected all BiJie coins connections");
     }
     
     // 屏保页面对象需要手动删除，因为它直接依附于主屏幕
     if (screensaver_page_) {
         lv_obj_del(screensaver_page_);
         screensaver_page_ = nullptr;
+        ESP_LOGI(TAG, "Screensaver page deleted");
     }
 
     if (main_screen_) {
         lv_obj_del(main_screen_);
         main_screen_ = nullptr;
+        ESP_LOGI(TAG, "Main screen deleted");
     }
+    
+    ESP_LOGI(TAG, "WXT185Display instance destroyed");
 }
 
 void WXT185Display::SetupUI() {
@@ -512,6 +527,8 @@ void WXT185Display::SetupUI() {
     ESP_LOGI(TAG, "Created screensaver page");
     
     // 应用主题
+}
+
     ApplyTheme();
     ESP_LOGI(TAG, "Applied theme");
     
@@ -522,6 +539,7 @@ void WXT185Display::SetupUI() {
     // 设置币界虚拟币行情数据回调
     if (bijie_coins_) {
         bijie_coins_->SetMarketDataCallback([this](const CoinMarketData& market_data) {
+            ESP_LOGI(TAG, "Received market data callback for currency ID: %d", market_data.currency_id);
             // 更新屏保内容
             if (screensaver_active_) {
                 UpdateScreensaverContent();
@@ -1048,18 +1066,22 @@ void WXT185Display::ApplyScreensaverTheme() {
 }
 
 void WXT185Display::SetEmotion(const char* emotion) {
+    ESP_LOGI(TAG, "Setting emotion: %s", emotion ? emotion : "null");
     LcdDisplay::SetEmotion(emotion);
 }
 
 void WXT185Display::SetIcon(const char* icon) {
+    ESP_LOGI(TAG, "Setting icon: %s", icon ? icon : "null");
     LcdDisplay::SetIcon(icon);
 }
 
 void WXT185Display::SetPreviewImage(const lv_img_dsc_t* img_dsc) {
+    ESP_LOGI(TAG, "Setting preview image");
     LcdDisplay::SetPreviewImage(img_dsc);
 }
 
 void WXT185Display::SetChatMessage(const char* role, const char* content) {
+    ESP_LOGI(TAG, "Setting chat message - Role: %s, Content: %.50s...", role, content);
     // 用户活动时更新活动时间
     OnActivity();
     
@@ -1080,10 +1102,13 @@ void WXT185Display::SetChatMessage(const char* role, const char* content) {
     // 根据消息角色设置样式
     if (strcmp(role, "user") == 0) {
         lv_obj_set_style_text_color(msg_label, current_wxt185_theme_.user_bubble, 0);
+        ESP_LOGI(TAG, "Set message color to user bubble color");
     } else if (strcmp(role, "assistant") == 0) {
         lv_obj_set_style_text_color(msg_label, current_wxt185_theme_.assistant_bubble, 0);
+        ESP_LOGI(TAG, "Set message color to assistant bubble color");
     } else if (strcmp(role, "system") == 0) {
         lv_obj_set_style_text_color(msg_label, current_wxt185_theme_.system_text, 0);
+        ESP_LOGI(TAG, "Set message color to system text color");
     }
     
     lv_obj_align(msg_label, LV_ALIGN_TOP_LEFT, 0, 0);
@@ -1096,18 +1121,24 @@ void WXT185Display::SetChatMessage(const char* role, const char* content) {
 }
 
 void WXT185Display::SetTheme(const std::string& theme_name) {
+    ESP_LOGI(TAG, "Setting theme: %s", theme_name.c_str());
     DisplayLockGuard lock(this);
     // 然后处理自定义主题
     if (theme_name == "dark" || theme_name == "DARK") {
         current_wxt185_theme_ = DARK_THEME_WXT185;
+        ESP_LOGI(TAG, "Applied DARK theme");
     } else if (theme_name == "light" || theme_name == "LIGHT") {
         current_wxt185_theme_ = LIGHT_THEME_WXT185;
+        ESP_LOGI(TAG, "Applied LIGHT theme");
     } else if (theme_name == "metal") {
         current_wxt185_theme_ = METAL_THEME_WXT185;
+        ESP_LOGI(TAG, "Applied METAL theme");
     } else if (theme_name == "technology") {
         current_wxt185_theme_ = TECHNOLOGY_THEME_WXT185;
+        ESP_LOGI(TAG, "Applied TECHNOLOGY theme");
     } else if (theme_name == "cosmic") {
         current_wxt185_theme_ = COSMIC_THEME_WXT185;
+        ESP_LOGI(TAG, "Applied COSMIC theme");
     }
     
     ApplyTheme();
@@ -1125,7 +1156,6 @@ void WXT185Display::RemoveCryptocurrency(const std::string& symbol) {
                       }),
         crypto_data_.end());
 }
-
 void WXT185Display::UpdateCryptocurrencyPrice(const std::string& symbol, float price, float change) {
     for (auto& crypto : crypto_data_) {
         if (crypto.symbol == symbol) {
@@ -1186,6 +1216,7 @@ void WXT185Display::UpdateCryptoData() {
 }
 
 void WXT185Display::DrawKLineChart() {
+    ESP_LOGI(TAG, "Drawing K-line chart");
     DisplayLockGuard lock(this);
     if (crypto_chart_ == nullptr) return;
     
@@ -1194,10 +1225,16 @@ void WXT185Display::DrawKLineChart() {
     
     // 获取当前货币的K线数据
     auto market_data = bijie_coins_->GetMarketData(current_crypto_data_.currency_id);
-    if (!market_data) return;
+    if (!market_data) {
+        ESP_LOGW(TAG, "No market data available for currency ID: %d", current_crypto_data_.currency_id);
+        return;
+    }
     
     // 检查是否有K线数据
-    if (market_data->kline_data_1h.empty()) return;
+    if (market_data->kline_data_1h.empty()) {
+        ESP_LOGW(TAG, "No K-line data available for currency ID: %d", current_crypto_data_.currency_id);
+        return;
+    }
     
     // 创建图表对象
     lv_obj_t* chart = lv_chart_create(crypto_chart_);
@@ -1227,6 +1264,8 @@ void WXT185Display::DrawKLineChart() {
         point_count++;
     }
     
+    ESP_LOGI(TAG, "Added %d points to K-line chart", point_count);
+    
     // 添加标题
     lv_obj_t* chart_title = lv_label_create(crypto_chart_);
     lv_label_set_text(chart_title, "Price Trend (Close Prices)");
@@ -1239,6 +1278,8 @@ void WXT185Display::TouchEventHandler(lv_event_t* e) {
     WXT185Display* self = static_cast<WXT185Display*>(lv_event_get_user_data(e));
     lv_event_code_t code = lv_event_get_code(e);
     
+    ESP_LOGI(TAG, "Touch event handler called, code: %d", code);
+    
     // 触摸事件视为用户活动
     self->OnActivity();
     
@@ -1248,6 +1289,7 @@ void WXT185Display::TouchEventHandler(lv_event_t* e) {
         if (indev) {
             lv_point_t point;
             lv_indev_get_point(indev, &point);
+            ESP_LOGI(TAG, "Touch pressed at (%d, %d)", point.x, point.y);
             self->HandleTouchStart(point);
         }
     } else if (code == LV_EVENT_RELEASED) {
@@ -1256,19 +1298,21 @@ void WXT185Display::TouchEventHandler(lv_event_t* e) {
         if (indev) {
             lv_point_t point;
             lv_indev_get_point(indev, &point);
+            ESP_LOGI(TAG, "Touch released at (%d, %d)", point.x, point.y);
             self->HandleTouchEnd(point);
         }
     }
 #endif
 }
 
-
 void WXT185Display::HandleTouchStart(lv_point_t point) {
+    ESP_LOGI(TAG, "Handling touch start at (%d, %d)", point.x, point.y);
     touch_start_point_ = point;
     is_touching_ = true;
 }
 
 void WXT185Display::HandleTouchEnd(lv_point_t point) {
+    ESP_LOGI(TAG, "Handling touch end at (%d, %d)", point.x, point.y);
     if (!is_touching_) return;
     
     is_touching_ = false;
@@ -1281,11 +1325,13 @@ void WXT185Display::HandleTouchEnd(lv_point_t point) {
     if (abs(diff_x) > abs(diff_y) && abs(diff_x) > 30) {
         if (diff_x > 0) {
             // 向右滑动，切换到上一个页面
+            ESP_LOGI(TAG, "Swipe right detected, switching to previous page");
             if (current_page_index_ > 0) {
                 SwitchToPage(current_page_index_ - 1);
             }
         } else {
             // 向左滑动，切换到下一个页面
+            ESP_LOGI(TAG, "Swipe left detected, switching to next page");
             if (current_page_index_ < 2) {
                 SwitchToPage(current_page_index_ + 1);
             }
@@ -1294,6 +1340,7 @@ void WXT185Display::HandleTouchEnd(lv_point_t point) {
 }
 
 void WXT185Display::SwitchToPage(int page_index) {
+    ESP_LOGI(TAG, "Switching to page %d", page_index);
     DisplayLockGuard lock(this);
     if (page_container_ == nullptr || page_index < 0 || page_index > 2) return;
     
@@ -1304,12 +1351,15 @@ void WXT185Display::SwitchToPage(int page_index) {
     switch (page_index) {
         case 0:
             target_page = chat_page_;
+            ESP_LOGI(TAG, "Switching to chat page");
             break;
         case 1:
             target_page = crypto_page_;
+            ESP_LOGI(TAG, "Switching to crypto page");
             break;
         case 2:
             target_page = settings_page_;
+            ESP_LOGI(TAG, "Switching to settings page");
             break;
         default:
             return;
@@ -1321,39 +1371,49 @@ void WXT185Display::SwitchToPage(int page_index) {
 }
 
 void WXT185Display::PageEventHandler(lv_event_t* e) {
+    ESP_LOGI(TAG, "Page event handler called");
     // 页面事件处理
 }
 
 void WXT185Display::CryptoSelectorEventHandler(lv_event_t* e) {
+    ESP_LOGI(TAG, "Crypto selector event handler called");
     // 虚拟币选择事件处理
 }
 
 void WXT185Display::ThemeSelectorEventHandler(lv_event_t* e) {
+    ESP_LOGI(TAG, "Theme selector event handler called");
     // 主题选择事件处理
 }
 
 void WXT185Display::TimeframeSelectorEventHandler(lv_event_t* e) {
+    ESP_LOGI(TAG, "Timeframe selector event handler called");
     // 时间框架选择事件处理
 }
 
 void WXT185Display::ScreensaverCryptoSelectorEventHandler(lv_event_t* e) {
+    ESP_LOGI(TAG, "Screensaver crypto selector event handler called");
     // 屏保虚拟币选择事件处理
 }
 
 void WXT185Display::ScreensaverTimerCallback(void* arg) {
     WXT185Display* self = static_cast<WXT185Display*>(arg);
+    ESP_LOGI(TAG, "Screensaver timer callback triggered");
     
     // 检查屏保功能是否启用
     extern bool screensaver_enabled;
     if (!screensaver_enabled) {
+        ESP_LOGI(TAG, "Screensaver is disabled, exiting callback");
         return;
     }
     
     // 检查是否超时
     int64_t current_time = esp_timer_get_time() / 1000; // 转换为毫秒
     if (current_time - self->last_activity_time_ >= SCREENSAVER_TIMEOUT_MS) {
+        ESP_LOGI(TAG, "Screensaver timeout reached, entering screensaver mode");
         // 进入屏保模式
         self->EnterScreensaver();
+    } else {
+        ESP_LOGV(TAG, "Screensaver timeout not reached yet");
     }
 }
 
@@ -1361,6 +1421,8 @@ void WXT185Display::StartScreensaverTimer() {
     if (screensaver_timer_) {
         esp_timer_stop(screensaver_timer_);
         esp_timer_start_periodic(screensaver_timer_, 1000000); // 每秒检查一次
+}
+
     }
 }
 
@@ -1474,55 +1536,65 @@ void WXT185Display::UpdateScreensaverContent() {
 }
 
 void WXT185Display::OnActivity() {
+    ESP_LOGI(TAG, "User activity detected, updating last activity time");
     // 更新最后活动时间
     last_activity_time_ = esp_timer_get_time() / 1000; // 转换为毫秒
 
     // 如果当前处于屏保状态，则退出屏保
     if (screensaver_active_) {
+        ESP_LOGI(TAG, "Currently in screensaver mode, exiting due to user activity");
         ExitScreensaver();
     }
 }
 
 void WXT185Display::OnConversationStart() {
+    ESP_LOGI(TAG, "Conversation started, treating as user activity");
     // 对话开始时视为用户活动
     OnActivity();
 }
 
 void WXT185Display::OnConversationEnd() {
+    ESP_LOGI(TAG, "Conversation ended, updating activity time");
     // 对话结束时更新活动时间，10秒后可能进入屏保
     last_activity_time_ = esp_timer_get_time() / 1000; // 转换为毫秒
 }
 
 void WXT185Display::OnIdle() {
+    ESP_LOGI(TAG, "Device idle, updating activity time for screensaver");
     // 空闲状态时更新活动时间，10秒后可能进入屏保
     last_activity_time_ = esp_timer_get_time() / 1000; // 转换为毫秒
 }
 
 void WXT185Display::OnDeviceStateChanged(int previous_state, int current_state) {
-    ESP_LOGI(TAG, "Device state changed from %d to %d", previous_state, current_state)
+    ESP_LOGI(TAG, "Device state changed from %d to %d", previous_state, current_state);
     // 根据设备状态变化控制屏保
     switch (current_state) {
         case kDeviceStateIdle:
             // 设备进入空闲状态，设置屏保计时器
+            ESP_LOGI(TAG, "Device entered idle state");
             OnIdle();
             break;
             
         case kDeviceStateListening:
         case kDeviceStateSpeaking:
             // 设备开始对话，视为用户活动
+            ESP_LOGI(TAG, "Device started conversation");
             OnConversationStart();
             break;
 
         case kDeviceStateConnecting:
             // 设备连接状态变化也视为用户活动
+            ESP_LOGI(TAG, "Device connecting");
             OnActivity();
             break;
         case kDeviceStateWifiConfiguring:
             // 设备进入WiFi配置状态也视为用户活动
+            ESP_LOGI(TAG, "Device configuring WiFi");
             OnActivity();
             break;
         default:
             // 其他状态变化也视为用户活动
+            ESP_LOGI(TAG, "Other device state change, treating as user activity");
             OnActivity();
             break;
     }
@@ -1570,8 +1642,58 @@ void WXT185Display::ConnectToBiJieCoins() {
     bijie_coins_connected_ = true;
 }
 
+void WXT185Display::ConnectToBiJieCoins() {
+    ESP_LOGI(TAG, "Connecting to BiJie coins service");
+    if (!bijie_coins_) {
+        ESP_LOGW(TAG, "BiJie coins service not initialized");
+        return;
+    }
+    
+    // 连接到当前显示的虚拟币行情数据
+    if (bijie_coins_->Connect(current_crypto_data_.currency_id)) {
+        ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for currency %d", current_crypto_data_.currency_id);
+    } else {
+        ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for currency %d", current_crypto_data_.currency_id);
+    }
+    
+    // 连接到屏保显示的虚拟币行情数据（如果不同的话）
+    if (screensaver_crypto_.currency_id != current_crypto_data_.currency_id) {
+        if (bijie_coins_->Connect(screensaver_crypto_.currency_id)) {
+            ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_.currency_id);
+        } else {
+            ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_.currency_id);
+        }
+    }
+    
+    // 获取K线数据用于图表显示
+    bijie_coins_->GetKLineData(current_crypto_data_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
+        ESP_LOGI(TAG, "Received K-line data with %d points", kline_data.size());
+        
+        // 更新当前货币的K线数据
+        for (auto& crypto : crypto_data_) {
+            if (crypto.currency_id == current_crypto_data_.currency_id) {
+                // 转换K线数据格式并存储
+                crypto.kline_data_1h.clear();
+                for (const auto& kline : kline_data) {
+                    crypto.kline_data_1h.emplace_back(kline.open, kline.close);
+                }
+                break;
+            }
+        }
+        
+        // 更新图表显示
+        DrawKLineChart();
+    });
+    
+    bijie_coins_connected_ = true;
+}
+
 void WXT185Display::UpdateCryptoDataFromBiJie() {
-    if (!bijie_coins_ || !bijie_coins_connected_) return;
+    ESP_LOGI(TAG, "Updating crypto data from BiJie service");
+    if (!bijie_coins_ || !bijie_coins_connected_) {
+        ESP_LOGW(TAG, "BiJie coins service not connected");
+        return;
+    }
     
     // 获取币界虚拟币列表
     auto coin_list = bijie_coins_->GetCoinList();
@@ -1583,6 +1705,8 @@ void WXT185Display::UpdateCryptoDataFromBiJie() {
                 crypto.price = coin_info.price;
                 crypto.change_24h = coin_info.change_24h;
                 crypto.currency_id = coin_info.id;
+                ESP_LOGI(TAG, "Updated %s: price=%.2f, change=%.2f", 
+                         crypto.symbol.c_str(), crypto.price, crypto.change_24h);
                 break;
             }
         }
@@ -1590,14 +1714,22 @@ void WXT185Display::UpdateCryptoDataFromBiJie() {
 }
 
 void WXT185Display::SwitchCrypto(int currency_id) {
-    if (!bijie_coins_) return;
+    ESP_LOGI(TAG, "Switching to crypto currency ID: %d", currency_id);
+    if (!bijie_coins_) {
+        ESP_LOGW(TAG, "BiJie coins service not initialized");
+        return;
+    }
     
     // 如果要切换到的虚拟币已经是当前虚拟币，则直接返回
-    if (currency_id == current_crypto_data_.currency_id) return;
+    if (currency_id == current_crypto_data_.currency_id) {
+        ESP_LOGI(TAG, "Already on the selected currency, no switch needed");
+        return;
+    }
     
     // 断开当前连接（如果当前虚拟币不是屏保虚拟币）
     if (current_crypto_data_.currency_id != screensaver_crypto_.currency_id) {
         bijie_coins_->Disconnect(current_crypto_data_.currency_id);
+        ESP_LOGI(TAG, "Disconnected from previous currency ID: %d", current_crypto_data_.currency_id);
     }
     
     // 更新当前虚拟币ID
@@ -1637,14 +1769,22 @@ void WXT185Display::SwitchCrypto(int currency_id) {
 }
 
 void WXT185Display::SetScreensaverCrypto(int currency_id) {
-    if (!bijie_coins_) return;
+    ESP_LOGI(TAG, "Setting screensaver crypto currency ID: %d", currency_id);
+    if (!bijie_coins_) {
+        ESP_LOGW(TAG, "BiJie coins service not initialized");
+        return;
+    }
     
     // 如果要设置的虚拟币已经是屏保虚拟币，则直接返回
-    if (currency_id == screensaver_crypto_.currency_id) return;
+    if (currency_id == screensaver_crypto_.currency_id) {
+        ESP_LOGI(TAG, "Already set to the selected screensaver currency, no change needed");
+        return;
+    }
     
     // 断开之前的屏保虚拟币连接（如果之前的屏保虚拟币不是当前显示的虚拟币）
     if (screensaver_crypto_.currency_id != current_crypto_data_.currency_id) {
         bijie_coins_->Disconnect(screensaver_crypto_.currency_id);
+        ESP_LOGI(TAG, "Disconnected from previous screensaver currency ID: %d", screensaver_crypto_.currency_id);
     }
     
     // 更新屏保虚拟币ID
