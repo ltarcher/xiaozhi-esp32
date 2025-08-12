@@ -1499,6 +1499,7 @@ void WXT185Display::OnIdle() {
 }
 
 void WXT185Display::OnDeviceStateChanged(int previous_state, int current_state) {
+    ESP_LOGI(TAG, "Device state changed from %d to %d", previous_state, current_state)
     // 根据设备状态变化控制屏保
     switch (current_state) {
         case kDeviceStateIdle:
