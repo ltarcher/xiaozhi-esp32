@@ -415,7 +415,7 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     // Load theme from settings
     Settings settings("display", false);
     std::string theme_name = settings.GetString("theme", "light");
-    ESP_LOGI(TAG, "Theme: %s", theme_name.c_str())
+    ESP_LOGI(TAG, "Theme: %s", theme_name.c_str());
     if (theme_name == "dark" || theme_name == "DARK") {
         current_wxt185_theme_ = DARK_THEME_WXT185;
     } else if (theme_name == "light" || theme_name == "LIGHT") {
