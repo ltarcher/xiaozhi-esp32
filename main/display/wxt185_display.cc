@@ -656,6 +656,8 @@ void WXT185Display::CreateCommonComponents()
     lv_obj_set_style_border_width(common_outer_ring_, 2, 0);
     lv_obj_set_style_border_color(common_outer_ring_, current_wxt185_theme_.border, 0);
     lv_obj_clear_flag(common_outer_ring_, LV_OBJ_FLAG_SCROLLABLE);
+    // 设置为透明，避免挡住其他内容
+    lv_obj_set_style_bg_opa(common_outer_ring_, LV_OPA_TRANSP, 0);
 
     // 2. 计算基础比例参数（基于屏幕直径）
     uint16_t screen_diameter = lv_obj_get_width(main_screen_);
@@ -675,6 +677,8 @@ void WXT185Display::CreateCommonComponents()
     //lv_obj_set_style_arc_width(progress_ring, scale * 4, 0);
     lv_arc_set_mode(common_inner_ring_, LV_ARC_MODE_SYMMETRICAL);
     lv_obj_clear_flag(common_inner_ring_, LV_OBJ_FLAG_CLICKABLE);
+    // 设置为透明，避免挡住其他内容
+    lv_obj_set_style_bg_opa(common_inner_ring_, LV_OPA_TRANSP, 0);
 
 }
 
@@ -682,8 +686,6 @@ void WXT185Display::CreateChatPage() {
     ESP_LOGI(TAG, "Creating chat page");
     
     chat_page_ = lv_obj_create(page_container_);
-    lv_obj_set_size(chat_page_, width_, height_);
-    lv_obj_set_style_radius(chat_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(chat_page_, current_wxt185_theme_.background, 0);
     lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_pad_all(chat_page_, 0, 0);
@@ -699,7 +701,6 @@ void WXT185Display::CreateChatPage() {
     // 先用当前的组件创建聊天页面
     /* Container */
     container_ = lv_obj_create(chat_page_);
-    lv_obj_set_size(container_, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_flex_flow(container_, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_all(container_, 0, 0);
     lv_obj_set_style_border_width(container_, 0, 0);
@@ -709,16 +710,24 @@ void WXT185Display::CreateChatPage() {
 
     /* Status bar */
     status_bar_ = lv_obj_create(container_);
-    lv_obj_set_size(status_bar_, LV_HOR_RES, fonts_.text_font->line_height);
-    lv_obj_set_style_radius(status_bar_, 0, 0);
+    // 设置状态栏宽度为屏幕宽度的 20%
+    lv_obj_set_size(status_bar_, LV_HOR_RES * 0.2f, fonts_.text_font->line_height);
+    // 设置文本居中
+    lv_obj_set_style_text_align(status_bar_, LV_TEXT_ALIGN_CENTER, 0);
+    // 设置背景
     lv_obj_set_style_bg_color(status_bar_, current_wxt185_theme_.background, 0);
     lv_obj_set_style_text_color(status_bar_, current_wxt185_theme_.text, 0);
-    
+    // 修改对齐方式为顶部中间，并添加适当的垂直偏移量
+    lv_obj_align(status_bar_, LV_ALIGN_TOP_MID, 0, 10); // 垂直偏移量为10像素
+    // 设置不可滚动
+    lv_obj_clear_flag(status_bar_, LV_OBJ_FLAG_SCROLLABLE);
+
     /* Content */
     content_ = lv_obj_create(container_);
+    lv_obj_align(content_, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_scrollbar_mode(content_, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_radius(content_, 0, 0);
-    lv_obj_set_width(content_, LV_HOR_RES);
+    lv_obj_set_width(content_, LV_HOR_RES * 0.75f);
     lv_obj_set_flex_grow(content_, 1);
     lv_obj_set_style_pad_all(content_, 5, 0);
     lv_obj_set_style_bg_color(content_, current_wxt185_theme_.chat_background, 0);
