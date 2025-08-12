@@ -493,13 +493,16 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     kline_frequency = 3; // 默认一小时的K线频率
     screensaver_enabled = true; // 默认启用屏保
     current_wxt185_theme_ = TECHNOLOGY_THEME_WXT185;
-    screensaver_crypto_.currency_id = 1; // 默认屏保显示BTC
+    
     // 初始化当前显示的虚拟币数据
     current_crypto_data_.symbol = "BTC";
     current_crypto_data_.name = "Bitcoin";
     current_crypto_data_.price = 0.0;
     current_crypto_data_.change_24h = 0.0;
     current_crypto_data_.currency_id = 1; // 默认显示BTC
+
+    // 初始化屏保虚拟币数据
+    screensaver_crypto_ = current_crypto_data_;
     
     ESP_LOGI(TAG, "Initialized default settings - Theme: TECHNOLOGY, Crypto: BTC, KLine Freq: 3");
 
@@ -1796,6 +1799,9 @@ void WXT185Display::SwitchCrypto(int currency_id) {
             ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for currency %d", current_crypto_data_.currency_id);
         }
     }
+
+    // 设置屏保虚拟币
+    screensaver_crypto_ = current_crypto_data_;
     
     // 获取K线数据用于图表显示
     bijie_coins_->GetKLineData(current_crypto_data_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
