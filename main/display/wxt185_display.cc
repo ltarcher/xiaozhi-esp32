@@ -1755,44 +1755,58 @@ void WXT185Display::ConnectToBiJieCoins() {
         return;
     }
     
-    // 连接到当前显示的虚拟币行情数据
-    if (bijie_coins_->Connect(current_crypto_data_.currency_id)) {
-        ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for currency %d", current_crypto_data_.currency_id);
-    } else {
-        ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for currency %d", current_crypto_data_.currency_id);
-    }
-    
-    // 连接到屏保显示的虚拟币行情数据（如果不同的话）
-    if (screensaver_crypto_.currency_id != current_crypto_data_.currency_id) {
-        if (bijie_coins_->Connect(screensaver_crypto_.currency_id)) {
-            ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_.currency_id);
-        } else {
-            ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_.currency_id);
-        }
-    }
-    
-    // 获取K线数据用于图表显示
-    bijie_coins_->GetKLineData(current_crypto_data_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
-        ESP_LOGI(TAG, "Received K-line data with %d points", kline_data.size());
+    // 使用LVGL的异步机制执行WebSocket连接，避免在错误的线程上下文中执行网络操作
+    lv_async_call([](void* user_data) {
+        WXT185Display* self = static_cast<WXT185Display*>(user_data);
         
-        // 更新当前货币的K线数据
-        for (auto& crypto : crypto_data_) {
-            if (crypto.currency_id == current_crypto_data_.currency_id) {
-                // 转换K线数据格式并存储
-                crypto.kline_data_1h.clear();
-                for (const auto& kline : kline_data) {
-                    crypto.kline_data_1h.emplace_back(kline.open, kline.close);
-                }
-                break;
+        // 在独立线程中执行WebSocket连接，避免阻塞LVGL主线程
+        std::thread connect_thread([self]() {
+            // 连接到当前显示的虚拟币行情数据
+            if (self->bijie_coins_->Connect(self->current_crypto_data_.currency_id)) {
+                ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for currency %d", self->current_crypto_data_.currency_id);
+            } else {
+                ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for currency %d", self->current_crypto_data_.currency_id);
             }
-        }
+            
+            // 连接到屏保显示的虚拟币行情数据（如果不同的话）
+            if (self->screensaver_crypto_.currency_id != self->current_crypto_data_.currency_id) {
+                if (self->bijie_coins_->Connect(self->screensaver_crypto_.currency_id)) {
+                    ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for screensaver currency %d", self->screensaver_crypto_.currency_id);
+                } else {
+                    ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for screensaver currency %d", self->screensaver_crypto_.currency_id);
+                }
+            }
+            
+            // 获取K线数据用于图表显示
+            self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, 2, 30, [self](const std::vector<KLineData>& kline_data) {
+                ESP_LOGI(TAG, "Received K-line data with %d points", kline_data.size());
+                
+                // 更新当前货币的K线数据
+                for (auto& crypto : self->crypto_data_) {
+                    if (crypto.currency_id == self->current_crypto_data_.currency_id) {
+                        // 转换K线数据格式并存储
+                        crypto.kline_data_1h.clear();
+                        for (const auto& kline : kline_data) {
+                            crypto.kline_data_1h.emplace_back(kline.open, kline.close);
+                        }
+                        break;
+                    }
+                }
+                
+                // 更新图表显示
+                self->DrawKLineChart();
+            });
+            
+            self->bijie_coins_connected_ = true;
+        });
         
-        // 更新图表显示
-        DrawKLineChart();
-    });
-    
-    bijie_coins_connected_ = true;
+        // 分离线程，让它独立运行
+        connect_thread.detach();
+    }, this);
+
+    ESP_LOGI(TAG, "Connecting to BiJie coins service complete");
 }
+
 
 void WXT185Display::UpdateCryptoDataFromBiJie() {
     ESP_LOGI(TAG, "Updating crypto data from BiJie service");
