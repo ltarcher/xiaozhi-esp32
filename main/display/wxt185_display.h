@@ -119,13 +119,16 @@ protected:
     lv_point_t touch_start_point_ = {0, 0};
     bool is_touching_ = false;
     
+public:
     // 屏幕保护相关
     bool screensaver_active_ = false;
     int64_t last_activity_time_ = 0;
     esp_timer_handle_t screensaver_timer_ = nullptr;
     CryptocurrencyData screensaver_crypto_;
     std::vector<std::pair<float, float>> screensaver_kline_data_; // 屏保K线数据
-    
+
+protected:
+
     // 代理配置
     ProxyConfig proxy_config_;
     
@@ -166,6 +169,7 @@ protected:
     void HandleTouchStart(lv_point_t point);
     void HandleTouchEnd(lv_point_t point);
     
+public:
     // 屏幕保护相关函数
     static void ScreensaverTimerCallback(void* arg);
     void StartScreensaverTimer();
