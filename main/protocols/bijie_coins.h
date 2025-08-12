@@ -8,8 +8,12 @@
 #include <map>
 #include <memory>
 
+#define MAX_COIN_NAME_LEN 16
+#define MAX_KLINE_FREQUENCIES_LEN 9
+
 // 虚拟币行情数据结构
 struct CoinMarketData {
+    // 实时行情数据
     long long timestamp;     // 时间戳
     float open;              // 开盘价
     float high;              // 最高价
@@ -34,6 +38,8 @@ struct CoinMarketData {
     std::vector<std::pair<float, float>> kline_data_4h;  // 4小时K线
     std::vector<std::pair<float, float>> kline_data_1d;  // 1天K线
     std::vector<std::pair<float, float>> kline_data_1w;  // 1周K线
+    std::vector<std::pair<float, float>> kline_data_1mo; // 1月K线
+    std::vector<std::pair<float, float>> kline_data_3mo; // 3月K线
 };
 
 // K线数据结构
@@ -154,6 +160,16 @@ public:
      */
     void GetKLineData(int currency_id, int kline_type, int limit, OnKLineDataCallback callback);
 
+    /**
+     * @brief 获取K线时间频率列表
+     * @return K线时间频率列表
+     */
+    const char** GetKLineTimeFrequencies() {
+        static const char* klinefreq_[] = {
+            "1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w", "1mo", "3mo"
+        };
+        return klinefreq_;
+    };
 private:
     class Impl;  // 前向声明实现类
     std::unique_ptr<Impl> impl_;

@@ -1,10 +1,12 @@
 #include "wxt185_display.h"
+#include "lvgl.h"
 #include <esp_log.h>
 #include <algorithm>
 #include <ctime>
 #include "assets/lang_config.h"
 #include "device_state.h"
 #include <font_awesome_symbols.h>
+#include <esp_lvgl_port.h>
 
 #define TAG "WXT185Display"
 
@@ -22,6 +24,18 @@
 #define LIGHT_LOW_BATTERY_COLOR      lv_color_black()
 #define LIGHT_HEADER_COLOR           lv_color_hex(0xDDDDDD)
 #define LIGHT_SELECTOR_COLOR         lv_color_hex(0xF0F0F0)
+#define LIGHT_OUTER_RING_COLOR       lv_color_hex(0xDDDDDD)  // 外圆环颜色
+#define LIGHT_INNER_RING_COLOR       lv_color_hex(0xEEEEEE)  // 内圆环颜色
+#define LIGHT_SCREENSAVER_SWITCH_COLOR lv_color_hex(0x1A6C37) // 屏保开关颜色
+
+// 虚拟币界面颜色定义 - 基于LIGHT主题
+#define LIGHT_CRYPTO_BACKGROUND_COLOR      LIGHT_BACKGROUND_COLOR      // 背景色
+#define LIGHT_CRYPTO_TEXT_COLOR            LIGHT_TEXT_COLOR            // 主文本色
+#define LIGHT_CRYPTO_SUB_TEXT_COLOR        LIGHT_SYSTEM_TEXT_COLOR     // 次要文本色
+#define LIGHT_CRYPTO_UP_COLOR              LIGHT_TEXT_COLOR            // 上涨颜色
+#define LIGHT_CRYPTO_DOWN_COLOR            LIGHT_LOW_BATTERY_COLOR     // 下跌颜色
+#define LIGHT_CRYPTO_BORDER_COLOR          LIGHT_BORDER_COLOR          // 边框颜色
+#define LIGHT_CRYPTO_PROGRESS_BG_COLOR     LIGHT_CHAT_BACKGROUND_COLOR // 进度环背景色
 
 // 颜色定义 - DARK主题
 #define DARK_BACKGROUND_COLOR        lv_color_hex(0x121212)
@@ -35,6 +49,18 @@
 #define DARK_LOW_BATTERY_COLOR       lv_color_hex(0xFF0000)
 #define DARK_HEADER_COLOR            lv_color_hex(0x252525)
 #define DARK_SELECTOR_COLOR          lv_color_hex(0x303030)
+#define DARK_OUTER_RING_COLOR        lv_color_hex(0x252525)  // 外圆环颜色
+#define DARK_INNER_RING_COLOR        lv_color_hex(0x1E1E1E)  // 内圆环颜色
+#define DARK_SCREENSAVER_SWITCH_COLOR lv_color_hex(0x1A6C37)  // 屏保开关颜色
+
+// 虚拟币界面颜色定义 - 基于DARK主题
+#define DARK_CRYPTO_BACKGROUND_COLOR      DARK_BACKGROUND_COLOR      // 背景色
+#define DARK_CRYPTO_TEXT_COLOR            DARK_TEXT_COLOR            // 主文本色
+#define DARK_CRYPTO_SUB_TEXT_COLOR        DARK_SYSTEM_TEXT_COLOR     // 次要文本色
+#define DARK_CRYPTO_UP_COLOR              DARK_TEXT_COLOR            // 上涨颜色
+#define DARK_CRYPTO_DOWN_COLOR            DARK_LOW_BATTERY_COLOR     // 下跌颜色(红色)
+#define DARK_CRYPTO_BORDER_COLOR          DARK_BORDER_COLOR          // 边框颜色
+#define DARK_CRYPTO_PROGRESS_BG_COLOR     DARK_CHAT_BACKGROUND_COLOR // 进度环背景色
 
 // 颜色定义 - METAL主题
 #define METAL_BACKGROUND_COLOR       lv_color_hex(0xC0C0C0)
@@ -48,6 +74,18 @@
 #define METAL_LOW_BATTERY_COLOR      lv_color_hex(0x8B0000)
 #define METAL_HEADER_COLOR           lv_color_hex(0xB0B0B0)
 #define METAL_SELECTOR_COLOR         lv_color_hex(0xCFCFCF)
+#define METAL_OUTER_RING_COLOR       lv_color_hex(0xB0B0B0)   // 外圆环颜色
+#define METAL_INNER_RING_COLOR       lv_color_hex(0xC0C0C0)   // 内圆环颜色
+#define METAL_SCREENSAVER_SWITCH_COLOR lv_color_hex(0x1A6C37)  // 屏保开关颜色
+
+// 虚拟币界面颜色定义 - 基于METAL主题
+#define METAL_CRYPTO_BACKGROUND_COLOR      METAL_BACKGROUND_COLOR      // 背景色
+#define METAL_CRYPTO_TEXT_COLOR            METAL_TEXT_COLOR            // 主文本色
+#define METAL_CRYPTO_SUB_TEXT_COLOR        METAL_SYSTEM_TEXT_COLOR     // 次要文本色
+#define METAL_CRYPTO_UP_COLOR              METAL_TEXT_COLOR            // 上涨颜色
+#define METAL_CRYPTO_DOWN_COLOR            METAL_LOW_BATTERY_COLOR     // 下跌颜色(红色)
+#define METAL_CRYPTO_BORDER_COLOR          METAL_BORDER_COLOR          // 边框颜色
+#define METAL_CRYPTO_PROGRESS_BG_COLOR     METAL_CHAT_BACKGROUND_COLOR // 进度环背景色
 
 // 颜色定义 - TECHNOLOGY主题
 #define TECHNOLOGY_BACKGROUND_COLOR  lv_color_hex(0x0A0A20)
@@ -61,6 +99,18 @@
 #define TECHNOLOGY_LOW_BATTERY_COLOR lv_color_hex(0xFF4500)
 #define TECHNOLOGY_HEADER_COLOR      lv_color_hex(0x151535)
 #define TECHNOLOGY_SELECTOR_COLOR    lv_color_hex(0x202045)
+#define TECHNOLOGY_OUTER_RING_COLOR  lv_color_hex(0x151535)   // 外圆环颜色
+#define TECHNOLOGY_INNER_RING_COLOR  lv_color_hex(0x0A0A20)   // 内圆环颜色
+#define TECHNOLOGY_SCREENSAVER_SWITCH_COLOR lv_color_hex(0x006400) // 屏保开关颜色
+
+// 虚拟币界面颜色定义 - 基于TECHNOLOGY主题
+#define TECHNOLOGY_CRYPTO_BACKGROUND_COLOR      TECHNOLOGY_BACKGROUND_COLOR      // 背景色
+#define TECHNOLOGY_CRYPTO_TEXT_COLOR            TECHNOLOGY_TEXT_COLOR            // 主文本色
+#define TECHNOLOGY_CRYPTO_SUB_TEXT_COLOR        TECHNOLOGY_SYSTEM_TEXT_COLOR     // 次要文本色
+#define TECHNOLOGY_CRYPTO_UP_COLOR              TECHNOLOGY_TEXT_COLOR            // 上涨颜色(青色)
+#define TECHNOLOGY_CRYPTO_DOWN_COLOR            TECHNOLOGY_LOW_BATTERY_COLOR     // 下跌颜色(橙红色)
+#define TECHNOLOGY_CRYPTO_BORDER_COLOR          TECHNOLOGY_BORDER_COLOR          // 边框颜色
+#define TECHNOLOGY_CRYPTO_PROGRESS_BG_COLOR     TECHNOLOGY_CHAT_BACKGROUND_COLOR // 进度环背景色
 
 // 颜色定义 - COSMIC主题
 #define COSMIC_BACKGROUND_COLOR      lv_color_black()
@@ -74,11 +124,25 @@
 #define COSMIC_LOW_BATTERY_COLOR     lv_color_hex(0xFF0000)
 #define COSMIC_HEADER_COLOR          lv_color_hex(0x150015)
 #define COSMIC_SELECTOR_COLOR        lv_color_hex(0x250025)
+#define COSMIC_OUTER_RING_COLOR      lv_color_hex(0x150015)   // 外圆环颜色
+#define COSMIC_INNER_RING_COLOR      lv_color_hex(0x100010)   // 内圆环颜色
+#define COSMIC_SCREENSAVER_SWITCH_COLOR lv_color_hex(0x4B0082) // 屏保开关颜色
+
+// 虚拟币界面颜色定义 - 基于COSMIC主题
+#define COSMIC_CRYPTO_BACKGROUND_COLOR      COSMIC_BACKGROUND_COLOR      // 背景色
+#define COSMIC_CRYPTO_TEXT_COLOR            COSMIC_TEXT_COLOR            // 主文本色
+#define COSMIC_CRYPTO_SUB_TEXT_COLOR        COSMIC_SYSTEM_TEXT_COLOR     // 次要文本色
+#define COSMIC_CRYPTO_UP_COLOR              COSMIC_TEXT_COLOR            // 上涨颜色(黄色)
+#define COSMIC_CRYPTO_DOWN_COLOR            COSMIC_LOW_BATTERY_COLOR     // 下跌颜色(红色)
+#define COSMIC_CRYPTO_BORDER_COLOR          COSMIC_BORDER_COLOR          // 边框颜色
+#define COSMIC_CRYPTO_PROGRESS_BG_COLOR     COSMIC_CHAT_BACKGROUND_COLOR // 进度环背景色
 
 // 主题定义
 const WXT185ThemeColors LIGHT_THEME_WXT185 = {
     .background = LIGHT_BACKGROUND_COLOR,
     .text = LIGHT_TEXT_COLOR,
+    .outer_ring_background = LIGHT_OUTER_RING_COLOR,
+    .inner_ring_background = LIGHT_INNER_RING_COLOR,
     .chat_background = LIGHT_CHAT_BACKGROUND_COLOR,
     .user_bubble = LIGHT_USER_BUBBLE_COLOR,
     .assistant_bubble = LIGHT_ASSISTANT_BUBBLE_COLOR,
@@ -87,12 +151,22 @@ const WXT185ThemeColors LIGHT_THEME_WXT185 = {
     .border = LIGHT_BORDER_COLOR,
     .low_battery = LIGHT_LOW_BATTERY_COLOR,
     .header = LIGHT_HEADER_COLOR,
-    .selector = LIGHT_SELECTOR_COLOR
+    .selector = LIGHT_SELECTOR_COLOR,
+    .crypto_backgroud = LIGHT_CRYPTO_BACKGROUND_COLOR,
+    .crypto_text = LIGHT_CRYPTO_TEXT_COLOR,
+    .crypto_sub_text = LIGHT_CRYPTO_SUB_TEXT_COLOR,
+    .crypto_up_color = LIGHT_CRYPTO_UP_COLOR,
+    .crypto_down_color = LIGHT_CRYPTO_DOWN_COLOR,
+    .crypto_border_color = LIGHT_CRYPTO_BORDER_COLOR,
+    .crypto_progress_bg_color = LIGHT_CRYPTO_PROGRESS_BG_COLOR,
+    .settings_screensaver_switch = LIGHT_SCREENSAVER_SWITCH_COLOR
 };
 
 const WXT185ThemeColors DARK_THEME_WXT185 = {
     .background = DARK_BACKGROUND_COLOR,
     .text = DARK_TEXT_COLOR,
+    .outer_ring_background = DARK_OUTER_RING_COLOR,
+    .inner_ring_background = DARK_INNER_RING_COLOR,
     .chat_background = DARK_CHAT_BACKGROUND_COLOR,
     .user_bubble = DARK_USER_BUBBLE_COLOR,
     .assistant_bubble = DARK_ASSISTANT_BUBBLE_COLOR,
@@ -101,12 +175,22 @@ const WXT185ThemeColors DARK_THEME_WXT185 = {
     .border = DARK_BORDER_COLOR,
     .low_battery = DARK_LOW_BATTERY_COLOR,
     .header = DARK_HEADER_COLOR,
-    .selector = DARK_SELECTOR_COLOR
+    .selector = DARK_SELECTOR_COLOR,
+    .crypto_backgroud = DARK_CRYPTO_BACKGROUND_COLOR,
+    .crypto_text = DARK_CRYPTO_TEXT_COLOR,
+    .crypto_sub_text = DARK_CRYPTO_SUB_TEXT_COLOR,
+    .crypto_up_color = DARK_CRYPTO_UP_COLOR,
+    .crypto_down_color = DARK_CRYPTO_DOWN_COLOR,
+    .crypto_border_color = DARK_CRYPTO_BORDER_COLOR,
+    .crypto_progress_bg_color = DARK_CRYPTO_PROGRESS_BG_COLOR,
+    .settings_screensaver_switch = DARK_SCREENSAVER_SWITCH_COLOR
 };
 
 const WXT185ThemeColors METAL_THEME_WXT185 = {
     .background = METAL_BACKGROUND_COLOR,
     .text = METAL_TEXT_COLOR,
+    .outer_ring_background = METAL_OUTER_RING_COLOR,
+    .inner_ring_background = METAL_INNER_RING_COLOR,
     .chat_background = METAL_CHAT_BACKGROUND_COLOR,
     .user_bubble = METAL_USER_BUBBLE_COLOR,
     .assistant_bubble = METAL_ASSISTANT_BUBBLE_COLOR,
@@ -115,12 +199,22 @@ const WXT185ThemeColors METAL_THEME_WXT185 = {
     .border = METAL_BORDER_COLOR,
     .low_battery = METAL_LOW_BATTERY_COLOR,
     .header = METAL_HEADER_COLOR,
-    .selector = METAL_SELECTOR_COLOR
+    .selector = METAL_SELECTOR_COLOR,
+    .crypto_backgroud = METAL_CRYPTO_BACKGROUND_COLOR,
+    .crypto_text = METAL_CRYPTO_TEXT_COLOR,
+    .crypto_sub_text = METAL_CRYPTO_SUB_TEXT_COLOR,
+    .crypto_up_color = METAL_CRYPTO_UP_COLOR,
+    .crypto_down_color = METAL_CRYPTO_DOWN_COLOR,
+    .crypto_border_color = METAL_CRYPTO_BORDER_COLOR,
+    .crypto_progress_bg_color = METAL_CRYPTO_PROGRESS_BG_COLOR,
+    .settings_screensaver_switch = METAL_SCREENSAVER_SWITCH_COLOR
 };
 
 const WXT185ThemeColors TECHNOLOGY_THEME_WXT185 = {
     .background = TECHNOLOGY_BACKGROUND_COLOR,
     .text = TECHNOLOGY_TEXT_COLOR,
+    .outer_ring_background = TECHNOLOGY_OUTER_RING_COLOR,
+    .inner_ring_background = TECHNOLOGY_INNER_RING_COLOR,
     .chat_background = TECHNOLOGY_CHAT_BACKGROUND_COLOR,
     .user_bubble = TECHNOLOGY_USER_BUBBLE_COLOR,
     .assistant_bubble = TECHNOLOGY_ASSISTANT_BUBBLE_COLOR,
@@ -129,12 +223,22 @@ const WXT185ThemeColors TECHNOLOGY_THEME_WXT185 = {
     .border = TECHNOLOGY_BORDER_COLOR,
     .low_battery = TECHNOLOGY_LOW_BATTERY_COLOR,
     .header = TECHNOLOGY_HEADER_COLOR,
-    .selector = TECHNOLOGY_SELECTOR_COLOR
+    .selector = TECHNOLOGY_SELECTOR_COLOR,
+    .crypto_backgroud = TECHNOLOGY_CRYPTO_BACKGROUND_COLOR,
+    .crypto_text = TECHNOLOGY_CRYPTO_TEXT_COLOR,
+    .crypto_sub_text = TECHNOLOGY_CRYPTO_SUB_TEXT_COLOR,
+    .crypto_up_color = TECHNOLOGY_CRYPTO_UP_COLOR,
+    .crypto_down_color = TECHNOLOGY_CRYPTO_DOWN_COLOR,
+    .crypto_border_color = TECHNOLOGY_CRYPTO_BORDER_COLOR,
+    .crypto_progress_bg_color = TECHNOLOGY_CRYPTO_PROGRESS_BG_COLOR,
+    .settings_screensaver_switch = TECHNOLOGY_SCREENSAVER_SWITCH_COLOR
 };
 
 const WXT185ThemeColors COSMIC_THEME_WXT185 = {
     .background = COSMIC_BACKGROUND_COLOR,
     .text = COSMIC_TEXT_COLOR,
+    .outer_ring_background = COSMIC_OUTER_RING_COLOR,
+    .inner_ring_background = COSMIC_INNER_RING_COLOR,
     .chat_background = COSMIC_CHAT_BACKGROUND_COLOR,
     .user_bubble = COSMIC_USER_BUBBLE_COLOR,
     .assistant_bubble = COSMIC_ASSISTANT_BUBBLE_COLOR,
@@ -143,33 +247,150 @@ const WXT185ThemeColors COSMIC_THEME_WXT185 = {
     .border = COSMIC_BORDER_COLOR,
     .low_battery = COSMIC_LOW_BATTERY_COLOR,
     .header = COSMIC_HEADER_COLOR,
-    .selector = COSMIC_SELECTOR_COLOR
+    .selector = COSMIC_SELECTOR_COLOR,
+    .crypto_backgroud = COSMIC_CRYPTO_BACKGROUND_COLOR,
+    .crypto_text = COSMIC_CRYPTO_TEXT_COLOR,
+    .crypto_sub_text = COSMIC_CRYPTO_SUB_TEXT_COLOR,
+    .crypto_up_color = COSMIC_CRYPTO_UP_COLOR,
+    .crypto_down_color = COSMIC_CRYPTO_DOWN_COLOR,
+    .crypto_border_color = COSMIC_CRYPTO_BORDER_COLOR,
+    .crypto_progress_bg_color = COSMIC_CRYPTO_PROGRESS_BG_COLOR,
+    .settings_screensaver_switch = COSMIC_SCREENSAVER_SWITCH_COLOR    
 };
+
+// 定义字体(需要idf.py menuconfig启用lvgl字体配置项)
+LV_FONT_DECLARE(lv_font_montserrat_16)
+LV_FONT_DECLARE(lv_font_montserrat_24)
+LV_FONT_DECLARE(lv_font_montserrat_32)
+LV_FONT_DECLARE(lv_font_montserrat_48)
+
+//
+LV_FONT_DECLARE(font_awesome_30_4);
+
+// 主题样式字符串
+static const char* ThemeString[] = {
+    "Light",
+    "Dark",
+    "Metal",
+    "Technology",
+    "Cosmic"
+};
+
+static uint32_t ThemeCount = sizeof(ThemeString) / sizeof(ThemeString[0]);
+#define MAX_THEME_NAME_LENGTH 16
+
+// 设置选项
+static int selected_theme = 0;             // 当前选择的主题
+static int default_crypto = 0;             // 默认虚拟币
+static int kline_frequency = 0;            // K线频率 (0=1分钟, 1=5分钟, 2=15分钟, 3=1小时, 4=4小时, 5=1天, 6=1周, 7=1月, 8=3个月)
+static bool screensaver_enabled = true;    // 屏保开关
+
+// 设置主题回调
+static void theme_roller_event_handler(lv_event_t * e) {
+    lv_obj_t * obj = (lv_obj_t *)lv_event_get_target(e);
+    if (lv_event_get_code(e) == LV_EVENT_VALUE_CHANGED) {
+        selected_theme = lv_roller_get_selected(obj);
+    }
+}
+
+// 默认虚拟币选择事件处理函数
+static void default_crypto_roller_event_handler(lv_event_t * e) {
+    lv_obj_t * obj = (lv_obj_t *)lv_event_get_target(e);
+    if (lv_event_get_code(e) == LV_EVENT_VALUE_CHANGED) {
+        default_crypto = lv_roller_get_selected(obj);
+    }
+}
+
+// K线频率选择事件处理函数
+static void kline_frequency_roller_event_handler(lv_event_t * e) {
+    lv_obj_t * obj = (lv_obj_t *)lv_event_get_target(e);
+    if (lv_event_get_code(e) == LV_EVENT_VALUE_CHANGED) {
+        kline_frequency = lv_roller_get_selected(obj);
+    }
+}
+
+// 屏保开关事件处理函数
+static void screensaver_switch_event_handler(lv_event_t * e) {
+    lv_obj_t * obj = (lv_obj_t *)lv_event_get_target(e);
+    if (lv_event_get_code(e) == LV_EVENT_VALUE_CHANGED) {
+        screensaver_enabled = lv_obj_has_state(obj, LV_STATE_CHECKED);
+    }
+}
 
 WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
                            int width, int height, int offset_x, int offset_y,
                            bool mirror_x, bool mirror_y, bool swap_xy,
                            DisplayFonts fonts)
-    : SpiLcdDisplay(panel_io, panel, width, height, offset_x, offset_y, 
-                    mirror_x, mirror_y, swap_xy, fonts) {
+    : LcdDisplay(panel_io, panel, fonts, width, height) {
     ESP_LOGI(TAG, "Initializing WXT185 Display");
+
+    // draw white
+    std::vector<uint16_t> buffer(width_, 0xFFFF);
+    for (int y = 0; y < height_; y++) {
+        esp_lcd_panel_draw_bitmap(panel_, 0, y, width_, y + 1, buffer.data());
+    }
+
+    // Set the display to on
+    ESP_LOGI(TAG, "Turning display on");
+    ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_, true));
+
+    ESP_LOGI(TAG, "Initialize LVGL library");
+    lv_init();
+
+    ESP_LOGI(TAG, "Initialize LVGL port");
+    lvgl_port_cfg_t port_cfg = ESP_LVGL_PORT_INIT_CONFIG();
+    port_cfg.task_priority = 1;
+    port_cfg.timer_period_ms = 50;
+    lvgl_port_init(&port_cfg);
+
+    ESP_LOGI(TAG, "Adding LCD display");
+    const lvgl_port_display_cfg_t display_cfg = {
+        .io_handle = panel_io_,
+        .panel_handle = panel_,
+        .control_handle = nullptr,
+        .buffer_size = static_cast<uint32_t>(width_ * 20),
+        .double_buffer = false,
+        .trans_size = 0,
+        .hres = static_cast<uint32_t>(width_),
+        .vres = static_cast<uint32_t>(height_),
+        .monochrome = false,
+        .rotation = {
+            .swap_xy = swap_xy,
+            .mirror_x = mirror_x,
+            .mirror_y = mirror_y,
+        },
+        .color_format = LV_COLOR_FORMAT_RGB565,
+        .flags = {
+            .buff_dma = 1,
+            .buff_spiram = 0,
+            .sw_rotate = 0,
+            .swap_bytes = 1,
+            .full_refresh = 0,
+            .direct_mode = 0,
+        },
+    };
+
+    display_ = lvgl_port_add_disp(&display_cfg);
+    if (display_ == nullptr) {
+        ESP_LOGE(TAG, "Failed to add display");
+        return;
+    }
+
+    if (offset_x != 0 || offset_y != 0) {
+        lv_display_set_offset(display_, offset_x, offset_y);
+    }
 
     // 初始化默认设置
     current_timeframe_ = "1h";
     current_theme_style_ = ThemeStyle::TECHNOLOGY;
     current_wxt185_theme_ = TECHNOLOGY_THEME_WXT185;
-    selected_cryptos_ = {"BTC", "ETH", "ADA"};
-    screensaver_crypto_id_ = 1; // 默认屏保显示BTC
-    current_crypto_id_ = 1; // 默认当前显示BTC
-    
-    // 初始化一些虚拟币数据
-    CryptocurrencyData btc = {"BTC", "Bitcoin", 45000.0f, 2.5f, 1};
-    CryptocurrencyData eth = {"ETH", "Ethereum", 3000.0f, 1.2f, 2};
-    CryptocurrencyData ada = {"ADA", "Cardano", 1.2f, -0.8f, 6};
-    
-    crypto_data_.push_back(btc);
-    crypto_data_.push_back(eth);
-    crypto_data_.push_back(ada);
+    screensaver_crypto_.currency_id = 1; // 默认屏保显示BTC
+    // 初始化当前显示的虚拟币数据
+    current_crypto_data_.symbol = "BTC";
+    current_crypto_data_.name = "Bitcoin";
+    current_crypto_data_.price = 0.0;
+    current_crypto_data_.change_24h = 0.0;
+    current_crypto_data_.currency_id = 1; // 默认显示BTC
     
     // 初始化最后活动时间为当前时间
     last_activity_time_ = esp_timer_get_time() / 1000; // 转换为毫秒
@@ -186,6 +407,9 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     
     // 初始化币界虚拟币行情数据支持
     bijie_coins_ = std::make_unique<BiJieCoins>();
+
+    // 初始化UI
+    SetupUI();
 }
 
 WXT185Display::~WXT185Display() {
@@ -199,13 +423,21 @@ WXT185Display::~WXT185Display() {
     if (bijie_coins_ && bijie_coins_connected_) {
         bijie_coins_->DisconnectAll();
     }
+    
+    // 屏保页面对象需要手动删除，因为它直接依附于主屏幕
+    if (screensaver_page_) {
+        lv_obj_del(screensaver_page_);
+        screensaver_page_ = nullptr;
+    }
+
+    if (main_screen_) {
+        lv_obj_del(main_screen_);
+        main_screen_ = nullptr;
+    }
 }
 
 void WXT185Display::SetupUI() {
-    // 先调用父类的SetupUI来初始化基础界面元素
-    // 完全是重构界面了，不需要调用原谅的SetupUI
-    // SpiLcdDisplay::SetupUI();
-    
+   
     DisplayLockGuard lock(this);
     
     ESP_LOGI(TAG, "Setting up WXT185 UI");
@@ -213,30 +445,30 @@ void WXT185Display::SetupUI() {
     // 获取屏幕对象
     main_screen_ = lv_screen_active();
     lv_obj_set_style_text_font(main_screen_, fonts_.text_font, 0);
-    lv_obj_set_style_text_color(main_screen_, current_theme_.text, 0);
-    lv_obj_set_style_bg_color(main_screen_, current_theme_.background, 0);
+    lv_obj_set_style_text_color(main_screen_, current_wxt185_theme_.text, 0);
+    lv_obj_set_style_bg_color(main_screen_, current_wxt185_theme_.background, 0);
     
     // 创建页面视图容器（针对360*360圆形屏幕优化）
-    page_view_ = lv_obj_create(main_screen_);
-    lv_obj_set_style_text_font(page_view_, fonts_.text_font, 0);
-    lv_obj_set_style_text_color(page_view_, current_theme_.text, 0);
-    lv_obj_set_style_bg_color(page_view_, current_theme_.background, 0);
-    lv_obj_set_size(page_view_, width_, height_);
-    lv_obj_set_style_pad_all(page_view_, 0, 0);
-    lv_obj_set_style_border_width(page_view_, 0, 0);
-    lv_obj_set_style_bg_opa(page_view_, LV_OPA_TRANSP, 0);
-    lv_obj_center(page_view_);
+    page_container_ = lv_obj_create(main_screen_);
+    lv_obj_set_size(page_container_, width_, height_);
+    lv_obj_set_style_radius(page_container_, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(page_container_, current_wxt185_theme_.background, 0);
+    lv_obj_clear_flag(page_container_, LV_OBJ_FLAG_SCROLLABLE);
     
     ESP_LOGI(TAG, "Created page view container");
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
     // 添加触摸事件处理（仅在有触摸屏时添加）
-    lv_obj_add_event_cb(page_view_, TouchEventHandler, LV_EVENT_PRESSED, this);
-    lv_obj_add_event_cb(page_view_, TouchEventHandler, LV_EVENT_RELEASED, this);
+    lv_obj_add_event_cb(page_container_, TouchEventHandler, LV_EVENT_PRESSED, this);
+    lv_obj_add_event_cb(page_container_, TouchEventHandler, LV_EVENT_RELEASED, this);
     ESP_LOGI(TAG, "Added touch event handlers to page view");
 #endif
     
-    // 创建四个页面
+    // 创建表盘圆环公共组件
+    CreateCommonComponents();
+    ESP_LOGI(TAG, "Created common components");
+
+    // 创建3个页面
     CreateChatPage();
     ESP_LOGI(TAG, "Created chat page");
     
@@ -246,7 +478,8 @@ void WXT185Display::SetupUI() {
     CreateSettingsPage();
     ESP_LOGI(TAG, "Created settings page");
     
-    CreateScreensaverPage(); // 创建屏保页面
+    // 创建屏保页面
+    CreateScreensaverPage();
     ESP_LOGI(TAG, "Created screensaver page");
     
     // 应用主题
@@ -277,10 +510,44 @@ void WXT185Display::SetupUI() {
     ESP_LOGI(TAG, "WXT185 UI setup completed");
 }
 
+void WXT185Display::CreateCommonComponents()
+{
+    if (!main_screen_) return;
+    // 1. 创建外圆环（刻度环）
+    common_outer_ring_ = lv_obj_create(main_screen_);
+    lv_obj_set_size(common_outer_ring_, width_ - 20, height_ - 20);
+    lv_obj_center(common_outer_ring_);
+    lv_obj_set_style_radius(common_outer_ring_, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(common_outer_ring_, current_wxt185_theme_.outer_ring_background, 0);
+    lv_obj_set_style_border_width(common_outer_ring_, 2, 0);
+    lv_obj_set_style_border_color(common_outer_ring_, current_wxt185_theme_.border, 0);
+    lv_obj_clear_flag(common_outer_ring_, LV_OBJ_FLAG_SCROLLABLE);
+
+    // 2. 计算基础比例参数（基于屏幕直径）
+    uint16_t screen_diameter = lv_obj_get_width(main_screen_);
+    float scale = screen_diameter / 360.0f; // 缩放比例（以360为基准）
+
+    // 3. 内圆环（进度环，直径为屏幕的89%）
+    uint16_t progress_ring_size = screen_diameter * 0.89;
+    common_inner_ring_ = lv_arc_create(main_screen_);
+    lv_obj_set_size(common_inner_ring_, progress_ring_size, progress_ring_size);
+    lv_obj_center(common_inner_ring_);
+    lv_arc_set_angles(common_inner_ring_, 0, 270);
+    // 颜色以当前虚拟币涨跌颜色为基准
+    lv_obj_set_style_arc_color(common_inner_ring_,
+        current_crypto_data_.change_24h >= 0 ? current_wxt185_theme_.crypto_up_color : current_wxt185_theme_.crypto_down_color, 0);
+    lv_obj_set_style_arc_color(common_inner_ring_, current_wxt185_theme_.inner_ring_background, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(common_inner_ring_, scale * 4, LV_PART_INDICATOR);
+    //lv_obj_set_style_arc_width(progress_ring, scale * 4, 0);
+    lv_arc_set_mode(common_inner_ring_, LV_ARC_MODE_SYMMETRICAL);
+    lv_obj_clear_flag(common_inner_ring_, LV_OBJ_FLAG_CLICKABLE);
+
+}
+
 void WXT185Display::CreateChatPage() {
     ESP_LOGI(TAG, "Creating chat page");
     
-    chat_page_ = lv_obj_create(page_view_);
+    chat_page_ = lv_obj_create(page_container_);
     lv_obj_set_size(chat_page_, width_, height_);
     lv_obj_set_style_pad_all(chat_page_, 0, 0);
     lv_obj_set_style_border_width(chat_page_, 0, 0);
@@ -292,91 +559,101 @@ void WXT185Display::CreateChatPage() {
     lv_obj_add_event_cb(chat_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
     ESP_LOGV(TAG, "Added touch event handlers to chat page");
 #endif
-    
-#if CONFIG_USE_WECHAT_MESSAGE_STYLE
-    ESP_LOGV(TAG, "Using WeChat message style layout");
-    
-    // 微信对话样式布局
-    // 创建聊天状态栏（针对360*360屏幕优化高度）
-    chat_status_bar_ = lv_obj_create(chat_page_);
-    lv_obj_set_size(chat_status_bar_, width_, 35);
-    lv_obj_set_style_radius(chat_status_bar_, 0, 0);
-    lv_obj_set_style_pad_all(chat_status_bar_, 5, 0);
-    lv_obj_align(chat_status_bar_, LV_ALIGN_TOP_MID, 0, 0);
-    ESP_LOGV(TAG, "Created chat status bar");
-    
-    // 创建聊天内容区域（为圆形屏幕优化显示区域）
-    chat_content_ = lv_obj_create(chat_page_);
-    lv_obj_set_size(chat_content_, width_ - 20, height_ - 90);
-    lv_obj_align_to(chat_content_, chat_status_bar_, LV_ALIGN_OUT_BOTTOM_MID, 0, 5);
-    lv_obj_set_style_pad_all(chat_content_, 5, 0);
-    lv_obj_set_style_border_width(chat_content_, 1, 0);
-    lv_obj_set_scrollbar_mode(chat_content_, LV_SCROLLBAR_MODE_AUTO);
-    ESP_LOGV(TAG, "Created chat content area");
-    
-    // 创建输入区域
-    chat_input_area_ = lv_obj_create(chat_page_);
-    lv_obj_set_size(chat_input_area_, width_ - 20, 35);
-    lv_obj_align(chat_input_area_, LV_ALIGN_BOTTOM_MID, 0, -10);
-    lv_obj_set_style_pad_all(chat_input_area_, 5, 0);
-    ESP_LOGV(TAG, "Created chat input area");
-    
-    // 在状态栏添加组件
-    emotion_label_ = lv_label_create(chat_status_bar_);
-    lv_label_set_text(emotion_label_, "AI");
-    lv_obj_align(emotion_label_, LV_ALIGN_LEFT_MID, 0, 0);
-    
-    status_label_ = lv_label_create(chat_status_bar_);
-    lv_label_set_text(status_label_, Lang::Strings::INITIALIZING);
-    lv_obj_align(status_label_, LV_ALIGN_CENTER, 0, 0);
-    
-    battery_label_ = lv_label_create(chat_status_bar_);
-    lv_label_set_text(battery_label_, "100%");
-    lv_obj_align(battery_label_, LV_ALIGN_RIGHT_MID, 0, 0);
-    
-    ESP_LOGV(TAG, "Added components to chat status bar");
-#else
-    ESP_LOGV(TAG, "Using simple message style layout");
-    
-    // 非微信对话样式布局（使用更简单的布局）
-    // 创建状态栏
-    chat_status_bar_ = lv_obj_create(chat_page_);
-    lv_obj_set_size(chat_status_bar_, width_, 30);
-    lv_obj_set_style_radius(chat_status_bar_, 0, 0);
-    lv_obj_set_style_pad_all(chat_status_bar_, 5, 0);
-    lv_obj_align(chat_status_bar_, LV_ALIGN_TOP_MID, 0, 0);
-    ESP_LOGV(TAG, "Created chat status bar");
-    
-    // 创建聊天内容区域（简化布局）
-    chat_content_ = lv_obj_create(chat_page_);
-    lv_obj_set_size(chat_content_, width_ - 10, height_ - 70);
-    lv_obj_align_to(chat_content_, chat_status_bar_, LV_ALIGN_OUT_BOTTOM_MID, 0, 5);
-    lv_obj_set_style_pad_all(chat_content_, 10, 0);
-    lv_obj_set_style_border_width(chat_content_, 1, 0);
-    lv_obj_set_scrollbar_mode(chat_content_, LV_SCROLLBAR_MODE_AUTO);
-    ESP_LOGV(TAG, "Created chat content area");
-    
-    // 在状态栏添加组件
-    emotion_label_ = lv_label_create(chat_content_);
-    lv_label_set_text(emotion_label_, FONT_AWESOME_AI_CHIP);
-    lv_obj_set_style_text_color(emotion_label_, current_theme_.text, 0);
-    lv_obj_align(emotion_label_, LV_ALIGN_LEFT_MID, 0, 0);
+    // 先用当前的组件创建聊天页面
+    /* Container */
+    container_ = lv_obj_create(chat_page_);
+    lv_obj_set_size(container_, LV_HOR_RES, LV_VER_RES);
+    lv_obj_set_flex_flow(container_, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_all(container_, 0, 0);
+    lv_obj_set_style_border_width(container_, 0, 0);
+    lv_obj_set_style_pad_row(container_, 0, 0);
+    lv_obj_set_style_bg_color(container_, current_theme_.background, 0);
+    lv_obj_set_style_border_color(container_, current_theme_.border, 0);
 
-    preview_image_ = lv_image_create(chat_content_);
+    /* Status bar */
+    status_bar_ = lv_obj_create(container_);
+    lv_obj_set_size(status_bar_, LV_HOR_RES, fonts_.text_font->line_height);
+    lv_obj_set_style_radius(status_bar_, 0, 0);
+    lv_obj_set_style_bg_color(status_bar_, current_theme_.background, 0);
+    lv_obj_set_style_text_color(status_bar_, current_theme_.text, 0);
+    
+    /* Content */
+    content_ = lv_obj_create(container_);
+    lv_obj_set_scrollbar_mode(content_, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_style_radius(content_, 0, 0);
+    lv_obj_set_width(content_, LV_HOR_RES);
+    lv_obj_set_flex_grow(content_, 1);
+    lv_obj_set_style_pad_all(content_, 5, 0);
+    lv_obj_set_style_bg_color(content_, current_theme_.chat_background, 0);
+    lv_obj_set_style_border_color(content_, current_theme_.border, 0); // Border color for content
+
+    lv_obj_set_flex_flow(content_, LV_FLEX_FLOW_COLUMN); // 垂直布局（从上到下）
+    lv_obj_set_flex_align(content_, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_SPACE_EVENLY); // 子对象居中对齐，等距分布
+
+    emotion_label_ = lv_label_create(content_);
+    lv_obj_set_style_text_font(emotion_label_, &font_awesome_30_4, 0);
+    lv_obj_set_style_text_color(emotion_label_, current_theme_.text, 0);
+    lv_label_set_text(emotion_label_, FONT_AWESOME_AI_CHIP);
+
+    preview_image_ = lv_image_create(content_);
     lv_obj_set_size(preview_image_, width_ * 0.5, height_ * 0.5);
     lv_obj_align(preview_image_, LV_ALIGN_CENTER, 0, 0);
     lv_obj_add_flag(preview_image_, LV_OBJ_FLAG_HIDDEN);
-    
-    status_label_ = lv_label_create(chat_status_bar_);
+
+    chat_message_label_ = lv_label_create(content_);
+    lv_label_set_text(chat_message_label_, "");
+    lv_obj_set_width(chat_message_label_, LV_HOR_RES * 0.9); // 限制宽度为屏幕宽度的 90%
+    lv_label_set_long_mode(chat_message_label_, LV_LABEL_LONG_WRAP); // 设置为自动换行模式
+    lv_obj_set_style_text_align(chat_message_label_, LV_TEXT_ALIGN_CENTER, 0); // 设置文本居中对齐
+    lv_obj_set_style_text_color(chat_message_label_, current_theme_.text, 0);
+
+    /* Status bar */
+    lv_obj_set_flex_flow(status_bar_, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_all(status_bar_, 0, 0);
+    lv_obj_set_style_border_width(status_bar_, 0, 0);
+    lv_obj_set_style_pad_column(status_bar_, 0, 0);
+    lv_obj_set_style_pad_left(status_bar_, 2, 0);
+    lv_obj_set_style_pad_right(status_bar_, 2, 0);
+
+    network_label_ = lv_label_create(status_bar_);
+    lv_label_set_text(network_label_, "");
+    lv_obj_set_style_text_font(network_label_, fonts_.icon_font, 0);
+    lv_obj_set_style_text_color(network_label_, current_theme_.text, 0);
+
+    notification_label_ = lv_label_create(status_bar_);
+    lv_obj_set_flex_grow(notification_label_, 1);
+    lv_obj_set_style_text_align(notification_label_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(notification_label_, current_theme_.text, 0);
+    lv_label_set_text(notification_label_, "");
+    lv_obj_add_flag(notification_label_, LV_OBJ_FLAG_HIDDEN);
+
+    status_label_ = lv_label_create(status_bar_);
+    lv_obj_set_flex_grow(status_label_, 1);
+    lv_label_set_long_mode(status_label_, LV_LABEL_LONG_SCROLL_CIRCULAR);
+    lv_obj_set_style_text_align(status_label_, LV_TEXT_ALIGN_CENTER, 0);
+    lv_obj_set_style_text_color(status_label_, current_theme_.text, 0);
     lv_label_set_text(status_label_, Lang::Strings::INITIALIZING);
-    lv_obj_align(status_label_, LV_ALIGN_CENTER, 0, 0);
-    
-    battery_label_ = lv_label_create(chat_status_bar_);
-    lv_label_set_text(battery_label_, "100%");
-    lv_obj_align(battery_label_, LV_ALIGN_RIGHT_MID, 0, 0);
-    
-    ESP_LOGV(TAG, "Added components to chat status bar");
-#endif
+    mute_label_ = lv_label_create(status_bar_);
+    lv_label_set_text(mute_label_, "");
+    lv_obj_set_style_text_font(mute_label_, fonts_.icon_font, 0);
+    lv_obj_set_style_text_color(mute_label_, current_theme_.text, 0);
+
+    battery_label_ = lv_label_create(status_bar_);
+    lv_label_set_text(battery_label_, "");
+    lv_obj_set_style_text_font(battery_label_, fonts_.icon_font, 0);
+    lv_obj_set_style_text_color(battery_label_, current_theme_.text, 0);
+
+    low_battery_popup_ = lv_obj_create(chat_page_);
+    lv_obj_set_scrollbar_mode(low_battery_popup_, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_size(low_battery_popup_, LV_HOR_RES * 0.9, fonts_.text_font->line_height * 2);
+    lv_obj_align(low_battery_popup_, LV_ALIGN_BOTTOM_MID, 0, 0);
+    lv_obj_set_style_bg_color(low_battery_popup_, current_theme_.low_battery, 0);
+    lv_obj_set_style_radius(low_battery_popup_, 10, 0);
+    low_battery_label_ = lv_label_create(low_battery_popup_);
+    lv_label_set_text(low_battery_label_, Lang::Strings::BATTERY_NEED_CHARGE);
+    lv_obj_set_style_text_color(low_battery_label_, lv_color_white(), 0);
+    lv_obj_center(low_battery_label_);
+    lv_obj_add_flag(low_battery_popup_, LV_OBJ_FLAG_HIDDEN);
     
     ESP_LOGI(TAG, "Chat page creation completed");
 }
@@ -384,13 +661,12 @@ void WXT185Display::CreateChatPage() {
 void WXT185Display::CreateCryptoPage() {
     ESP_LOGI(TAG, "Creating crypto page");
     
-    crypto_page_ = lv_obj_create(page_view_);
-    lv_obj_set_size(crypto_page_, width_, height_);
-    lv_obj_set_style_pad_all(crypto_page_, 0, 0);
-    lv_obj_set_style_border_width(crypto_page_, 0, 0);
-    lv_obj_set_style_bg_opa(crypto_page_, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_pad_row(crypto_page_, 5, 0);
-    lv_obj_set_flex_flow(crypto_page_, LV_FLEX_FLOW_COLUMN);
+    // 1. 创建背景
+    crypto_page_ = lv_obj_create(page_container_);
+    lv_obj_set_size(crypto_page_, LV_HOR_RES, LV_VER_RES);
+    lv_obj_set_style_radius(crypto_page_, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(crypto_page_, current_wxt185_theme_.crypto_backgroud, 0);
+    lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_SCROLLABLE);
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
     // 添加触摸事件处理（仅在有触摸屏时添加）
@@ -398,53 +674,9 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_add_event_cb(crypto_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
     ESP_LOGV(TAG, "Added touch event handlers to crypto page");
 #endif
-    
-    // 创建头部区域
-    crypto_header_ = lv_obj_create(crypto_page_);
-    lv_obj_set_size(crypto_header_, width_, 35);
-    lv_obj_set_style_pad_all(crypto_header_, 5, 0);
-    lv_obj_set_style_border_width(crypto_header_, 0, 0);
-    lv_obj_set_flex_grow(crypto_header_, 0);
-    ESP_LOGV(TAG, "Created crypto header");
-    
-    // 创建K线图表区域（为360*360屏幕优化大小）
-    crypto_chart_ = lv_obj_create(crypto_page_);
-    lv_obj_set_size(crypto_chart_, width_ - 20, 120);
-    lv_obj_set_style_pad_all(crypto_chart_, 5, 0);
-    lv_obj_set_style_border_width(crypto_chart_, 1, 0);
-    lv_obj_set_flex_grow(crypto_chart_, 1);
-    ESP_LOGV(TAG, "Created crypto chart area");
-    
-    // 创建虚拟币列表区域
-    crypto_list_ = lv_obj_create(crypto_page_);
-    lv_obj_set_size(crypto_list_, width_ - 20, height_ - 210);
-    lv_obj_set_style_pad_all(crypto_list_, 5, 0);
-    lv_obj_set_style_border_width(crypto_list_, 1, 0);
-    lv_obj_set_flex_grow(crypto_list_, 2);
-    lv_obj_set_scrollbar_mode(crypto_list_, LV_SCROLLBAR_MODE_AUTO);
-    ESP_LOGV(TAG, "Created crypto list area");
-    
-    // 创建时间选择器
-    crypto_time_selector_ = lv_obj_create(crypto_page_);
-    lv_obj_set_size(crypto_time_selector_, width_ - 20, 30);
-    lv_obj_set_style_pad_all(crypto_time_selector_, 2, 0);
-    lv_obj_set_style_border_width(crypto_time_selector_, 1, 0);
-    lv_obj_set_flex_grow(crypto_time_selector_, 0);
-    ESP_LOGV(TAG, "Created crypto time selector");
-    
-    // 添加标题
-    lv_obj_t* title = lv_label_create(crypto_header_);
-    lv_label_set_text(title, "Crypto Market");
-    lv_obj_align(title, LV_ALIGN_LEFT_MID, 0, 0);
-    
-    // 添加刷新按钮
-    lv_obj_t* refresh_btn = lv_btn_create(crypto_header_);
-    lv_obj_set_size(refresh_btn, 60, 25);
-    lv_obj_align(refresh_btn, LV_ALIGN_RIGHT_MID, 0, 0);
-    
-    lv_obj_t* refresh_label = lv_label_create(refresh_btn);
-    lv_label_set_text(refresh_label, "Refresh");
-    lv_obj_center(refresh_label);
+    // 2. 创建虚拟币roller，支持水平滚动
+    crypto_roller = lv_label_create(crypto_page_);
+
     
     ESP_LOGI(TAG, "Crypto page creation completed");
 }
@@ -452,13 +684,12 @@ void WXT185Display::CreateCryptoPage() {
 void WXT185Display::CreateSettingsPage() {
     ESP_LOGI(TAG, "Creating settings page");
     
-    settings_page_ = lv_obj_create(page_view_);
-    lv_obj_set_size(settings_page_, width_, height_);
-    lv_obj_set_style_pad_all(settings_page_, 0, 0);
-    lv_obj_set_style_border_width(settings_page_, 0, 0);
-    lv_obj_set_style_bg_opa(settings_page_, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_pad_row(settings_page_, 5, 0);
-    lv_obj_set_flex_flow(settings_page_, LV_FLEX_FLOW_COLUMN);
+    // 1. 初始化背景
+    settings_page_ = lv_obj_create(page_container_);
+    lv_obj_set_size(settings_page_, LV_HOR_RES, LV_VER_RES);
+    lv_obj_set_style_radius(settings_page_, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(settings_page_, current_wxt185_theme_.background, 0);
+    lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_SCROLLABLE);
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
     // 添加触摸事件处理（仅在有触摸屏时添加）
@@ -467,73 +698,118 @@ void WXT185Display::CreateSettingsPage() {
     ESP_LOGV(TAG, "Added touch event handlers to settings page");
 #endif
     
-    // 创建设置页面头部
-    settings_header_ = lv_obj_create(settings_page_);
-    lv_obj_set_size(settings_header_, width_, 35);
-    lv_obj_set_style_pad_all(settings_header_, 5, 0);
-    lv_obj_set_style_border_width(settings_header_, 0, 0);
-    lv_obj_set_flex_grow(settings_header_, 0);
-    ESP_LOGV(TAG, "Created settings header");
-    
-    // 创建主题选择区域
-    settings_theme_selector_ = lv_obj_create(settings_page_);
-    lv_obj_set_size(settings_theme_selector_, width_ - 20, 70);
-    lv_obj_set_style_pad_all(settings_theme_selector_, 5, 0);
-    lv_obj_set_style_border_width(settings_theme_selector_, 1, 0);
-    lv_obj_set_flex_grow(settings_theme_selector_, 0);
-    ESP_LOGV(TAG, "Created theme selector area");
-    
-    // 创建虚拟币选择区域
-    settings_crypto_selector_ = lv_obj_create(settings_page_);
-    lv_obj_set_size(settings_crypto_selector_, width_ - 20, 110);
-    lv_obj_set_style_pad_all(settings_crypto_selector_, 5, 0);
-    lv_obj_set_style_border_width(settings_crypto_selector_, 1, 0);
-    lv_obj_set_flex_grow(settings_crypto_selector_, 1);
-    lv_obj_set_scrollbar_mode(settings_crypto_selector_, LV_SCROLLBAR_MODE_AUTO);
-    ESP_LOGV(TAG, "Created crypto selector area");
-    
-    // 创建时间框架选择区域
-    settings_timeframe_selector_ = lv_obj_create(settings_page_);
-    lv_obj_set_size(settings_timeframe_selector_, width_ - 20, 90);
-    lv_obj_set_style_pad_all(settings_timeframe_selector_, 5, 0);
-    lv_obj_set_style_border_width(settings_timeframe_selector_, 1, 0);
-    lv_obj_set_flex_grow(settings_timeframe_selector_, 1);
-    lv_obj_set_scrollbar_mode(settings_timeframe_selector_, LV_SCROLLBAR_MODE_AUTO);
-    ESP_LOGV(TAG, "Created timeframe selector area");
-    
-    // 创建屏保虚拟币选择区域
-    settings_screensaver_crypto_selector_ = lv_obj_create(settings_page_);
-    lv_obj_set_size(settings_screensaver_crypto_selector_, width_ - 20, 90);
-    lv_obj_set_style_pad_all(settings_screensaver_crypto_selector_, 5, 0);
-    lv_obj_set_style_border_width(settings_screensaver_crypto_selector_, 1, 0);
-    lv_obj_set_flex_grow(settings_screensaver_crypto_selector_, 1);
-    lv_obj_set_scrollbar_mode(settings_screensaver_crypto_selector_, LV_SCROLLBAR_MODE_AUTO);
-    ESP_LOGV(TAG, "Created screensaver crypto selector area");
-    
-    // 添加标题
-    lv_obj_t* title = lv_label_create(settings_header_);
-    lv_label_set_text(title, "Settings");
-    lv_obj_align(title, LV_ALIGN_LEFT_MID, 0, 0);
-    
-    // 添加主题选择标题
-    lv_obj_t* theme_title = lv_label_create(settings_theme_selector_);
-    lv_label_set_text(theme_title, "Theme Style:");
-    lv_obj_align(theme_title, LV_ALIGN_TOP_LEFT, 0, 0);
-    
-    // 添加虚拟币选择标题
-    lv_obj_t* crypto_title = lv_label_create(settings_crypto_selector_);
-    lv_label_set_text(crypto_title, "Cryptocurrencies:");
-    lv_obj_align(crypto_title, LV_ALIGN_TOP_LEFT, 0, 0);
-    
-    // 添加时间框架选择标题
-    lv_obj_t* timeframe_title = lv_label_create(settings_timeframe_selector_);
-    lv_label_set_text(timeframe_title, "Timeframes:");
-    lv_obj_align(timeframe_title, LV_ALIGN_TOP_LEFT, 0, 0);
-    
-    // 添加屏保虚拟币选择标题
-    lv_obj_t* screensaver_crypto_title = lv_label_create(settings_screensaver_crypto_selector_);
-    lv_label_set_text(screensaver_crypto_title, "Screensaver Cryptocurrency:");
-    lv_obj_align(screensaver_crypto_title, LV_ALIGN_TOP_LEFT, 0, 0);
+    // 2. 创建设置标题
+    settings_title_ = lv_label_create(settings_page_);
+    lv_label_set_text(settings_title_, "Settings");
+    lv_obj_set_style_text_font(settings_title_, &lv_font_montserrat_32, 0);
+    lv_obj_set_style_text_color(settings_title_, current_wxt185_theme_.text, 0);
+    lv_obj_align(settings_title_, LV_ALIGN_TOP_MID, 0, 30);
+
+    // 3. 创建主题设置
+    settings_theme_label_ = lv_label_create(settings_page_);
+    lv_label_set_text(settings_theme_label_, "Theme:");
+    lv_obj_set_style_text_font(settings_theme_label_, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(settings_theme_label_, current_wxt185_theme_.text, 0);
+    lv_obj_align(settings_theme_label_, LV_ALIGN_TOP_MID, -80, 80);
+
+    settings_theme_roller_ = lv_roller_create(settings_page_);
+    lv_obj_set_style_text_font(settings_theme_roller_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(settings_theme_roller_, current_wxt185_theme_.text, 0);
+    lv_obj_set_style_bg_color(settings_theme_roller_, lv_color_hex(0x1a001a), 0);
+
+    // 添加主题选项到roller
+    char theme_options[MAX_THEME_NAME_LENGTH * ThemeCount] = {0};
+    for (int i = 0; i < ThemeCount; i++) {
+        strcat(theme_options, ThemeString[i]);
+        if (i < ThemeCount - 1) {
+            strcat(theme_options, "\n");
+        }
+    }
+    lv_roller_set_options(settings_theme_roller_, theme_options, LV_ROLLER_MODE_NORMAL);
+    lv_roller_set_visible_row_count(settings_theme_roller_, 1);
+    lv_roller_set_selected(settings_theme_roller_, selected_theme, LV_ANIM_OFF);
+    lv_obj_add_event_cb(settings_theme_roller_, theme_roller_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_align_to(settings_theme_roller_, settings_theme_label_, LV_ALIGN_OUT_RIGHT_MID, 60, 0);
+    lv_obj_set_width(settings_theme_roller_, 100);
+
+    // 5. 创建默认虚拟币设置
+    settings_default_crypto_label_ = lv_label_create(settings_page_);
+    lv_label_set_text(settings_default_crypto_label_, "Default Coin:");
+    lv_obj_set_style_text_font(settings_default_crypto_label_, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(settings_default_crypto_label_, current_wxt185_theme_.text, 0);
+    lv_obj_align(settings_default_crypto_label_, LV_ALIGN_TOP_MID, -80, 120);
+
+    settings_default_crypto_roller_ = lv_roller_create(settings_page_);
+    lv_obj_set_style_text_font(settings_default_crypto_roller_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(settings_default_crypto_roller_, current_wxt185_theme_.text, 0);
+    lv_obj_set_style_bg_color(settings_default_crypto_roller_, lv_color_hex(0x1a001a), 0);
+
+    // 添加虚拟币选项到roller
+    // 获取虚拟币列表
+    std::vector<CoinInfo> v = bijie_coins_->GetCoinList();
+    int crypto_count = v.size();
+    char crypto_options[MAX_COIN_NAME_LEN * v.size()] = {0};
+    for (int i = 0; i < crypto_count; i++) {
+        strcat(crypto_options, v[i].name.c_str());
+        if (i < crypto_count - 1) {
+            strcat(crypto_options, "\n");
+        }
+    }
+    lv_roller_set_options(settings_default_crypto_roller_, crypto_options, LV_ROLLER_MODE_NORMAL);
+    lv_roller_set_visible_row_count(settings_default_crypto_roller_, 1);
+    lv_roller_set_selected(settings_default_crypto_roller_, default_crypto, LV_ANIM_OFF);
+    lv_obj_add_event_cb(settings_default_crypto_roller_, default_crypto_roller_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_align_to(settings_default_crypto_roller_, settings_default_crypto_label_, LV_ALIGN_OUT_RIGHT_MID, 60, 0);
+    lv_obj_set_width(settings_default_crypto_roller_, 100);
+
+    // 6. 创建K线频率设置
+    settings_kline_time_label_ = lv_label_create(settings_page_);
+    lv_label_set_text(settings_kline_time_label_, "K-Line Freq:");
+    lv_obj_set_style_text_font(settings_kline_time_label_, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(settings_kline_time_label_, current_wxt185_theme_.text, 0);
+    lv_obj_align(settings_kline_time_label_, LV_ALIGN_TOP_MID, -80, 160);
+
+    settings_kline_time_roller_ = lv_roller_create(settings_page_);
+    lv_obj_set_style_text_font(settings_kline_time_roller_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(settings_kline_time_roller_, current_wxt185_theme_.text, 0);
+    lv_obj_set_style_bg_color(settings_kline_time_roller_, lv_color_hex(0x1a001a), 0);
+
+    // 添加K线频率选项到roller
+    const char** klinefreq = bijie_coins_->GetKLineTimeFrequencies();
+    int kline_option_count = 0;
+    const char* kline_options[10];
+    while (klinefreq[kline_option_count] && kline_option_count < 10) {
+        kline_options[kline_option_count] = klinefreq[kline_option_count];
+        kline_option_count++;
+    }
+    char kline_freq_options[MAX_KLINE_FREQUENCIES_LEN * kline_option_count] = {0};
+    for (int i = 0; i < kline_option_count; i++) {
+        strcat(kline_freq_options, kline_options[i]);
+        if (i < kline_option_count - 1) {
+            strcat(kline_freq_options, "\n");
+        }
+    }
+    lv_roller_set_options(settings_kline_time_roller_, kline_freq_options, LV_ROLLER_MODE_NORMAL);
+    lv_roller_set_visible_row_count(settings_kline_time_roller_, 1);
+    lv_roller_set_selected(settings_kline_time_roller_, kline_frequency, LV_ANIM_OFF);
+    lv_obj_add_event_cb(settings_kline_time_roller_, kline_frequency_roller_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_align_to(settings_kline_time_roller_, settings_kline_time_label_, LV_ALIGN_OUT_RIGHT_MID, 60, 0);
+    lv_obj_set_width(settings_kline_time_roller_, 100);
+
+    // 7. 创建屏保开关
+    settings_screensaver_label_ = lv_label_create(settings_page_);
+    lv_label_set_text(settings_screensaver_label_, "Screensaver:");
+    lv_obj_set_style_text_font(settings_screensaver_label_, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(settings_screensaver_label_, current_wxt185_theme_.text, 0);
+    lv_obj_align(settings_screensaver_label_, LV_ALIGN_TOP_MID, -80, 200);
+
+    settings_screensaver_switch_ = lv_switch_create(settings_page_);
+    lv_obj_set_style_bg_color(settings_screensaver_switch_, current_wxt185_theme_.settings_screensaver_switch, 0);
+    if (screensaver_enabled) {
+        lv_obj_add_state(settings_screensaver_switch_, LV_STATE_CHECKED);
+    }
+    lv_obj_add_event_cb(settings_screensaver_switch_, screensaver_switch_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
+    lv_obj_align_to(settings_screensaver_switch_, settings_screensaver_label_, LV_ALIGN_OUT_RIGHT_MID, 85, 0);
     
     ESP_LOGI(TAG, "Settings page creation completed");
 }
@@ -541,76 +817,80 @@ void WXT185Display::CreateSettingsPage() {
 void WXT185Display::CreateScreensaverPage() {
     ESP_LOGI(TAG, "Creating screensaver page");
     
-    screensaver_page_ = lv_obj_create(page_view_);
+    // 1. 创建背景
+    screensaver_page_ = lv_obj_create(lv_scr_act());
     lv_obj_set_size(screensaver_page_, width_, height_);
-    lv_obj_set_style_pad_all(screensaver_page_, 0, 0);
-    lv_obj_set_style_border_width(screensaver_page_, 0, 0);
-    lv_obj_set_style_bg_opa(screensaver_page_, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_radius(screensaver_page_, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(screensaver_page_, current_wxt185_theme_.background, 0);
+    lv_obj_clear_flag(screensaver_page_, LV_OBJ_FLAG_SCROLLABLE);
     
-#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
-    // 添加触摸事件处理（仅在有触摸屏时添加）
-    lv_obj_add_event_cb(screensaver_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
-    lv_obj_add_event_cb(screensaver_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
-    ESP_LOGV(TAG, "Added touch event handlers to screensaver page");
-#endif
-    
-    // 创建屏保容器
-    screensaver_container_ = lv_obj_create(screensaver_page_);
-    lv_obj_set_size(screensaver_container_, width_ - 40, height_ - 40);
-    lv_obj_set_style_pad_all(screensaver_container_, 20, 0);
-    lv_obj_set_style_border_width(screensaver_container_, 0, 0);
-    lv_obj_set_style_radius(screensaver_container_, 15, 0);
-    lv_obj_center(screensaver_container_);
-    ESP_LOGV(TAG, "Created screensaver container");
-    
-    // 创建虚拟币名称标签
-    screensaver_crypto_name_ = lv_label_create(screensaver_container_);
-    lv_label_set_text(screensaver_crypto_name_, "Bitcoin");
-    lv_obj_set_style_text_font(screensaver_crypto_name_, fonts_.text_font, 0);
-    lv_obj_align(screensaver_crypto_name_, LV_ALIGN_TOP_MID, 0, 20);
-    ESP_LOGV(TAG, "Created screensaver crypto name label");
-    
-    // 创建价格标签
-    screensaver_crypto_price_ = lv_label_create(screensaver_container_);
-    lv_label_set_text(screensaver_crypto_price_, "$45,000.00");
-    lv_obj_set_style_text_font(screensaver_crypto_price_, fonts_.text_font, 0);
-    lv_obj_align(screensaver_crypto_price_, LV_ALIGN_TOP_MID, 0, 60);
-    ESP_LOGV(TAG, "Created screensaver crypto price label");
-    
-    // 创建涨跌幅标签
-    screensaver_crypto_change_ = lv_label_create(screensaver_container_);
-    lv_label_set_text(screensaver_crypto_change_, "+2.50%");
-    lv_obj_set_style_text_font(screensaver_crypto_change_, fonts_.text_font, 0);
-    lv_obj_align(screensaver_crypto_change_, LV_ALIGN_TOP_MID, 0, 100);
-    ESP_LOGV(TAG, "Created screensaver crypto change label");
-    
-    // 创建K线图表容器
-    lv_obj_t* kline_container = lv_obj_create(screensaver_container_);
-    lv_obj_set_size(kline_container, width_ - 80, 100);
-    lv_obj_set_style_pad_all(kline_container, 5, 0);
-    lv_obj_set_style_border_width(kline_container, 1, 0);
-    lv_obj_align(kline_container, LV_ALIGN_BOTTOM_MID, 0, -40);
-    ESP_LOGV(TAG, "Created screensaver K-line container");
-    
-    // 创建K线图表标题
-    lv_obj_t* kline_title = lv_label_create(kline_container);
-    lv_label_set_text(kline_title, "24H K-Line");
-    lv_obj_align(kline_title, LV_ALIGN_TOP_MID, 0, 0);
-    
-    // 创建K线图表占位符
-    lv_obj_t* kline_placeholder = lv_label_create(kline_container);
-    lv_label_set_text(kline_placeholder, "K-Line Chart (Placeholder)");
-    lv_obj_align_to(kline_placeholder, kline_title, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
-    
-    // 创建时间标签
-    screensaver_time_ = lv_label_create(screensaver_container_);
-    lv_label_set_text(screensaver_time_, "12:00:00");
-    lv_obj_set_style_text_font(screensaver_time_, fonts_.text_font, 0);
-    lv_obj_align(screensaver_time_, LV_ALIGN_BOTTOM_MID, 0, -10);
-    ESP_LOGV(TAG, "Created screensaver time label");
-    
+    // 2. 创建外圆环（刻度环）
+    screensaver_outer_ring_ = lv_obj_create(screensaver_page_);
+    lv_obj_set_size(screensaver_outer_ring_, width_ - 20, width_ - 20);
+    lv_obj_center(screensaver_outer_ring_);
+    lv_obj_set_style_radius(screensaver_outer_ring_, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(screensaver_outer_ring_, current_wxt185_theme_.outer_ring_background, 0);
+    lv_obj_set_style_border_width(screensaver_outer_ring_, 2, 0);
+    lv_obj_set_style_border_color(screensaver_outer_ring_, current_wxt185_theme_.border, 0);
+    lv_obj_clear_flag(screensaver_outer_ring_, LV_OBJ_FLAG_SCROLLABLE);
+
+    // 3. 计算基础比例参数（基于屏幕直径）
+    uint16_t screen_diameter = lv_obj_get_width(screensaver_outer_ring_);
+    float scale = screen_diameter / 360.0f; // 缩放比例（以360为基准）
+
+    // 4. 内圆环（进度环，直径为屏幕的89%）
+    uint16_t progress_ring_size = screen_diameter * 0.89;
+    screensaver_progress_ring_ = lv_arc_create(screensaver_page_);
+    lv_obj_set_size(screensaver_progress_ring_, progress_ring_size, progress_ring_size);
+    lv_obj_center(screensaver_progress_ring_);
+    lv_arc_set_angles(screensaver_progress_ring_, 0, 270);
+    lv_obj_set_style_arc_color(screensaver_progress_ring_,
+        screensaver_crypto_.change_24h >= 0 ? current_wxt185_theme_.crypto_up_color : current_wxt185_theme_.crypto_down_color, 0);
+    lv_obj_set_style_arc_color(screensaver_progress_ring_, current_wxt185_theme_.crypto_progress_bg_color, LV_PART_INDICATOR);
+    lv_obj_set_style_arc_width(screensaver_progress_ring_, scale * 4, LV_PART_INDICATOR);
+    //lv_obj_set_style_arc_width(screensaver_progress_ring_, scale * 4, 0);
+    lv_arc_set_mode(screensaver_progress_ring_, LV_ARC_MODE_SYMMETRICAL);
+    lv_obj_clear_flag(screensaver_progress_ring_, LV_OBJ_FLAG_CLICKABLE);
+
+    // 5. 创建币名显示
+    screensaver_crypto_name_ = lv_label_create(screensaver_page_);
+    lv_label_set_text_fmt(screensaver_crypto_name_, "%s", screensaver_crypto_.symbol.c_str());
+    lv_obj_set_style_text_font(screensaver_crypto_name_, &lv_font_montserrat_48, 0);
+    lv_obj_set_style_text_color(screensaver_crypto_name_, current_wxt185_theme_.text, 0);
+    lv_obj_align(screensaver_crypto_name_, LV_ALIGN_CENTER, 0, -60);
+
+    // 6. 创建全称显示
+    screensaver_crypto_fullname = lv_label_create(screensaver_page_);
+    lv_label_set_text_fmt(screensaver_crypto_fullname, "%s", screensaver_crypto_.name.c_str());
+    lv_obj_set_style_text_font(screensaver_crypto_fullname, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(screensaver_crypto_fullname, current_wxt185_theme_.crypto_sub_text, 0);
+    lv_obj_align_to(screensaver_crypto_fullname, screensaver_crypto_name_, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+
+    // 7. 创建价格显示
+    screensaver_crypto_price_ = lv_label_create(screensaver_page_);
+    lv_label_set_text_fmt(screensaver_crypto_price_, "$%.2f", screensaver_crypto_.price);
+    lv_obj_set_style_text_font(screensaver_crypto_price_, &lv_font_montserrat_32, 0);
+    lv_obj_set_style_text_color(screensaver_crypto_price_, current_wxt185_theme_.text, 0);
+    lv_obj_align(screensaver_crypto_price_, LV_ALIGN_CENTER, 0, 20);
+
+    // 8. 创建涨跌幅显示
+    screensaver_crypto_change_ = lv_label_create(screensaver_page_);
+    lv_label_set_text_fmt(screensaver_crypto_change_, "%.2f%%", screensaver_crypto_.change_24h);
+    lv_obj_set_style_text_font(screensaver_crypto_change_, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(screensaver_crypto_change_,
+        screensaver_crypto_.change_24h >= 0 ? current_wxt185_theme_.crypto_up_color : current_wxt185_theme_.crypto_down_color, 0);
+    lv_obj_align_to(screensaver_crypto_change_, screensaver_crypto_price_, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+
+    // 9. 创建时间显示标签
+    screensaver_time_ = lv_label_create(screensaver_page_);
+    lv_label_set_text(screensaver_time_, "");
+    lv_obj_set_style_text_font(screensaver_time_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(screensaver_time_, current_wxt185_theme_.crypto_sub_text, 0);
+    lv_obj_align(screensaver_time_, LV_ALIGN_BOTTOM_MID, 0, -60);
+
     // 初始隐藏屏保页面
     lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
+
     
     ESP_LOGI(TAG, "Screensaver page creation completed");
 }
@@ -653,14 +933,6 @@ void WXT185Display::ApplyChatPageTheme() {
     // 应用内容区域主题
     lv_obj_set_style_bg_color(chat_content_, current_wxt185_theme_.chat_background, 0);
     lv_obj_set_style_border_color(chat_content_, current_wxt185_theme_.border, 0);
-    
-#if CONFIG_USE_WECHAT_MESSAGE_STYLE
-    // 微信对话样式 - 应用输入区域主题
-    if (chat_input_area_) {
-        lv_obj_set_style_bg_color(chat_input_area_, current_wxt185_theme_.selector, 0);
-        lv_obj_set_style_border_color(chat_input_area_, current_wxt185_theme_.border, 0);
-    }
-#endif
 }
 
 void WXT185Display::ApplyCryptoPageTheme() {
@@ -690,32 +962,31 @@ void WXT185Display::ApplyCryptoPageTheme() {
 }
 
 void WXT185Display::ApplySettingsPageTheme() {
-    if (!settings_page_ || !settings_header_ || !settings_theme_selector_ || 
-        !settings_crypto_selector_ || !settings_timeframe_selector_) return;
+    if (!settings_page_ || !settings_title_ || !settings_theme_roller_ || 
+        !settings_default_crypto_roller_ || !settings_kline_time_roller_) return;
     ESP_LOGI(TAG, "Applying settings page theme");
     
     // 应用设置页面主题
     lv_obj_set_style_bg_color(settings_page_, current_wxt185_theme_.background, 0);
     
     // 应用头部区域主题
-    lv_obj_set_style_bg_color(settings_header_, current_wxt185_theme_.header, 0);
-    lv_obj_set_style_text_color(settings_header_, current_wxt185_theme_.text, 0);
+    lv_obj_set_style_text_color(settings_title_, current_wxt185_theme_.text, 0);
     
     // 应用主题选择区域主题
-    lv_obj_set_style_bg_color(settings_theme_selector_, current_wxt185_theme_.selector, 0);
-    lv_obj_set_style_border_color(settings_theme_selector_, current_wxt185_theme_.border, 0);
+    lv_obj_set_style_bg_color(settings_theme_roller_, current_wxt185_theme_.selector, 0);
+    lv_obj_set_style_border_color(settings_theme_roller_, current_wxt185_theme_.border, 0);
     
     // 应用虚拟币选择区域主题
-    lv_obj_set_style_bg_color(settings_crypto_selector_, current_wxt185_theme_.selector, 0);
-    lv_obj_set_style_border_color(settings_crypto_selector_, current_wxt185_theme_.border, 0);
+    lv_obj_set_style_bg_color(settings_default_crypto_roller_, current_wxt185_theme_.selector, 0);
+    lv_obj_set_style_border_color(settings_default_crypto_roller_, current_wxt185_theme_.border, 0);
     
     // 应用时间框架选择区域主题
-    lv_obj_set_style_bg_color(settings_timeframe_selector_, current_wxt185_theme_.selector, 0);
-    lv_obj_set_style_border_color(settings_timeframe_selector_, current_wxt185_theme_.border, 0);
+    lv_obj_set_style_bg_color(settings_kline_time_roller_, current_wxt185_theme_.selector, 0);
+    lv_obj_set_style_border_color(settings_kline_time_roller_, current_wxt185_theme_.border, 0);
 }
 
 void WXT185Display::ApplyScreensaverTheme() {
-    if (!screensaver_page_ || !screensaver_container_) return;
+    if (!screensaver_page_ || !screensaver_outer_ring_) return;
 
     ESP_LOGI(TAG, "Applying screensaver theme");
     
@@ -723,8 +994,8 @@ void WXT185Display::ApplyScreensaverTheme() {
     lv_obj_set_style_bg_color(screensaver_page_, current_wxt185_theme_.background, 0);
     
     // 应用屏保容器主题
-    lv_obj_set_style_bg_color(screensaver_container_, current_wxt185_theme_.header, 0);
-    lv_obj_set_style_bg_opa(screensaver_container_, LV_OPA_90, 0);
+    lv_obj_set_style_bg_color(screensaver_outer_ring_, current_wxt185_theme_.header, 0);
+    lv_obj_set_style_bg_opa(screensaver_outer_ring_, LV_OPA_90, 0);
     
     // 应用文本颜色
     if (screensaver_crypto_name_) {
@@ -740,21 +1011,20 @@ void WXT185Display::ApplyScreensaverTheme() {
     }
     
     if (screensaver_time_) {
-        lv_obj_set_style_text_color(screensaver_time_, current_wxt185_theme_.text, 0);
+        lv_obj_set_style_text_color(screensaver_time_, current_wxt185_theme_.crypto_sub_text, 0);
     }
 }
 
 void WXT185Display::SetEmotion(const char* emotion) {
-    SpiLcdDisplay::SetEmotion(emotion);
+    LcdDisplay::SetEmotion(emotion);
 }
 
 void WXT185Display::SetIcon(const char* icon) {
-    SpiLcdDisplay::SetIcon(icon);
+    LcdDisplay::SetIcon(icon);
 }
 
 void WXT185Display::SetPreviewImage(const lv_img_dsc_t* img_dsc) {
-    // 在这个UI中暂时不实现预览图像功能
-    SpiLcdDisplay::SetPreviewImage(img_dsc);
+    LcdDisplay::SetPreviewImage(img_dsc);
 }
 
 void WXT185Display::SetChatMessage(const char* role, const char* content) {
@@ -764,126 +1034,6 @@ void WXT185Display::SetChatMessage(const char* role, const char* content) {
     DisplayLockGuard lock(this);
     if (chat_content_ == nullptr) return;
     
-#if CONFIG_USE_WECHAT_MESSAGE_STYLE
-    // 微信对话样式 - 创建气泡式聊天界面
-    // 创建消息气泡
-    lv_obj_t* msg_bubble = lv_obj_create(chat_content_);
-    lv_obj_set_style_radius(msg_bubble, 8, 0);
-    lv_obj_set_scrollbar_mode(msg_bubble, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_set_style_border_width(msg_bubble, 1, 0);
-    lv_obj_set_style_border_color(msg_bubble, current_wxt185_theme_.border, 0);
-    lv_obj_set_style_pad_all(msg_bubble, 8, 0);
-
-    // 创建消息文本
-    lv_obj_t* msg_text = lv_label_create(msg_bubble);
-    lv_label_set_text(msg_text, content);
-    
-    // 计算文本实际宽度
-    lv_coord_t text_width = lv_txt_get_width(content, strlen(content), fonts_.text_font, 0);
-
-    // 计算气泡宽度（为360*360屏幕优化）
-    lv_coord_t max_width = width_ * 75 / 100 - 16;  // 屏幕宽度的75%
-    lv_coord_t min_width = 20;  
-    lv_coord_t bubble_width;
-    
-    // 确保文本宽度不小于最小宽度
-    if (text_width < min_width) {
-        text_width = min_width;
-    }
-
-    // 如果文本宽度小于最大宽度，使用文本宽度
-    if (text_width < max_width) {
-        bubble_width = text_width; 
-    } else {
-        bubble_width = max_width;
-    }
-    
-    // 设置消息文本的宽度
-    lv_obj_set_width(msg_text, bubble_width);
-    lv_label_set_long_mode(msg_text, LV_LABEL_LONG_WRAP);
-    lv_obj_set_style_text_font(msg_text, fonts_.text_font, 0);
-
-    // 设置气泡宽度和高度
-    lv_obj_set_width(msg_bubble, bubble_width);
-    lv_obj_set_height(msg_bubble, LV_SIZE_CONTENT);
-
-    // 根据消息角色设置样式和对齐方式
-    if (strcmp(role, "user") == 0) {
-        // 用户消息右对齐，绿色背景
-        lv_obj_set_style_bg_color(msg_bubble, current_wxt185_theme_.user_bubble, 0);
-        lv_obj_set_style_text_color(msg_text, current_wxt185_theme_.text, 0);
-        lv_obj_set_user_data(msg_bubble, (void*)"user");
-        lv_obj_set_width(msg_bubble, LV_SIZE_CONTENT);
-        lv_obj_set_height(msg_bubble, LV_SIZE_CONTENT);
-        lv_obj_set_style_flex_grow(msg_bubble, 0, 0);
-    } else if (strcmp(role, "assistant") == 0) {
-        // 助手消息左对齐，灰色背景
-        lv_obj_set_style_bg_color(msg_bubble, current_wxt185_theme_.assistant_bubble, 0);
-        lv_obj_set_style_text_color(msg_text, current_wxt185_theme_.text, 0);
-        lv_obj_set_user_data(msg_bubble, (void*)"assistant");
-        lv_obj_set_width(msg_bubble, LV_SIZE_CONTENT);
-        lv_obj_set_height(msg_bubble, LV_SIZE_CONTENT);
-        lv_obj_set_style_flex_grow(msg_bubble, 0, 0);
-    } else if (strcmp(role, "system") == 0) {
-        // 系统消息居中对齐，浅灰色背景
-        lv_obj_set_style_bg_color(msg_bubble, current_wxt185_theme_.system_bubble, 0);
-        lv_obj_set_style_text_color(msg_text, current_wxt185_theme_.system_text, 0);
-        lv_obj_set_user_data(msg_bubble, (void*)"system");
-        lv_obj_set_width(msg_bubble, LV_SIZE_CONTENT);
-        lv_obj_set_height(msg_bubble, LV_SIZE_CONTENT);
-        lv_obj_set_style_flex_grow(msg_bubble, 0, 0);
-    }
-    
-    // 为用户消息创建全宽容器以确保右对齐
-    if (strcmp(role, "user") == 0) {
-        // 创建全宽容器
-        lv_obj_t* container = lv_obj_create(chat_content_);
-        lv_obj_set_width(container, width_ - 20);
-        lv_obj_set_height(container, LV_SIZE_CONTENT);
-        
-        // 使容器透明且无边框
-        lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(container, 0, 0);
-        lv_obj_set_style_pad_all(container, 0, 0);
-        
-        // 将消息气泡移入此容器
-        lv_obj_set_parent(msg_bubble, container);
-        
-        // 右对齐气泡在容器中
-        lv_obj_align(msg_bubble, LV_ALIGN_RIGHT_MID, -10, 0);
-        
-        // 自动滚动到此容器
-        lv_obj_scroll_to_view_recursive(container, LV_ANIM_ON);
-    } else if (strcmp(role, "system") == 0) {
-        // 为系统消息创建全宽容器以确保居中对齐
-        lv_obj_t* container = lv_obj_create(chat_content_);
-        lv_obj_set_width(container, width_ - 20);
-        lv_obj_set_height(container, LV_SIZE_CONTENT);
-        
-        // 使容器透明且无边框
-        lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, 0);
-        lv_obj_set_style_border_width(container, 0, 0);
-        lv_obj_set_style_pad_all(container, 0, 0);
-        
-        // 将消息气泡移入此容器
-        lv_obj_set_parent(msg_bubble, container);
-        
-        // 将气泡居中对齐在容器中
-        lv_obj_align(msg_bubble, LV_ALIGN_CENTER, 0, 0);
-        
-        // 自动滚动底部
-        lv_obj_scroll_to_view_recursive(container, LV_ANIM_ON);
-    } else {
-        // 助手消息左对齐
-        lv_obj_align(msg_bubble, LV_ALIGN_LEFT_MID, 0, 0);
-        // 自动滚动到消息气泡
-        lv_obj_scroll_to_view_recursive(msg_bubble, LV_ANIM_ON);
-    }
-    
-    // 存储对最新消息标签的引用
-    chat_message_label_ = msg_text;
-#else
-    // 非微信对话样式 - 使用简单文本显示方式
     // 清除之前的内容
     lv_obj_clean(chat_content_);
     
@@ -911,15 +1061,11 @@ void WXT185Display::SetChatMessage(const char* role, const char* content) {
     
     // 存储对最新消息标签的引用
     chat_message_label_ = msg_label;
-#endif
 }
 
 void WXT185Display::SetTheme(const std::string& theme_name) {
     DisplayLockGuard lock(this);
-    
-    // 先调用父类方法设置基础主题
-    SpiLcdDisplay::SetTheme(theme_name);
-    
+        
     // 然后处理自定义主题
     if (theme_name == "dark" || theme_name == "DARK") {
         current_theme_style_ = ThemeStyle::DARK;
@@ -1123,7 +1269,7 @@ void WXT185Display::HandleTouchEnd(lv_point_t point) {
 
 void WXT185Display::SwitchToPage(int page_index) {
     DisplayLockGuard lock(this);
-    if (page_view_ == nullptr || page_index < 0 || page_index > 2) return;
+    if (page_container_ == nullptr || page_index < 0 || page_index > 2) return;
     
     current_page_index_ = page_index;
     

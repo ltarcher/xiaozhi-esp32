@@ -9,7 +9,7 @@
 #include <memory>
 #include "http_client.h"  // 添加HTTP客户端头文件
 
-// 虚拟币数据结构
+// 屏保虚拟币数据结构
 struct CryptocurrencyData {
     std::string symbol;
     std::string name;
@@ -17,16 +17,16 @@ struct CryptocurrencyData {
     float change_24h;
     int currency_id; // 货币ID
     
-    // K线数据
-    std::vector<std::pair<float, float>> kline_data_1m;
-    std::vector<std::pair<float, float>> kline_data_5m;
-    std::vector<std::pair<float, float>> kline_data_15m;
-    std::vector<std::pair<float, float>> kline_data_1h;
-    std::vector<std::pair<float, float>> kline_data_4h;
-    std::vector<std::pair<float, float>> kline_data_1d;
-    std::vector<std::pair<float, float>> kline_data_1w;
-    std::vector<std::pair<float, float>> kline_data_1mo;
-    std::vector<std::pair<float, float>> kline_data_3mo;
+    // K线数据（历史数据）
+    std::vector<std::pair<float, float>> kline_data_1m;  // 1分钟K线
+    std::vector<std::pair<float, float>> kline_data_5m;  // 5分钟K线
+    std::vector<std::pair<float, float>> kline_data_15m; // 15分钟K线
+    std::vector<std::pair<float, float>> kline_data_1h;  // 1小时K线
+    std::vector<std::pair<float, float>> kline_data_4h;  // 4小时K线
+    std::vector<std::pair<float, float>> kline_data_1d;  // 1天K线
+    std::vector<std::pair<float, float>> kline_data_1w;  // 1周K线
+    std::vector<std::pair<float, float>> kline_data_1mo; // 1月K线
+    std::vector<std::pair<float, float>> kline_data_3mo; // 3月K线
 };
 
 // 主题样式枚举
@@ -42,6 +42,11 @@ enum class ThemeStyle {
 struct WXT185ThemeColors {
     lv_color_t background;
     lv_color_t text;
+    // 外圆环颜色
+    lv_color_t outer_ring_background;
+    // 内圆环颜色
+    lv_color_t inner_ring_background;
+    // 聊天页面样式
     lv_color_t chat_background;
     lv_color_t user_bubble;
     lv_color_t assistant_bubble;
@@ -51,12 +56,25 @@ struct WXT185ThemeColors {
     lv_color_t low_battery;
     lv_color_t header;
     lv_color_t selector;
+    // 虚拟币页面样式
+    lv_color_t crypto_backgroud;
+    lv_color_t crypto_text;
+    lv_color_t crypto_sub_text;
+    lv_color_t crypto_up_color;
+    lv_color_t crypto_down_color;
+    lv_color_t crypto_border_color;
+    lv_color_t crypto_progress_bg_color;
+    // 设置页面样式
+    lv_color_t settings_screensaver_switch;
 };
 
-class WXT185Display : public SpiLcdDisplay {
+class WXT185Display : public LcdDisplay {
 protected:
     lv_obj_t* main_screen_ = nullptr;
-    lv_obj_t* page_view_ = nullptr;
+    lv_obj_t* page_container_ = nullptr;
+    // 页面通用组件
+    lv_obj_t* common_outer_ring_ = nullptr;
+    lv_obj_t* common_inner_ring_ = nullptr;
     
     // 三个主要页面
     lv_obj_t* chat_page_ = nullptr;
@@ -73,25 +91,33 @@ protected:
     lv_obj_t* crypto_chart_ = nullptr;
     lv_obj_t* crypto_list_ = nullptr;
     lv_obj_t* crypto_time_selector_ = nullptr;
+    lv_obj_t* crypto_roller = nullptr;
     
     // 设置页面组件
-    lv_obj_t* settings_header_ = nullptr;
-    lv_obj_t* settings_theme_selector_ = nullptr;
-    lv_obj_t* settings_crypto_selector_ = nullptr;
-    lv_obj_t* settings_timeframe_selector_ = nullptr;
-    lv_obj_t* settings_screensaver_crypto_selector_ = nullptr; // 屏保虚拟币选择器
+    lv_obj_t* settings_title_ = nullptr;
+    lv_obj_t* settings_theme_label_ = nullptr;
+    lv_obj_t* settings_theme_roller_ = nullptr;
+    lv_obj_t* settings_default_crypto_label_ = nullptr;
+    lv_obj_t* settings_default_crypto_roller_ = nullptr;
+    lv_obj_t* settings_kline_time_label_ = nullptr;
+    lv_obj_t* settings_kline_time_roller_ = nullptr;
+    lv_obj_t* settings_screensaver_label_ = nullptr;
+    lv_obj_t* settings_screensaver_switch_ = nullptr;
     
     // 屏幕保护相关组件
     lv_obj_t* screensaver_page_ = nullptr;
-    lv_obj_t* screensaver_container_ = nullptr;
+    lv_obj_t* screensaver_outer_ring_ = nullptr;
+    lv_obj_t* screensaver_progress_ring_ = nullptr;
     lv_obj_t* screensaver_crypto_name_ = nullptr;
+    lv_obj_t* screensaver_crypto_fullname = nullptr;
     lv_obj_t* screensaver_crypto_price_ = nullptr;
     lv_obj_t* screensaver_crypto_change_ = nullptr;
     lv_obj_t* screensaver_time_ = nullptr;
     
     // 数据
+    // 当前选择显示的虚拟币
+    CryptocurrencyData current_crypto_data_;
     std::vector<CryptocurrencyData> crypto_data_;
-    std::vector<std::string> selected_cryptos_;
     std::string current_timeframe_;
     ThemeStyle current_theme_style_;
     
@@ -107,8 +133,12 @@ protected:
     bool screensaver_active_ = false;
     int64_t last_activity_time_ = 0;
     esp_timer_handle_t screensaver_timer_ = nullptr;
-    int screensaver_crypto_id_ = 1; // 屏保显示的虚拟币ID，默认为BTC(1)
+    CryptocurrencyData screensaver_crypto_;
     std::vector<std::pair<float, float>> screensaver_kline_data_; // 屏保K线数据
+    
+    // 币界虚拟币ID
+    int current_crypto_id_ = 1; // 当前虚拟币页面显示的虚拟币ID，默认为BTC(1)
+    int screensaver_crypto_id_ = 1; // 屏保显示的虚拟币ID，默认为BTC(1)
     
     // 代理配置
     ProxyConfig proxy_config_;
@@ -116,10 +146,11 @@ protected:
     // 币界虚拟币行情数据支持
     std::unique_ptr<BiJieCoins> bijie_coins_;
     bool bijie_coins_connected_ = false;
-    int current_crypto_id_ = 1; // 当前虚拟币页面显示的虚拟币ID，默认为BTC(1)
     
     void SetupUI();
     
+    // 通用页面组件
+    void CreateCommonComponents();
     // 页面创建函数
     void CreateChatPage();
     void CreateCryptoPage();
