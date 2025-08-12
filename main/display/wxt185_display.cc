@@ -426,6 +426,9 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
         current_wxt185_theme_ = TECHNOLOGY_THEME_WXT185;
     } else if (theme_name == "cosmic") {
         current_wxt185_theme_ = COSMIC_THEME_WXT185;
+    } else {
+        // 默认light
+        current_wxt185_theme_ = LIGHT_THEME_WXT185;
     }
     
     // 从设置中加载配置值
@@ -492,8 +495,7 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
 
     // 初始化默认设置
     kline_frequency = 3; // 默认一小时的K线频率
-    screensaver_enabled = false; // 默认启用屏保
-    current_wxt185_theme_ = TECHNOLOGY_THEME_WXT185;
+    screensaver_enabled = true; // 默认启用屏保
     
     // 初始化当前显示的虚拟币数据
     current_crypto_data_.symbol = "BTC";
@@ -598,17 +600,17 @@ void WXT185Display::SetupUI() {
 #endif
     
     // 创建表盘圆环公共组件
-    CreateCommonComponents();
+    //CreateCommonComponents();
     ESP_LOGI(TAG, "Created common components");
 
     // 创建3个页面
     CreateChatPage();
     ESP_LOGI(TAG, "Created chat page");
     
-    CreateCryptoPage();
+    //CreateCryptoPage();
     ESP_LOGI(TAG, "Created crypto page");
     
-    CreateSettingsPage();
+    //CreateSettingsPage();
     ESP_LOGI(TAG, "Created settings page");
     
     // 创建屏保页面
@@ -709,9 +711,9 @@ void WXT185Display::CreateChatPage() {
     lv_obj_set_style_border_color(container_, current_wxt185_theme_.border, 0);
 
     /* Status bar */
-    status_bar_ = lv_obj_create(container_);
+    status_bar_ = lv_obj_create(page_container_);
     // 设置状态栏宽度为屏幕宽度的 20%
-    lv_obj_set_size(status_bar_, LV_HOR_RES * 0.2f, fonts_.text_font->line_height);
+    lv_obj_set_size(status_bar_, LV_HOR_RES * 0.5f, fonts_.text_font->line_height);
     // 设置文本居中
     lv_obj_set_style_text_align(status_bar_, LV_TEXT_ALIGN_CENTER, 0);
     // 设置背景
@@ -723,11 +725,11 @@ void WXT185Display::CreateChatPage() {
     lv_obj_clear_flag(status_bar_, LV_OBJ_FLAG_SCROLLABLE);
 
     /* Content */
-    content_ = lv_obj_create(container_);
+    content_ = lv_obj_create(page_container_);
     lv_obj_align(content_, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_scrollbar_mode(content_, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_radius(content_, 0, 0);
-    lv_obj_set_width(content_, LV_HOR_RES * 0.75f);
+    lv_obj_set_width(content_, LV_HOR_RES);
     lv_obj_set_flex_grow(content_, 1);
     lv_obj_set_style_pad_all(content_, 5, 0);
     lv_obj_set_style_bg_color(content_, current_wxt185_theme_.chat_background, 0);
@@ -994,6 +996,8 @@ void WXT185Display::CreateSettingsPage() {
 }
 
 void WXT185Display::CreateScreensaverPage() {
+    // 未启动屏保时则返回
+    if (!screensaver_enabled) return;
     ESP_LOGI(TAG, "Creating screensaver page");
     
     // 1. 创建背景
@@ -1570,19 +1574,20 @@ void WXT185Display::EnterScreensaver() {
     if (screensaver_active_ || !screensaver_page_) return;
     
     screensaver_active_ = true;
+    ESP_LOGI(TAG, "Entering screensaver mode begin");
     
     // 隐藏当前页面
-    lv_obj_add_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_add_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
+    if (chat_page_) lv_obj_add_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
+    if (crypto_page_) lv_obj_add_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
+    if (settings_page_) lv_obj_add_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
     
     // 显示屏保页面
-    lv_obj_clear_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
+    if (screensaver_page_) lv_obj_clear_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
     
     // 更新屏保内容
     UpdateScreensaverContent();
     
-    ESP_LOGI(TAG, "Entered screensaver mode");
+    ESP_LOGI(TAG, "Entered screensaver mode end");
 }
 
 void WXT185Display::ExitScreensaver() {
@@ -1615,6 +1620,8 @@ void WXT185Display::UpdateScreensaverContent() {
     DisplayLockGuard lock(this);
     
     if (!screensaver_active_) return;
+
+    ESP_LOGI(TAG, "Updating screensaver content");
     
     // 从币界获取屏保虚拟币数据
     auto market_data = bijie_coins_->GetMarketData(screensaver_crypto_.currency_id);
@@ -1658,6 +1665,8 @@ void WXT185Display::UpdateScreensaverContent() {
         strftime(time_str, sizeof(time_str), "%H:%M:%S", &timeinfo);
         lv_label_set_text(screensaver_time_, time_str);
     }
+
+    ESP_LOGI(TAG, "Screensaver content updated, getting KLine data...");
     
     // 获取K线数据用于屏保显示
     bijie_coins_->GetKLineData(screensaver_crypto_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
