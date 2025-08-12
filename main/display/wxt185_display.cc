@@ -491,7 +491,7 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
 
     // 初始化默认设置
     kline_frequency = 3; // 默认一小时的K线频率
-    screensaver_enabled = true; // 默认启用屏保
+    screensaver_enabled = false; // 默认启用屏保
     current_wxt185_theme_ = TECHNOLOGY_THEME_WXT185;
     
     // 初始化当前显示的虚拟币数据
@@ -525,7 +525,9 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     }
 
     // 初始化币界虚拟币行情数据支持
-    bijie_coins_ = std::make_unique<BiJieCoins>();
+    bijie_coins_connected_ = false;
+    bijie_coins_ = nullptr;
+    //bijie_coins_ = std::make_unique<BiJieCoins>();
     ESP_LOGI(TAG, "BiJieCoins initialized");
 
     // 初始化UI
@@ -819,6 +821,7 @@ void WXT185Display::CreateSettingsPage() {
     
     // 1. 初始化背景
     settings_page_ = lv_obj_create(page_container_);
+    ESP_LOGI(TAG, "Settings page background created");
     lv_obj_set_size(settings_page_, LV_HOR_RES, LV_VER_RES);
     lv_obj_set_style_radius(settings_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(settings_page_, current_wxt185_theme_.background, 0);
@@ -833,6 +836,7 @@ void WXT185Display::CreateSettingsPage() {
     
     // 2. 创建设置标题
     settings_title_ = lv_label_create(settings_page_);
+    ESP_LOGI(TAG, "Settings title label created");
     lv_label_set_text(settings_title_, "Settings");
     lv_obj_set_style_text_font(settings_title_, &lv_font_montserrat_32, 0);
     lv_obj_set_style_text_color(settings_title_, current_wxt185_theme_.text, 0);
@@ -840,12 +844,14 @@ void WXT185Display::CreateSettingsPage() {
 
     // 3. 创建主题设置
     settings_theme_label_ = lv_label_create(settings_page_);
+    ESP_LOGI(TAG, "Theme label created");
     lv_label_set_text(settings_theme_label_, "Theme:");
     lv_obj_set_style_text_font(settings_theme_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(settings_theme_label_, current_wxt185_theme_.text, 0);
     lv_obj_align(settings_theme_label_, LV_ALIGN_TOP_MID, -80, 80);
 
     settings_theme_roller_ = lv_roller_create(settings_page_);
+    ESP_LOGI(TAG, "Theme roller created");
     lv_obj_set_style_text_font(settings_theme_roller_, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(settings_theme_roller_, current_wxt185_theme_.text, 0);
     lv_obj_set_style_bg_color(settings_theme_roller_, lv_color_hex(0x1a001a), 0);
@@ -867,28 +873,36 @@ void WXT185Display::CreateSettingsPage() {
 
     // 5. 创建默认虚拟币设置
     settings_default_crypto_label_ = lv_label_create(settings_page_);
+    ESP_LOGI(TAG, "Default crypto label created");
     lv_label_set_text(settings_default_crypto_label_, "Default Coin:");
     lv_obj_set_style_text_font(settings_default_crypto_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(settings_default_crypto_label_, current_wxt185_theme_.text, 0);
     lv_obj_align(settings_default_crypto_label_, LV_ALIGN_TOP_MID, -80, 120);
 
     settings_default_crypto_roller_ = lv_roller_create(settings_page_);
+    ESP_LOGI(TAG, "Default crypto roller created");
     lv_obj_set_style_text_font(settings_default_crypto_roller_, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(settings_default_crypto_roller_, current_wxt185_theme_.text, 0);
     lv_obj_set_style_bg_color(settings_default_crypto_roller_, lv_color_hex(0x1a001a), 0);
 
     // 添加虚拟币选项到roller
     // 获取虚拟币列表
-    std::vector<CoinInfo> v = bijie_coins_->GetCoinList();
-    int crypto_count = v.size();
-    char crypto_options[MAX_COIN_NAME_LEN * v.size()] = {0};
-    for (int i = 0; i < crypto_count; i++) {
-        strcat(crypto_options, v[i].name.c_str());
-        if (i < crypto_count - 1) {
-            strcat(crypto_options, "\n");
+    int crypto_count = 0;
+    if (bijie_coins_ != nullptr) {
+        std::vector<CoinInfo> v = bijie_coins_->GetCoinList();
+        crypto_count = v.size();
+        char crypto_options[MAX_COIN_NAME_LEN * v.size()] = {0};
+        for (int i = 0; i < crypto_count; i++) {
+            strcat(crypto_options, v[i].name.c_str());
+            if (i < crypto_count - 1) {
+                strcat(crypto_options, "\n");
+            }
         }
+        lv_roller_set_options(settings_default_crypto_roller_, crypto_options, LV_ROLLER_MODE_NORMAL);
     }
-    lv_roller_set_options(settings_default_crypto_roller_, crypto_options, LV_ROLLER_MODE_NORMAL);
+    else {
+        lv_roller_set_options(settings_default_crypto_roller_, "", LV_ROLLER_MODE_NORMAL);
+    }
     lv_roller_set_visible_row_count(settings_default_crypto_roller_, 1);
     lv_roller_set_selected(settings_default_crypto_roller_, default_crypto, LV_ANIM_OFF);
     lv_obj_add_event_cb(settings_default_crypto_roller_, default_crypto_roller_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
@@ -897,20 +911,27 @@ void WXT185Display::CreateSettingsPage() {
 
     // 6. 创建K线频率设置
     settings_kline_time_label_ = lv_label_create(settings_page_);
+    ESP_LOGI(TAG, "K-line time label created");
     lv_label_set_text(settings_kline_time_label_, "K-Line Freq:");
     lv_obj_set_style_text_font(settings_kline_time_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(settings_kline_time_label_, current_wxt185_theme_.text, 0);
     lv_obj_align(settings_kline_time_label_, LV_ALIGN_TOP_MID, -80, 160);
 
     settings_kline_time_roller_ = lv_roller_create(settings_page_);
+    ESP_LOGI(TAG, "K-line time roller created");
     lv_obj_set_style_text_font(settings_kline_time_roller_, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(settings_kline_time_roller_, current_wxt185_theme_.text, 0);
     lv_obj_set_style_bg_color(settings_kline_time_roller_, lv_color_hex(0x1a001a), 0);
 
     // 添加K线频率选项到roller
-    const char** klinefreq = bijie_coins_->GetKLineTimeFrequencies();
+    const char** klinefreq = nullptr;
+    if (bijie_coins_ != nullptr) {
+        klinefreq = bijie_coins_->GetKLineTimeFrequencies();
+    } else {
+        klinefreq = {"1m", "5m", "15m", "1h", "4h", "1d", "1w", "1mo", "3mo"}
+    }
     int kline_option_count = 0;
-    const char* kline_options[10];
+    const char* kline_options[10] = {};
     while (klinefreq[kline_option_count] && kline_option_count < 10) {
         kline_options[kline_option_count] = klinefreq[kline_option_count];
         kline_option_count++;
@@ -931,12 +952,14 @@ void WXT185Display::CreateSettingsPage() {
 
     // 7. 创建屏保开关
     settings_screensaver_label_ = lv_label_create(settings_page_);
+    ESP_LOGI(TAG, "Screensaver label created");
     lv_label_set_text(settings_screensaver_label_, "Screensaver:");
     lv_obj_set_style_text_font(settings_screensaver_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(settings_screensaver_label_, current_wxt185_theme_.text, 0);
     lv_obj_align(settings_screensaver_label_, LV_ALIGN_TOP_MID, -80, 200);
 
     settings_screensaver_switch_ = lv_switch_create(settings_page_);
+    ESP_LOGI(TAG, "Screensaver switch created");
     lv_obj_set_style_bg_color(settings_screensaver_switch_, current_wxt185_theme_.settings_screensaver_switch, 0);
     if (screensaver_enabled) {
         lv_obj_add_state(settings_screensaver_switch_, LV_STATE_CHECKED);
@@ -946,11 +969,13 @@ void WXT185Display::CreateSettingsPage() {
     
     // 8. 创建保存按钮
     settings_save_button_ = lv_button_create(settings_page_);
+    ESP_LOGI(TAG, "Save button created");
     lv_obj_set_style_bg_color(settings_save_button_, current_wxt185_theme_.settings_screensaver_switch, 0);
     lv_obj_set_size(settings_save_button_, 100, 40);
     lv_obj_align(settings_save_button_, LV_ALIGN_BOTTOM_MID, 0, -30);
     
     lv_obj_t* save_label = lv_label_create(settings_save_button_);
+    ESP_LOGI(TAG, "Save button label created");
     lv_label_set_text(save_label, "Save");
     lv_obj_center(save_label);
     
