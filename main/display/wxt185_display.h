@@ -101,7 +101,7 @@ protected:
     lv_obj_t* screensaver_outer_ring_ = nullptr;
     lv_obj_t* screensaver_progress_ring_ = nullptr;
     lv_obj_t* screensaver_crypto_name_ = nullptr;
-    lv_obj_t* screensaver_crypto_fullname = nullptr;
+    lv_obj_t* screensaver_crypto_fullname_ = nullptr;
     lv_obj_t* screensaver_crypto_price_ = nullptr;
     lv_obj_t* screensaver_crypto_change_ = nullptr;
     lv_obj_t* screensaver_time_ = nullptr;

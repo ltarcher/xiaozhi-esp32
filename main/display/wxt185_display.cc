@@ -1063,11 +1063,11 @@ void WXT185Display::CreateScreensaverPage() {
     lv_obj_align(screensaver_crypto_name_, LV_ALIGN_CENTER, 0, -60);
 
     // 6. 创建全称显示
-    screensaver_crypto_fullname = lv_label_create(screensaver_page_);
-    lv_label_set_text_fmt(screensaver_crypto_fullname, "%s", screensaver_crypto_.name.c_str());
-    lv_obj_set_style_text_font(screensaver_crypto_fullname, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(screensaver_crypto_fullname, current_wxt185_theme_.crypto_sub_text, 0);
-    lv_obj_align_to(screensaver_crypto_fullname, screensaver_crypto_name_, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
+    screensaver_crypto_fullname_ = lv_label_create(screensaver_page_);
+    lv_label_set_text_fmt(screensaver_crypto_fullname_, "%s", screensaver_crypto_.name.c_str());
+    lv_obj_set_style_text_font(screensaver_crypto_fullname_, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(screensaver_crypto_fullname_, current_wxt185_theme_.crypto_sub_text, 0);
+    lv_obj_align_to(screensaver_crypto_fullname_, screensaver_crypto_name_, LV_ALIGN_OUT_BOTTOM_MID, 0, 10);
 
     // 7. 创建价格显示
     screensaver_crypto_price_ = lv_label_create(screensaver_page_);
@@ -1087,7 +1087,7 @@ void WXT185Display::CreateScreensaverPage() {
     // 9. 创建时间显示标签
     screensaver_time_ = lv_label_create(screensaver_page_);
     lv_label_set_text(screensaver_time_, "");
-    lv_obj_set_style_text_font(screensaver_time_, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_font(screensaver_time_, &lv_font_montserrat_32, 0);
     lv_obj_set_style_text_color(screensaver_time_, current_wxt185_theme_.crypto_sub_text, 0);
     lv_obj_align(screensaver_time_, LV_ALIGN_BOTTOM_MID, 0, -60);
 
@@ -1249,21 +1249,8 @@ void WXT185Display::SetChatMessage(const char* role, const char* content) {
     // 直接更新已创建的消息标签而不是清理整个容器
     if (chat_message_label_) {
         lv_label_set_text(chat_message_label_, content);
-        
-        // 根据消息角色设置样式
-        if (strcmp(role, "user") == 0) {
-            lv_obj_set_style_text_color(chat_message_label_, current_wxt185_theme_.user_bubble, 0);
-            ESP_LOGI(TAG, "Set message color to user bubble color");
-        } else if (strcmp(role, "assistant") == 0) {
-            lv_obj_set_style_text_color(chat_message_label_, current_wxt185_theme_.assistant_bubble, 0);
-            ESP_LOGI(TAG, "Set message color to assistant bubble color");
-        } else if (strcmp(role, "system") == 0) {
-            lv_obj_set_style_text_color(chat_message_label_, current_wxt185_theme_.system_text, 0);
-            ESP_LOGI(TAG, "Set message color to system text color");
-        } else {
-            // 默认文本颜色
-            lv_obj_set_style_text_color(chat_message_label_, current_wxt185_theme_.text, 0);
-        }
+        // 默认文本颜色
+        lv_obj_set_style_text_color(chat_message_label_, current_wxt185_theme_.text, 0);
     }
 }
 
@@ -1643,6 +1630,12 @@ void WXT185Display::StartScreensaverTimer() {
 }
 
 void WXT185Display::CryptoUpdateTimerCallback(void* arg) {
+    // 检查参数有效性
+    if (!arg) {
+        ESP_LOGE(TAG, "CryptoUpdateTimerCallback: arg is null");
+        return;
+    }
+    
     WXT185Display* self = static_cast<WXT185Display*>(arg);
     
     try {
@@ -1652,8 +1645,20 @@ void WXT185Display::CryptoUpdateTimerCallback(void* arg) {
             
             // 使用LVGL异步调用来更新UI，确保在LVGL线程中执行
             lv_async_call([](void* user_data) {
+                // 检查用户数据有效性
+                if (!user_data) {
+                    ESP_LOGE(TAG, "CryptoUpdateTimerCallback: user_data is null");
+                    return;
+                }
+                
                 try {
                     WXT185Display* self = static_cast<WXT185Display*>(user_data);
+                    
+                    // 再次检查对象有效性
+                    if (!self) {
+                        ESP_LOGE(TAG, "CryptoUpdateTimerCallback: self is null after cast");
+                        return;
+                    }
 
                     // 触发Conenct
                     if (!self->bijie_coins_connected_) {
@@ -1676,21 +1681,6 @@ void WXT185Display::CryptoUpdateTimerCallback(void* arg) {
                     ESP_LOGE(TAG, "Exception occurred in CryptoUpdateTimerCallback: %s", e.what());
                 } catch (...) {
                     ESP_LOGE(TAG, "Unknown exception occurred in CryptoUpdateTimerCallback");
-                }
-            }, self);
-        }
-    } catch (const std::exception& e) {
-        ESP_LOGE(TAG, "Exception occurred in CryptoUpdateTimerCallback: %s", e.what());
-    } catch (...) {
-        ESP_LOGE(TAG, "Unknown exception occurred in CryptoUpdateTimerCallback");
-    }
-}
-
-                    }
-                } catch (const std::exception& e) {
-                    ESP_LOGE(TAG, "Exception occurred in LVGL async call: %s", e.what());
-                } catch (...) {
-                    ESP_LOGE(TAG, "Unknown exception occurred in LVGL async call");
                 }
             }, self);
         }
@@ -1767,7 +1757,7 @@ void WXT185Display::ExitScreensaver() {
         screensaver_active_ = false;
         
         // 隐藏屏保页面
-        lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
+        if (screensaver_page_) lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
         
         // 显示当前页面
         switch (current_page_index_) {
@@ -1803,9 +1793,26 @@ void WXT185Display::UpdateScreensaverContent() {
         return;
     }
 
-    // 更新虚拟币名称
+    // 更新时间
+    if (screensaver_time_) {
+        time_t now;
+        time(&now);
+        struct tm timeinfo;
+        localtime_r(&now, &timeinfo);
+        
+        char time_str[32];
+        strftime(time_str, sizeof(time_str), "%H:%M:%S", &timeinfo);
+        lv_label_set_text(screensaver_time_, time_str);
+    }
+
+    // 更新虚拟币简称
     if (screensaver_crypto_name_) {
-        lv_label_set_text(screensaver_crypto_name_, screensaver_crypto_.name.c_str());
+        lv_label_set_text(screensaver_crypto_name_, screensaver_crypto_.symbol.c_str());
+    }
+
+    // 更新虚拟币全称
+    if (screensaver_crypto_fullname_) {
+        lv_label_set_text(screensaver_crypto_fullname_, screensaver_crypto_.name.c_str());
     }
     
     // 检查币界服务是否已初始化
@@ -1846,18 +1853,6 @@ void WXT185Display::UpdateScreensaverContent() {
         }
     } else {
         ESP_LOGW(TAG, "BiJie coins service not initialized");
-    }
-    
-    // 更新时间
-    if (screensaver_time_) {
-        time_t now;
-        time(&now);
-        struct tm timeinfo;
-        localtime_r(&now, &timeinfo);
-        
-        char time_str[32];
-        strftime(time_str, sizeof(time_str), "%H:%M:%S", &timeinfo);
-        lv_label_set_text(screensaver_time_, time_str);
     }
 
     ESP_LOGI(TAG, "Screensaver content updated, getting KLine data...");
@@ -1979,16 +1974,43 @@ void WXT185Display::ConnectToBiJieCoins() {
         return;
     }
     
+    // 检查是否已经在连接过程中
+    static bool is_connecting = false;
+    if (is_connecting) {
+        ESP_LOGW(TAG, "Already connecting to BiJie coins, skipping");
+        return;
+    }
+    
+    is_connecting = true;
+    
     // 创建一个专门的任务来处理WebSocket连接，避免阻塞UI线程
     // 传递this指针作为参数，以便在任务中访问WXT185Display对象
     xTaskCreate([](void* param) {
         WXT185Display* self = static_cast<WXT185Display*>(param);
         
+        // 确保在函数结束时重置连接状态
+        struct ConnectGuard {
+            bool& connecting_flag;
+            ConnectGuard(bool& flag) : connecting_flag(flag) {}
+            ~ConnectGuard() { connecting_flag = false; }
+        } guard(is_connecting);
+        
+        // 检查对象有效性
+        if (!self) {
+            ESP_LOGE(TAG, "ConnectToBiJieCoins: self is null");
+            return;
+        }
+        
         try {
             // 等待网络就绪
             if (!self->WaitForNetworkReady()) {
                 ESP_LOGE(TAG, "Network is not ready, aborting BiJie coins connection");
-                vTaskDelete(nullptr);
+                return;
+            }
+            
+            // 检查bijie_coins是否仍然有效
+            if (!self->bijie_coins_) {
+                ESP_LOGE(TAG, "BiJie coins service no longer available");
                 return;
             }
             
@@ -2010,10 +2032,23 @@ void WXT185Display::ConnectToBiJieCoins() {
             
             // 获取K线数据用于图表显示
             self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, 2, 30, [self](const std::vector<KLineData>& kline_data) {
+                // 检查参数有效性
+                if (!self) {
+                    ESP_LOGE(TAG, "K-line data callback: self is null");
+                    return;
+                }
+                
                 try {
                     // 使用LVGL异步调用更新UI，确保在LVGL线程中执行
                     lv_async_call([](void* user_data) {
                         auto kline_data_ptr = static_cast<std::pair<WXT185Display*, std::vector<KLineData>*>*>(user_data);
+                        
+                        // 检查参数有效性
+                        if (!kline_data_ptr) {
+                            ESP_LOGE(TAG, "LVGL async call: user_data is null");
+                            return;
+                        }
+                        
                         WXT185Display* self = kline_data_ptr->first;
                         std::vector<KLineData>* kline_data = kline_data_ptr->second;
                         
@@ -2065,9 +2100,6 @@ void WXT185Display::ConnectToBiJieCoins() {
         } catch (...) {
             ESP_LOGE(TAG, "Unknown exception occurred while connecting to BiJie coins");
         }
-        
-        // 任务完成，删除自身
-        vTaskDelete(nullptr);
     }, "bijie_coins_connect", 4096, this, 5, nullptr);
 }
 
