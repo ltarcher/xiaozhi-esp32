@@ -9,6 +9,8 @@
 #include <freertos/timers.h>
 #include <esp_http_client.h>
 #include <esp_tls.h>
+#include "board.h"
+#include "universal_http_client.h"  // 使用 UniversalHttpClient
 
 static const char* TAG = "BiJieCoins";
 
@@ -464,132 +466,123 @@ private:
         
         ESP_LOGI(TAG, "Fetching K-line data from: %s", url.c_str());
         
-        // 根据URL协议判断传输类型
-        esp_http_client_transport_t transport_type = HTTP_TRANSPORT_UNKNOWN;
-        bool skip_cert_check = false;
-        
-        // 检查URL是否以https开头
-        if (url.substr(0, 8) == "https://") {
-            transport_type = HTTP_TRANSPORT_OVER_SSL;
-            skip_cert_check = true;  // 对于HTTPS跳过证书检查
-        } else {
-            transport_type = HTTP_TRANSPORT_OVER_TCP;
+        // 使用NetworkInterface中的HTTP客户端
+        auto network = Board::GetInstance().GetNetwork();
+        if (!network) {
+            ESP_LOGE(TAG, "Network interface is not available");
+            if (task_data->callback) {
+                task_data->callback(kline_data);
+            }
+            delete task_data;
+            vTaskDelete(nullptr);
+            return;
         }
         
-        // 配置HTTP客户端 - 使用逐个字段赋值的方式而不是结构体初始化列表
-        esp_http_client_config_t config = {0};
-        config.url = url.c_str();
-        config.method = HTTP_METHOD_GET;
-        config.timeout_ms = 10000;
-        config.transport_type = transport_type;
-        config.skip_cert_common_name_check = skip_cert_check;
-        // 禁用SSL验证以解决global_cacert为NULL的问题
-        config.cert_pem = NULL;
-        config.cert_len = 0;
-        config.use_global_ca_store = false;
-
-        esp_http_client_handle_t client = esp_http_client_init(&config);
+        // 创建通用HTTP客户端，支持代理设置
+        std::unique_ptr<UniversalHttpClient> client = std::make_unique<UniversalHttpClient>(network);
+        if (!client) {
+            ESP_LOGE(TAG, "Failed to create HTTP client");
+            if (task_data->callback) {
+                task_data->callback(kline_data);
+            }
+            delete task_data;
+            vTaskDelete(nullptr);
+            return;
+        }
         
         // 设置代理（如果配置了代理）
         if (task_data->proxy_config.IsValid()) {
-            ESP_LOGI(TAG, "Setting HTTP proxy: %s:%d", task_data->proxy_config.host.c_str(), task_data->proxy_config.port);
-#if defined(HTTP_CLIENT_HAS_SET_PROXY)
-            esp_http_client_set_proxy(client, task_data->proxy_config.host.c_str(), task_data->proxy_config.port);
-#else
-            ESP_LOGW(TAG, "HTTP client implementation does not support proxy, proxy settings will be ignored");
-#endif
+            ESP_LOGI(TAG, "Setting proxy: %s:%d", task_data->proxy_config.host.c_str(), task_data->proxy_config.port);
+            client->SetProxy(task_data->proxy_config);
         }
         
         // 设置请求头
-        esp_http_client_set_header(client, "Accept", "application/json, text/javascript, */*; q=0.01");
-        esp_http_client_set_header(client, "Accept-Language", "zh-CN,zh;q=0.9");
-        esp_http_client_set_header(client, "Cache-Control", "no-cache");
-        esp_http_client_set_header(client, "Origin", "https://www.528btc.com");
-        esp_http_client_set_header(client, "Pragma", "no-cache");
-        esp_http_client_set_header(client, "Referer", "https://www.528btc.com/coin/3008/trend-all");
-        esp_http_client_set_header(client, "Sec-Ch-Ua", "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"138\", \"Google Chrome\";v=\"138\"");
-        esp_http_client_set_header(client, "Sec-Ch-Ua-Mobile", "?0");
-        esp_http_client_set_header(client, "Sec-Ch-Ua-Platform", "\"Windows\"");
-        esp_http_client_set_header(client, "Sec-Fetch-Dest", "empty");
-        esp_http_client_set_header(client, "Sec-Fetch-Mode", "cors");
-        esp_http_client_set_header(client, "Sec-Fetch-Site", "same-origin");
-        esp_http_client_set_header(client, "User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36");
-        esp_http_client_set_header(client, "X-Requested-With", "XMLHttpRequest");
+        client->SetHeader("Accept", "application/json, text/javascript, */*; q=0.01");
+        client->SetHeader("Accept-Language", "zh-CN,zh;q=0.9");
+        client->SetHeader("Cache-Control", "no-cache");
+        client->SetHeader("Origin", "https://www.528btc.com");
+        client->SetHeader("Pragma", "no-cache");
+        client->SetHeader("Referer", "https://www.528btc.com/coin/3008/trend-all");
+        client->SetHeader("Sec-Ch-Ua", "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"138\", \"Google Chrome\";v=\"138\"");
+        client->SetHeader("Sec-Ch-Ua-Mobile", "?0");
+        client->SetHeader("Sec-Ch-Ua-Platform", "\"Windows\"");
+        client->SetHeader("Sec-Fetch-Dest", "empty");
+        client->SetHeader("Sec-Fetch-Mode", "cors");
+        client->SetHeader("Sec-Fetch-Site", "same-origin");
+        client->SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36");
+        client->SetHeader("X-Requested-With", "XMLHttpRequest");
         
         // 执行请求
-        esp_err_t err = esp_http_client_perform(client);
-        if (err == ESP_OK) {
-            int status_code = esp_http_client_get_status_code(client);
-            if (status_code == 200) {
-                // 获取响应数据长度
-                int content_length = esp_http_client_get_content_length(client);
-                if (content_length > 0) {
-                    // 分配内存存储响应数据
-                    char* buffer = new char[content_length + 1];
-                    int read_len = esp_http_client_read(client, buffer, content_length);
-                    if (read_len > 0) {
-                        buffer[read_len] = '\0';
-                        ESP_LOGI(TAG, "Response: %s", buffer);
-                        
-                        // 解析JSON数据
-                        cJSON* root = cJSON_Parse(buffer);
-                        if (root) {
-                            // 解析K线数据数组
-                            if (cJSON_IsArray(root)) {
-                                int array_size = cJSON_GetArraySize(root);
-                                for (int i = 0; i < array_size; i++) {
-                                    cJSON* item = cJSON_GetArrayItem(root, i);
-                                    if (item) {
-                                        KLineData kline_item = {0};
-                                        
-                                        cJSON* timestamp = cJSON_GetObjectItem(item, "T");
-                                        if (cJSON_IsNumber(timestamp)) {
-                                            kline_item.timestamp = static_cast<long long>(timestamp->valuedouble);
-                                        }
-                                        
-                                        cJSON* open = cJSON_GetObjectItem(item, "o");
-                                        if (cJSON_IsNumber(open)) {
-                                            kline_item.open = static_cast<float>(open->valuedouble);
-                                        }
-                                        
-                                        cJSON* high = cJSON_GetObjectItem(item, "h");
-                                        if (cJSON_IsNumber(high)) {
-                                            kline_item.high = static_cast<float>(high->valuedouble);
-                                        }
-                                        
-                                        cJSON* low = cJSON_GetObjectItem(item, "l");
-                                        if (cJSON_IsNumber(low)) {
-                                            kline_item.low = static_cast<float>(low->valuedouble);
-                                        }
-                                        
-                                        cJSON* close = cJSON_GetObjectItem(item, "c");
-                                        if (cJSON_IsNumber(close)) {
-                                            kline_item.close = static_cast<float>(close->valuedouble);
-                                        }
-                                        
-                                        cJSON* volume = cJSON_GetObjectItem(item, "v");
-                                        if (cJSON_IsNumber(volume)) {
-                                            kline_item.volume = static_cast<float>(volume->valuedouble);
-                                        }
-                                        
-                                        kline_data.push_back(kline_item);
-                                    }
-                                }
-                            }
-                            cJSON_Delete(root);
-                        }
-                    }
-                    delete[] buffer;
-                }
-            } else {
-                ESP_LOGE(TAG, "HTTP request failed with status code: %d", status_code);
+        if (!client->Open("GET", url)) {
+            ESP_LOGE(TAG, "Failed to open HTTP connection");
+            if (task_data->callback) {
+                task_data->callback(kline_data);
             }
-        } else {
-            ESP_LOGE(TAG, "HTTP request failed: %s", esp_err_to_name(err));
+            delete task_data;
+            vTaskDelete(nullptr);
+            return;
         }
         
-        // 清理HTTP客户端
-        esp_http_client_cleanup(client);
+        int status_code = client->GetStatusCode();
+        if (status_code == 200) {
+            // 获取响应数据
+            std::string response = client->ReadAll();
+            if (!response.empty()) {
+                ESP_LOGI(TAG, "Response: %s", response.c_str());
+                
+                // 解析JSON数据
+                cJSON* root = cJSON_Parse(response.c_str());
+                if (root) {
+                    // 解析K线数据数组
+                    if (cJSON_IsArray(root)) {
+                        int array_size = cJSON_GetArraySize(root);
+                        for (int i = 0; i < array_size; i++) {
+                            cJSON* item = cJSON_GetArrayItem(root, i);
+                            if (item) {
+                                KLineData kline_item = {0};
+                                
+                                cJSON* timestamp = cJSON_GetObjectItem(item, "T");
+                                if (cJSON_IsNumber(timestamp)) {
+                                    kline_item.timestamp = static_cast<long long>(timestamp->valuedouble);
+                                }
+                                
+                                cJSON* open = cJSON_GetObjectItem(item, "o");
+                                if (cJSON_IsNumber(open)) {
+                                    kline_item.open = static_cast<float>(open->valuedouble);
+                                }
+                                
+                                cJSON* high = cJSON_GetObjectItem(item, "h");
+                                if (cJSON_IsNumber(high)) {
+                                    kline_item.high = static_cast<float>(high->valuedouble);
+                                }
+                                
+                                cJSON* low = cJSON_GetObjectItem(item, "l");
+                                if (cJSON_IsNumber(low)) {
+                                    kline_item.low = static_cast<float>(low->valuedouble);
+                                }
+                                
+                                cJSON* close = cJSON_GetObjectItem(item, "c");
+                                if (cJSON_IsNumber(close)) {
+                                    kline_item.close = static_cast<float>(close->valuedouble);
+                                }
+                                
+                                cJSON* volume = cJSON_GetObjectItem(item, "v");
+                                if (cJSON_IsNumber(volume)) {
+                                    kline_item.volume = static_cast<float>(volume->valuedouble);
+                                }
+                                
+                                kline_data.push_back(kline_item);
+                            }
+                        }
+                    }
+                    cJSON_Delete(root);
+                }
+            }
+        } else {
+            ESP_LOGE(TAG, "HTTP request failed with status code: %d", status_code);
+        }
+        
+        client->Close();
         
         // 调用回调函数
         if (task_data->callback) {

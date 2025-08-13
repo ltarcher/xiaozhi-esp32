@@ -24,6 +24,7 @@ set(SOURCES "audio/audio_codec.cc"
             "settings.cc"
             "device_state_event.cc"
             "protocols/universal_websocket.cc"
+            "protocols/universal_http_client.cc"  # 新增的源文件
             "protocols/bijie_coins.cc"
             "display/wxt185_display.cc"
             "main.cc"
