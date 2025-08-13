@@ -2108,6 +2108,7 @@ void WXT185Display::ConnectToBiJieCoins() {
         // 检查对象有效性
         if (!self) {
             ESP_LOGE(TAG, "ConnectToBiJieCoins: self is null");
+            vTaskDelete(nullptr);
             return;
         }
         
@@ -2115,12 +2116,14 @@ void WXT185Display::ConnectToBiJieCoins() {
             // 等待网络就绪
             if (!self->WaitForNetworkReady()) {
                 ESP_LOGE(TAG, "Network is not ready, aborting BiJie coins connection");
+                vTaskDelete(nullptr);
                 return;
             }
             
             // 检查bijie_coins是否仍然有效
             if (!self->bijie_coins_) {
                 ESP_LOGE(TAG, "BiJie coins service no longer available");
+                vTaskDelete(nullptr);
                 return;
             }
             
@@ -2172,7 +2175,10 @@ void WXT185Display::ConnectToBiJieCoins() {
         } catch (...) {
             ESP_LOGE(TAG, "Unknown exception occurred while connecting to BiJie coins");
         }
-    }, "bijie_coins_connect", 4096, this, 5, nullptr);
+        
+        // 显式删除任务，防止任务返回导致系统错误
+        vTaskDelete(nullptr);
+    }, "bijie_coins_con", 4096, this, 5, nullptr);
 }
 
 void WXT185Display::UpdateCryptoDataFromBiJie() {
