@@ -89,11 +89,16 @@ bool UniversalHttpClient::Open(const std::string& method, const std::string& url
     config.method = GetMethod(method);
     config.timeout_ms = timeout_ms_;
     
-    // SSL/TLS配置
-    config.skip_cert_common_name_check = true;
-    config.use_global_ca_store = false;
-    config.cert_pem = nullptr;
-    config.cert_len = 0;
+    // 禁用服务器证书验证（对于自签名证书或测试环境）
+    if (disable_ssl_verification_) {
+        ESP_LOGI(TAG, "Disabling SSL verification");
+        config.crt_bundle_attach = nullptr;
+        config.use_global_ca_store = false;
+    } else {
+        ESP_LOGI(TAG, "Using default SSL verification");
+        config.use_global_ca_store = true;
+        config.crt_bundle_attach = esp_crt_bundle_attach; // 使用证书包
+    }
     
     // 如果配置了代理，则设置代理
     if (proxy_config_.IsValid()) {
@@ -214,32 +219,32 @@ std::string UniversalHttpClient::ReadAll() {
     
     // 获取内容长度
     size_t content_len = esp_http_client_get_content_length(http_client_);
-    if (content_len <= 0) {
-        // 尝试读取数据直到结束
-        std::string result;
-        char buffer[1024];
-        int bytes_read;
+    ESP_LOGV(TAG, "Content length from header: %d", (int)content_len);
+    
+    // 尝试读取数据直到结束
+    std::string result;
+    char buffer[512]; // 使用较小的缓冲区以减少内存占用
+    int bytes_read;
+    int total_bytes_read = 0;
+    
+    // 循环读取直到没有更多数据
+    while ((bytes_read = esp_http_client_read(http_client_, buffer, sizeof(buffer))) > 0) {
+        ESP_LOGV(TAG, "Read %d bytes in this iteration", bytes_read);
+        result.append(buffer, bytes_read);
+        total_bytes_read += bytes_read;
         
-        while ((bytes_read = esp_http_client_read(http_client_, buffer, sizeof(buffer))) > 0) {
-            result.append(buffer, bytes_read);
+        // 添加一个安全检查，防止无限循环
+        if (total_bytes_read > 100000) { // 限制最大读取100KB
+            ESP_LOGW(TAG, "Maximum response size exceeded (100KB), truncating");
+            break;
         }
-        
-        return result;
-    } else {
-        // 已知内容长度，一次性读取
-        std::string result(content_len, '\0');
-        int total_bytes_read = 0;
-        int bytes_read;
-        
-        while (total_bytes_read < (int)content_len) {
-            bytes_read = esp_http_client_read(http_client_, &result[total_bytes_read], content_len - total_bytes_read);
-            if (bytes_read <= 0) {
-                break;
-            }
-            total_bytes_read += bytes_read;
-        }
-        
-        result.resize(total_bytes_read);
-        return result;
     }
+    
+    if (bytes_read < 0) {
+        ESP_LOGE(TAG, "Error reading HTTP response: %d", bytes_read);
+        return "";
+    }
+    
+    ESP_LOGV(TAG, "Total bytes read: %d", total_bytes_read);
+    return result;
 }

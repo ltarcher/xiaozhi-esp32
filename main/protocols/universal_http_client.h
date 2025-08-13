@@ -12,6 +12,7 @@
 
 // 包含ESP-IDF HTTP客户端头文件
 #include <esp_http_client.h>
+#include <esp_crt_bundle.h>
 
 class UniversalHttpClient : public Http {
 public:
@@ -37,6 +38,9 @@ public:
     // 提供额外的代理设置方法，接受ProxyConfig结构
     void SetProxy(const ProxyConfig& proxy_config);
 
+    // 禁用SSL验证
+    void DisableSslVerification(bool disable) { disable_ssl_verification_ = disable; };
+
 private:
     NetworkInterface* network_interface_;
     esp_http_client_handle_t http_client_;
@@ -57,6 +61,8 @@ private:
     std::string response_body_;
     size_t content_length_ = 0;
     
+    // 是否禁用ssl
+    bool disable_ssl_verification_ = false;
     
     // 内部方法
     bool ParseUrl(const std::string& url);

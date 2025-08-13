@@ -161,9 +161,10 @@ private:
     void HandleIncomingMessage(const std::string& message) {
         cJSON* root = cJSON_Parse(message.c_str());
         if (!root) {
-            ESP_LOGE(TAG, "Failed to parse JSON message for currency %d", currency_id_);
+            ESP_LOGE(TAG, "Failed to parse JSON message (%s) for currency %d", message.c_str(), currency_id_);
             return;
         }
+        ESP_LOGI(TAG, "Received message for currency %d: %s", currency_id_, message.c_str());
 
         // 解析行情数据
         auto market_data = std::make_shared<CoinMarketData>();
