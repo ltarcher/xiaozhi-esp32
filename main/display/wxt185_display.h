@@ -128,6 +128,9 @@ public:
     CryptocurrencyData screensaver_crypto_;
     std::vector<std::pair<float, float>> screensaver_kline_data_; // 屏保K线数据
 
+    // 虚拟币行情更新定时器
+    esp_timer_handle_t crypto_update_timer_ = nullptr;
+
 protected:
 
     // 代理配置
@@ -180,6 +183,11 @@ public:
     void EnterScreensaver();
     void ExitScreensaver();
     void UpdateScreensaverContent();
+    
+    // 虚拟币行情更新相关函数
+    static void CryptoUpdateTimerCallback(void* arg);
+    void StartCryptoUpdateTimer();
+    void StopCryptoUpdateTimer();
 
 public:
     WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
@@ -212,6 +220,13 @@ public:
     
     // 与Application集成的屏幕保护控制方法
     void OnDeviceStateChanged(int previous_state, int current_state); // 设备状态改变时调用
+    
+    /**
+     * @brief 检查网络是否就绪
+     * @param max_wait_time 最大等待时间(毫秒)，默认30秒
+     * @return true表示网络就绪，false表示网络未就绪
+     */
+    bool WaitForNetworkReady(int max_wait_time = 30000);
         
     // 币界虚拟币行情数据相关函数
     void InitializeBiJieCoins(); // 初始化币界虚拟币行情数据

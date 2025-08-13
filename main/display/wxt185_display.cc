@@ -10,7 +10,6 @@
 #include "settings.h"
 #include "application.h"
 
-
 #define TAG "WXT185Display"
 
 #define SCREENSAVER_TIMEOUT_MS 10000 // 10秒超时进入屏保
@@ -529,9 +528,18 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
         ESP_LOGI(TAG, "Screensaver timer created");
     }
 
+    // 创建虚拟币行情更新定时器
+    esp_timer_create_args_t crypto_timer_args = {
+        .callback = CryptoUpdateTimerCallback,
+        .arg = this,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "crypto_update_timer",
+        .skip_unhandled_events = false,
+    };
+    esp_timer_create(&crypto_timer_args, &crypto_update_timer_);
+    ESP_LOGI(TAG, "Crypto update timer created");
+
     // 初始化币界虚拟币行情数据支持
-    bijie_coins_connected_ = false;
-    //bijie_coins_ = nullptr;
     bijie_coins_ = std::make_unique<BiJieCoins>();
     ESP_LOGI(TAG, "BiJieCoins initialized");
 
@@ -548,6 +556,13 @@ WXT185Display::~WXT185Display() {
         esp_timer_stop(screensaver_timer_);
         esp_timer_delete(screensaver_timer_);
         ESP_LOGI(TAG, "Screensaver timer stopped and deleted");
+    }
+    
+    // 删除虚拟币行情更新定时器
+    if (crypto_update_timer_) {
+        esp_timer_stop(crypto_update_timer_);
+        esp_timer_delete(crypto_update_timer_);
+        ESP_LOGI(TAG, "Crypto update timer stopped and deleted");
     }
     
     // 断开币界虚拟币行情数据连接
@@ -625,6 +640,10 @@ void WXT185Display::SetupUI() {
     // 启动屏保定时器（无论是否有触摸屏都需要）
     StartScreensaverTimer();
     ESP_LOGI(TAG, "Started screensaver timer");
+    
+    // 启动虚拟币行情更新定时器
+    StartCryptoUpdateTimer();
+    ESP_LOGI(TAG, "Started crypto update timer");
     
     // 设置币界虚拟币行情数据回调
     if (bijie_coins_) {
@@ -1565,6 +1584,59 @@ void WXT185Display::StartScreensaverTimer() {
     }
 }
 
+void WXT185Display::CryptoUpdateTimerCallback(void* arg) {
+    WXT185Display* self = static_cast<WXT185Display*>(arg);
+    
+    // 检查是否启用了币界虚拟币行情数据或屏保功能
+    if ((self->bijie_coins_ && self->bijie_coins_connected_) || screensaver_enabled) {
+        ESP_LOGI(TAG, "Crypto update timer triggered");
+        
+        // 使用LVGL异步调用来更新UI，确保在LVGL线程中执行
+        lv_async_call([](void* user_data) {
+            WXT185Display* self = static_cast<WXT185Display*>(user_data);
+
+            // 触发Conenct
+            if (!self->bijie_coins_connected_) {
+                self->ConnectToBiJieCoins();
+            }
+            
+            // 更新虚拟币数据
+            self->UpdateCryptoDataFromBiJie();
+            
+            // 如果屏保处于激活状态，更新屏保内容
+            if (self->screensaver_active_) {
+                self->UpdateScreensaverContent();
+            }
+            
+            // 如果当前在虚拟币页面，更新虚拟币页面内容
+            if (self->current_page_index_ == 1) {  // 1是虚拟币页面索引
+                self->UpdateCryptoData();
+            }
+        }, self);
+    }
+    
+    // 重新启动定时器，每30秒更新一次行情
+    if (self->crypto_update_timer_) {
+        esp_timer_start_once(self->crypto_update_timer_, 30 * 1000 * 1000); // 30秒
+    }
+}
+
+void WXT185Display::StartCryptoUpdateTimer() {
+    if (crypto_update_timer_) {
+        esp_timer_stop(crypto_update_timer_);
+        // 首次启动设置为5秒后执行，给连接一些初始化时间
+        esp_timer_start_once(crypto_update_timer_, 5 * 1000 * 1000);
+        ESP_LOGI(TAG, "Crypto update timer started");
+    }
+}
+
+void WXT185Display::StopCryptoUpdateTimer() {
+    if (crypto_update_timer_) {
+        esp_timer_stop(crypto_update_timer_);
+        ESP_LOGI(TAG, "Crypto update timer stopped");
+    }
+}
+
 void WXT185Display::StopScreensaverTimer() {
     if (screensaver_timer_) {
         esp_timer_stop(screensaver_timer_);
@@ -1748,6 +1820,35 @@ void WXT185Display::OnDeviceStateChanged(int previous_state, int current_state) 
     }
 }
 
+bool WXT185Display::WaitForNetworkReady(int max_wait_time) {
+    auto& app = Application::GetInstance();
+    DeviceState current_state = app.GetDeviceState();
+    // 检查设备状态是否已经联网就绪
+    ESP_LOGI(TAG, "Checking device state for network ready");
+    // 循环检查设备状态
+    // 计算最大重试次数
+    int retry_count = 0;
+    const int retry_interval = 1000; // 1秒间隔
+    const int max_retries = max_wait_time / retry_interval;
+    
+    while (retry_count < max_retries) {
+        // 检查设备状态是否已经联网就绪
+        current_state = app.GetDeviceState();
+        if (current_state == kDeviceStateIdle || 
+            current_state == kDeviceStateListening ||
+            current_state == kDeviceStateSpeaking) {
+            // 设备已经就绪
+            ESP_LOGI(TAG, "Network is ready, current state: %d", current_state);
+            return true;
+        }
+        vTaskDelay(pdMS_TO_TICKS(retry_interval));
+        retry_count++;
+    }
+
+    ESP_LOGE(TAG, "Network is not ready after waiting");
+    return false;
+}
+
 void WXT185Display::ConnectToBiJieCoins() {
     ESP_LOGI(TAG, "Connecting to BiJie coins service");
     if (!bijie_coins_) {
@@ -1755,38 +1856,50 @@ void WXT185Display::ConnectToBiJieCoins() {
         return;
     }
     
-    // 使用LVGL的异步机制执行WebSocket连接，避免在错误的线程上下文中执行网络操作
-    lv_async_call([](void* user_data) {
-        WXT185Display* self = static_cast<WXT185Display*>(user_data);
+    // 创建一个专门的任务来处理WebSocket连接，避免阻塞UI线程
+    // 传递this指针作为参数，以便在任务中访问WXT185Display对象
+    xTaskCreate([](void* param) {
+        WXT185Display* self = static_cast<WXT185Display*>(param);
         
-        // 在独立线程中执行WebSocket连接，避免阻塞LVGL主线程
-        std::thread connect_thread([self]() {
-            // 连接到当前显示的虚拟币行情数据
-            if (self->bijie_coins_->Connect(self->current_crypto_data_.currency_id)) {
-                ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for currency %d", self->current_crypto_data_.currency_id);
+        // 等待网络就绪
+        if (!self->WaitForNetworkReady()) {
+            ESP_LOGE(TAG, "Network is not ready, aborting BiJie coins connection");
+            vTaskDelete(nullptr);
+            return;
+        }
+        
+        // 连接到当前显示的虚拟币行情数据
+        if (self->bijie_coins_->Connect(self->current_crypto_data_.currency_id)) {
+            ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for currency %d", self->current_crypto_data_.currency_id);
+        } else {
+            ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for currency %d", self->current_crypto_data_.currency_id);
+        }
+        
+        // 连接到屏保显示的虚拟币行情数据（如果不同的话）
+        if (self->screensaver_crypto_.currency_id != self->current_crypto_data_.currency_id) {
+            if (self->bijie_coins_->Connect(self->screensaver_crypto_.currency_id)) {
+                ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for screensaver currency %d", self->screensaver_crypto_.currency_id);
             } else {
-                ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for currency %d", self->current_crypto_data_.currency_id);
+                ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for screensaver currency %d", self->screensaver_crypto_.currency_id);
             }
-            
-            // 连接到屏保显示的虚拟币行情数据（如果不同的话）
-            if (self->screensaver_crypto_.currency_id != self->current_crypto_data_.currency_id) {
-                if (self->bijie_coins_->Connect(self->screensaver_crypto_.currency_id)) {
-                    ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for screensaver currency %d", self->screensaver_crypto_.currency_id);
-                } else {
-                    ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for screensaver currency %d", self->screensaver_crypto_.currency_id);
-                }
-            }
-            
-            // 获取K线数据用于图表显示
-            self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, 2, 30, [self](const std::vector<KLineData>& kline_data) {
-                ESP_LOGI(TAG, "Received K-line data with %d points", kline_data.size());
+        }
+        
+        // 获取K线数据用于图表显示
+        self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, 2, 30, [self](const std::vector<KLineData>& kline_data) {
+            // 使用LVGL异步调用更新UI，确保在LVGL线程中执行
+            lv_async_call([](void* user_data) {
+                auto kline_data_ptr = static_cast<std::pair<WXT185Display*, std::vector<KLineData>*>*>(user_data);
+                WXT185Display* self = kline_data_ptr->first;
+                std::vector<KLineData>* kline_data = kline_data_ptr->second;
+                
+                ESP_LOGI(TAG, "Received K-line data with %d points", kline_data->size());
                 
                 // 更新当前货币的K线数据
                 for (auto& crypto : self->crypto_data_) {
                     if (crypto.currency_id == self->current_crypto_data_.currency_id) {
                         // 转换K线数据格式并存储
                         crypto.kline_data_1h.clear();
-                        for (const auto& kline : kline_data) {
+                        for (const auto& kline : *kline_data) {
                             crypto.kline_data_1h.emplace_back(kline.open, kline.close);
                         }
                         break;
@@ -1795,18 +1908,19 @@ void WXT185Display::ConnectToBiJieCoins() {
                 
                 // 更新图表显示
                 self->DrawKLineChart();
-            });
-            
-            self->bijie_coins_connected_ = true;
+                
+                // 清理临时分配的内存
+                delete kline_data;
+                delete kline_data_ptr;
+            }, new std::pair<WXT185Display*, std::vector<KLineData>*>(self, new std::vector<KLineData>(kline_data)));
         });
         
-        // 分离线程，让它独立运行
-        connect_thread.detach();
-    }, this);
-
-    ESP_LOGI(TAG, "Connecting to BiJie coins service complete");
+        self->bijie_coins_connected_ = true;
+        
+        // 任务完成，删除自身
+        vTaskDelete(nullptr);
+    }, "bijie_coins_connect", 4096, this, 5, nullptr);
 }
-
 
 void WXT185Display::UpdateCryptoDataFromBiJie() {
     ESP_LOGI(TAG, "Updating crypto data from BiJie service");
@@ -1893,6 +2007,7 @@ void WXT185Display::SwitchCrypto(int currency_id) {
 
 void WXT185Display::SetScreensaverCrypto(int currency_id) {
     ESP_LOGI(TAG, "Setting screensaver crypto currency ID: %d", currency_id);
+
     if (!bijie_coins_) {
         ESP_LOGW(TAG, "BiJie coins service not initialized");
         return;

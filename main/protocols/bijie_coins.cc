@@ -512,6 +512,7 @@ private:
                     int read_len = esp_http_client_read(client, buffer, content_length);
                     if (read_len > 0) {
                         buffer[read_len] = '\0';
+                        ESP_LOGI(TAG, "Response: %s", buffer);
                         
                         // 解析JSON数据
                         cJSON* root = cJSON_Parse(buffer);
