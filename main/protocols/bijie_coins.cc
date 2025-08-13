@@ -465,7 +465,7 @@ private:
         ESP_LOGI(TAG, "Fetching K-line data from: %s", url.c_str());
         
         // 根据URL协议判断传输类型
-        http_transport_t transport_type = HTTP_TRANSPORT_UNKNOWN;
+        esp_http_client_transport_t transport_type = HTTP_TRANSPORT_UNKNOWN;
         bool skip_cert_check = false;
         
         // 检查URL是否以https开头
@@ -476,15 +476,18 @@ private:
             transport_type = HTTP_TRANSPORT_OVER_TCP;
         }
         
-        // 配置HTTP客户端
-        esp_http_client_config_t config = {
-            .url = url.c_str(),
-            .method = HTTP_METHOD_POST,
-            .timeout_ms = 10000,
-            .transport_type = transport_type,
-            .skip_cert_common_name_check = skip_cert_check,
-        };
-        
+        // 配置HTTP客户端 - 使用逐个字段赋值的方式而不是结构体初始化列表
+        esp_http_client_config_t config = {0};
+        config.url = url.c_str();
+        config.method = HTTP_METHOD_GET;
+        config.timeout_ms = 10000;
+        config.transport_type = transport_type;
+        config.skip_cert_common_name_check = skip_cert_check;
+        // 禁用SSL验证以解决global_cacert为NULL的问题
+        config.cert_pem = NULL;
+        config.cert_len = 0;
+        config.use_global_ca_store = false;
+
         esp_http_client_handle_t client = esp_http_client_init(&config);
         
         // 设置代理（如果配置了代理）
