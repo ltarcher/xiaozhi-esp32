@@ -32,7 +32,7 @@ public:
     std::string ReadAll() override;
     
     // 重写基类的SetProxy方法
-    void SetProxy(const std::string& host, int port) override;
+    void SetProxy(const std::string& host, int port);
     
     // 提供额外的代理设置方法，接受ProxyConfig结构
     void SetProxy(const ProxyConfig& proxy_config);
