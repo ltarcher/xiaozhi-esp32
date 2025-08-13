@@ -2166,7 +2166,7 @@ void WXT185Display::ConnectToBiJieCoins() {
             }
             
             self->bijie_coins_connected_ = true;
-            ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for currency %d", self->current_crypto_data_.currency_id)
+            ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for currency %d", self->current_crypto_data_.currency_id);
         } catch (const std::exception& e) {
             ESP_LOGE(TAG, "Exception occurred while connecting to BiJie coins: %s", e.what());
         } catch (...) {
