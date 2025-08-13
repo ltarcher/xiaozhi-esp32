@@ -1086,6 +1086,13 @@ void WXT185Display::CreateScreensaverPage() {
     lv_obj_set_style_bg_color(screensaver_page_, current_wxt185_theme_.background, 0);
     lv_obj_clear_flag(screensaver_page_, LV_OBJ_FLAG_SCROLLABLE);
     
+#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+    // 为屏保页面添加触摸事件处理程序
+    lv_obj_add_event_cb(screensaver_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
+    lv_obj_add_event_cb(screensaver_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
+    ESP_LOGI(TAG, "Added touch event handlers to screensaver page");
+#endif
+    
     // 2. 创建外圆环（刻度环）
     screensaver_outer_ring_ = lv_obj_create(screensaver_page_);
     lv_obj_set_size(screensaver_outer_ring_, width_ - 20, width_ - 20);
@@ -1533,6 +1540,13 @@ void WXT185Display::HandleTouchEnd(lv_point_t point) {
     
     is_touching_ = false;
     
+    // 如果当前处于屏保状态，任何滑动都应关闭屏保
+    if (screensaver_active_) {
+        ESP_LOGI(TAG, "Swipe detected in screensaver mode, exiting screensaver");
+        ExitScreensaver();
+        return;
+    }
+    
     // 计算滑动距离
     int16_t diff_x = point.x - touch_start_point_.x;
     int16_t diff_y = point.y - touch_start_point_.y;
@@ -1920,7 +1934,6 @@ void WXT185Display::UpdateScreensaverContent() {
     }
 
     // 注意：这里不再更新时间，因为时间更新现在由独立的定时器处理
-
     // 更新虚拟币简称
     if (screensaver_crypto_name_) {
         lv_label_set_text(screensaver_crypto_name_, screensaver_crypto_.symbol.c_str());
@@ -1987,7 +2000,7 @@ void WXT185Display::UpdateScreensaverContent() {
             ESP_LOGE(TAG, "Unknown exception occurred while getting K-line data");
         }
     }
-    ESP_LOGI(TAG, "Screensaver content updated")
+    ESP_LOGI(TAG, "Screensaver content updated");
 }
 
 void WXT185Display::OnActivity() {
@@ -2209,7 +2222,7 @@ void WXT185Display::ConnectToBiJieCoins() {
             
             // 根据控制变量决定是否获取K线数据
             if (self->enable_kline_crypto_data_) {
-                ESP_LOGI(TAG, "Getting K-line data for currency %d", self->current_crypto_data_.currency_id)
+                ESP_LOGI(TAG, "Getting K-line data for currency %d", self->current_crypto_data_.currency_id);
                 // 获取K线数据用于图表显示
                 self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, 2, 30, [self](const std::vector<KLineData>& kline_data) {
                     // 检查参数有效性
