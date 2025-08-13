@@ -351,7 +351,7 @@ public:
                     break;
                 case 4:
                     coin_info.symbol = "BNB";
-                    coin_info.name = "Binance Coin";
+                    coin_info.name = "Binance-Coin";
                     break;
                 case 5:
                     coin_info.symbol = "XRP";
@@ -440,32 +440,34 @@ private:
         KLineTaskData* task_data = static_cast<KLineTaskData*>(pvParameters);
         
         std::vector<KLineData> kline_data;
-        
-        // 构建URL
         std::string url = "https://www.528btc.com/e/extend/api/index.php";
-        url += "?m=kline&c=coin&id=" + std::to_string(task_data->currency_id);
-        url += "&type=" + std::to_string(task_data->kline_type);
-        url += "&limit=" + std::to_string(task_data->limit);
-        url += "&sortByDate=true&sortByDateRule=false";
         
         // 根据货币ID设置符号
-        std::string symbol;
+        std::string symbol, slug;
         switch (task_data->currency_id) {
-            case 1: symbol = "BTC"; break;
-            case 2: symbol = "ETH"; break;
-            case 17: symbol = "LTC"; break;
-            case 4: symbol = "BNB"; break;
-            case 5: symbol = "XRP"; break;
-            case 6: symbol = "ADA"; break;
-            case 7: symbol = "SOL"; break;
-            case 8: symbol = "DOGE"; break;
-            case 14: symbol = "TRX"; break;
-            case 23: symbol = "XLM"; break;
-            default: symbol = "UNK"; break;
+            case 1: symbol = "BTC"; slug = "bitcoin"; break;
+            case 2: symbol = "ETH"; slug = "ethereum"; break;
+            case 17: symbol = "LTC"; slug = "litecoin"; break;
+            case 4: symbol = "BNB"; slug = "binance-coin";break;
+            case 5: symbol = "XRP"; slug = "ripple"; break;
+            case 6: symbol = "ADA"; slug = "cardano"; break;
+            case 7: symbol = "SOL"; slug = "solana"; break;
+            case 8: symbol = "DOGE"; slug = "dogecoin"; break;
+            case 14: symbol = "TRX"; slug = "tron"; break;
+            case 23: symbol = "XLM"; slug = "stellar"; break;
+            default: symbol = "UNK"; slug = "unknow"; break;
         }
-        url += "&symbol=" + symbol;
         
-        ESP_LOGI(TAG, "Fetching K-line data from: %s", url.c_str());
+        // 构造POST数据
+        std::string post_data = "m=kline&c=coin&id=" + std::to_string(task_data->currency_id);
+        post_data += "&type=" + std::to_string(task_data->kline_type);
+        post_data += "&limit=" + std::to_string(task_data->limit);
+        post_data += "&sortByDate=true&sortByDateRule=false";
+        post_data += "&symbol=" + symbol;
+        post_data += "&slug=" + slug;
+        post_data += "&start=\'\'";
+        
+        ESP_LOGI(TAG, "Fetching K-line data from: %s with POST data: %s", url.c_str(), post_data.c_str());
         
         // 使用NetworkInterface中的HTTP客户端
         auto network = Board::GetInstance().GetNetwork();
@@ -506,6 +508,7 @@ private:
         client->SetHeader("Accept", "application/json, text/javascript, */*; q=0.01");
         client->SetHeader("Accept-Language", "zh-CN,zh;q=0.9");
         client->SetHeader("Cache-Control", "no-cache");
+        client->SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
         client->SetHeader("Origin", "https://www.528btc.com");
         client->SetHeader("Pragma", "no-cache");
         client->SetHeader("Referer", "https://www.528btc.com/coin/3008/trend-all");
@@ -518,9 +521,13 @@ private:
         client->SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36");
         client->SetHeader("X-Requested-With", "XMLHttpRequest");
         
+        ESP_LOGI(TAG, "Sending POST data: %s", post_data.c_str());
+        // 设置POST内容
+        client->SetContent(std::move(post_data));
+        
         // 执行请求
         ESP_LOGI(TAG, "Opening HTTP connection");
-        if (!client->Open("GET", url)) {
+        if (!client->Open("POST", url)) {
             ESP_LOGE(TAG, "Failed to open HTTP connection");
             if (task_data->callback) {
                 task_data->callback(kline_data);
