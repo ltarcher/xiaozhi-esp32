@@ -468,6 +468,7 @@ private:
         
         // 使用NetworkInterface中的HTTP客户端
         auto network = Board::GetInstance().GetNetwork();
+        ESP_LOGI(TAG, "Network interface: %p", network);
         if (!network) {
             ESP_LOGE(TAG, "Network interface is not available");
             if (task_data->callback) {
@@ -480,6 +481,7 @@ private:
         
         // 创建通用HTTP客户端，支持代理设置
         std::unique_ptr<UniversalHttpClient> client = std::make_unique<UniversalHttpClient>(network);
+        ESP_LOGI(TAG, "Created UniversalHttpClient: %p", client.get());
         if (!client) {
             ESP_LOGE(TAG, "Failed to create HTTP client");
             if (task_data->callback) {
@@ -494,9 +496,12 @@ private:
         if (task_data->proxy_config.IsValid()) {
             ESP_LOGI(TAG, "Setting proxy: %s:%d", task_data->proxy_config.host.c_str(), task_data->proxy_config.port);
             client->SetProxy(task_data->proxy_config);
+        } else {
+            ESP_LOGI(TAG, "No proxy configured for K-line request");
         }
         
         // 设置请求头
+        ESP_LOGV(TAG, "Setting request headers");
         client->SetHeader("Accept", "application/json, text/javascript, */*; q=0.01");
         client->SetHeader("Accept-Language", "zh-CN,zh;q=0.9");
         client->SetHeader("Cache-Control", "no-cache");
@@ -513,6 +518,7 @@ private:
         client->SetHeader("X-Requested-With", "XMLHttpRequest");
         
         // 执行请求
+        ESP_LOGI(TAG, "Opening HTTP connection");
         if (!client->Open("GET", url)) {
             ESP_LOGE(TAG, "Failed to open HTTP connection");
             if (task_data->callback) {
@@ -523,19 +529,25 @@ private:
             return;
         }
         
+        ESP_LOGI(TAG, "Getting HTTP status code");
         int status_code = client->GetStatusCode();
+        ESP_LOGI(TAG, "HTTP status code: %d", status_code);
         if (status_code == 200) {
             // 获取响应数据
+            ESP_LOGI(TAG, "Reading HTTP response data");
             std::string response = client->ReadAll();
+            ESP_LOGI(TAG, "Response data size: %d", (int)response.size());
             if (!response.empty()) {
                 ESP_LOGI(TAG, "Response: %s", response.c_str());
                 
                 // 解析JSON数据
                 cJSON* root = cJSON_Parse(response.c_str());
                 if (root) {
+                    ESP_LOGI(TAG, "Successfully parsed JSON response");
                     // 解析K线数据数组
                     if (cJSON_IsArray(root)) {
                         int array_size = cJSON_GetArraySize(root);
+                        ESP_LOGI(TAG, "K-line data array size: %d", array_size);
                         for (int i = 0; i < array_size; i++) {
                             cJSON* item = cJSON_GetArrayItem(root, i);
                             if (item) {
@@ -574,17 +586,30 @@ private:
                                 kline_data.push_back(kline_item);
                             }
                         }
+                        ESP_LOGI(TAG, "Parsed %d K-line data points", (int)kline_data.size());
                     }
                     cJSON_Delete(root);
+                } else {
+                    ESP_LOGE(TAG, "Failed to parse JSON response");
                 }
+            } else {
+                ESP_LOGW(TAG, "Empty response received");
             }
         } else {
             ESP_LOGE(TAG, "HTTP request failed with status code: %d", status_code);
+            
+            // 尝试读取错误响应体
+            std::string error_response = client->ReadAll();
+            if (!error_response.empty()) {
+                ESP_LOGE(TAG, "Error response body: %s", error_response.c_str());
+            }
         }
         
+        ESP_LOGI(TAG, "Closing HTTP connection");
         client->Close();
         
         // 调用回调函数
+        ESP_LOGI(TAG, "Calling callback with %d K-line data points", (int)kline_data.size());
         if (task_data->callback) {
             task_data->callback(kline_data);
         }
@@ -593,6 +618,7 @@ private:
         delete task_data;
         
         // 删除任务
+        ESP_LOGI(TAG, "KLineDataTask completed, deleting task");
         vTaskDelete(nullptr);
     }
 
