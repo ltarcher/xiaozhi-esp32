@@ -2213,7 +2213,7 @@ void WXT185Display::ConnectToBiJieCoins() {
                     // 检查参数有效性
                     if (!self) {
                         ESP_LOGE(TAG, "K-line data callback: self is null");
-                        vTaskDelete(nullptr)
+                        vTaskDelete(nullptr);
                         return;
                     }
                     
