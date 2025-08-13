@@ -544,6 +544,17 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     esp_timer_create(&crypto_timer_args, &crypto_update_timer_);
     ESP_LOGI(TAG, "Crypto update timer created");
 
+    // 创建屏保时间更新定时器
+    esp_timer_create_args_t screensaver_time_timer_args = {
+        .callback = ScreensaverTimeUpdateTimerCallback,
+        .arg = this,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "screensaver_time_update_timer",
+        .skip_unhandled_events = false,
+    };
+    esp_timer_create(&screensaver_time_timer_args, &screensaver_time_update_timer_);
+    ESP_LOGI(TAG, "Screensaver time update timer created");
+
     // 初始化币界虚拟币行情数据支持
     bijie_coins_connected_ = false;
     bijie_coins_ = nullptr;
@@ -570,6 +581,13 @@ WXT185Display::~WXT185Display() {
         esp_timer_stop(crypto_update_timer_);
         esp_timer_delete(crypto_update_timer_);
         ESP_LOGI(TAG, "Crypto update timer stopped and deleted");
+    }
+    
+    // 删除屏保时间更新定时器
+    if (screensaver_time_update_timer_) {
+        esp_timer_stop(screensaver_time_update_timer_);
+        esp_timer_delete(screensaver_time_update_timer_);
+        ESP_LOGI(TAG, "Screensaver time update timer stopped and deleted");
     }
     
     // 断开币界虚拟币行情数据连接
@@ -1765,6 +1783,55 @@ void WXT185Display::StopCryptoUpdateTimer() {
     }
 }
 
+// 屏保时间更新定时器回调函数
+static void ScreensaverTimeUpdateTimerCallback(void* arg) {
+    WXT185Display* self = static_cast<WXT185Display*>(arg);
+    
+    // 使用LVGL异步调用来更新UI，确保在LVGL线程中执行
+    lv_async_call([](void* user_data) {
+        WXT185Display* self = static_cast<WXT185Display*>(user_data);
+        if (self && self->screensaver_active_) {
+            // 只更新时间显示
+            self->UpdateScreensaverTime();
+        }
+    }, self);
+}
+
+void WXT185Display::StartScreensaverTimeUpdateTimer() {
+    if (screensaver_time_update_timer_) {
+        esp_timer_stop(screensaver_time_update_timer_);
+        // 每秒更新一次时间
+        esp_timer_start_periodic(screensaver_time_update_timer_, 1000000); // 1秒
+        ESP_LOGI(TAG, "Screensaver time update timer started");
+    }
+}
+
+void WXT185Display::StopScreensaverTimeUpdateTimer() {
+    if (screensaver_time_update_timer_) {
+        esp_timer_stop(screensaver_time_update_timer_);
+        ESP_LOGI(TAG, "Screensaver time update timer stopped");
+    }
+}
+
+// 更新屏保时间显示
+void WXT185Display::UpdateScreensaverTime() {
+    DisplayLockGuard lock(this);
+    
+    if (!screensaver_active_) return;
+
+    // 更新时间
+    if (screensaver_time_) {
+        time_t now;
+        time(&now);
+        struct tm timeinfo;
+        localtime_r(&now, &timeinfo);
+        
+        char time_str[32];
+        strftime(time_str, sizeof(time_str), "%H:%M:%S", &timeinfo);
+        lv_label_set_text(screensaver_time_, time_str);
+    }
+}
+
 void WXT185Display::StopScreensaverTimer() {
     if (screensaver_timer_) {
         esp_timer_stop(screensaver_timer_);
@@ -1779,6 +1846,9 @@ void WXT185Display::EnterScreensaver() {
         
         screensaver_active_ = true;
         ESP_LOGI(TAG, "Entering screensaver mode begin");
+        
+        // 启动屏保时间更新定时器
+        StartScreensaverTimeUpdateTimer();
         
         // 隐藏当前页面
         if (chat_page_) lv_obj_add_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
@@ -1808,6 +1878,9 @@ void WXT185Display::ExitScreensaver() {
         if (!screensaver_active_ || !screensaver_page_) return;
         
         screensaver_active_ = false;
+        
+        // 停止屏保时间更新定时器
+        StopScreensaverTimeUpdateTimer();
         
         // 隐藏屏保页面
         if (screensaver_page_) lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
@@ -1846,17 +1919,7 @@ void WXT185Display::UpdateScreensaverContent() {
         return;
     }
 
-    // 更新时间
-    if (screensaver_time_) {
-        time_t now;
-        time(&now);
-        struct tm timeinfo;
-        localtime_r(&now, &timeinfo);
-        
-        char time_str[32];
-        strftime(time_str, sizeof(time_str), "%H:%M:%S", &timeinfo);
-        lv_label_set_text(screensaver_time_, time_str);
-    }
+    // 注意：这里不再更新时间，因为时间更新现在由独立的定时器处理
 
     // 更新虚拟币简称
     if (screensaver_crypto_name_) {
@@ -1899,7 +1962,7 @@ void WXT185Display::UpdateScreensaverContent() {
                     lv_obj_set_style_text_color(screensaver_crypto_change_, lv_color_hex(0xFF0000), 0); // 红色
                 }
             }
-        } catch (const std::exception& e) {
+                    } catch (const std::exception& e) {
             ESP_LOGE(TAG, "Exception occurred while updating screensaver market data: %s", e.what());
         } catch (...) {
             ESP_LOGE(TAG, "Unknown exception occurred while updating screensaver market data");
@@ -2150,6 +2213,7 @@ void WXT185Display::ConnectToBiJieCoins() {
                     // 检查参数有效性
                     if (!self) {
                         ESP_LOGE(TAG, "K-line data callback: self is null");
+                        vTaskDelete(nullptr)
                         return;
                     }
                     

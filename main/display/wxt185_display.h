@@ -140,6 +140,9 @@ public:
     // 虚拟币行情更新定时器
     esp_timer_handle_t crypto_update_timer_ = nullptr;
 
+    // 屏保时间更新定时器
+    esp_timer_handle_t screensaver_time_update_timer_ = nullptr;
+
 protected:
     // 控制虚拟币行情获取的变量
     bool enable_realtime_crypto_data_ = true;   // 是否启用实时行情获取，默认启用
@@ -200,6 +203,12 @@ public:
     static void CryptoUpdateTimerCallback(void* arg);
     void StartCryptoUpdateTimer();
     void StopCryptoUpdateTimer();
+    
+    // 屏保时间更新相关函数
+    static void ScreensaverTimeUpdateTimerCallback(void* arg);
+    void StartScreensaverTimeUpdateTimer();
+    void StopScreensaverTimeUpdateTimer();
+    void UpdateScreensaverTime();
 
 public:
     WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
