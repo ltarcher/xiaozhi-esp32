@@ -356,6 +356,7 @@ void WXT185Display::SaveSettings() {
     
     // 保存设置到NVS
     Settings settings("display", true);
+    settings.SetInt("theme_index", theme_index);
     settings.SetString("theme", ThemeString[theme_index]);
     settings.SetInt("default_crypto", crypto_index);
     settings.SetInt("kline_frequency", kline_index);
@@ -434,11 +435,12 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     }
     
     // 从设置中加载配置值
-    selected_theme = settings.GetInt("theme", 0);             // 默认主题索引
+    selected_theme = settings.GetInt("theme_index", 0);       // 默认主题索引
     default_crypto = settings.GetInt("default_crypto", 0);    // 默认虚拟币索引
     kline_frequency = settings.GetInt("kline_frequency", 3);  // 默认K线频率 (3=1小时)
     screensaver_enabled = settings.GetInt("screensaver_enabled", 1) == 1; // 默认启用屏保
 
+    // 初始化LCD屏幕
     // draw white
     std::vector<uint16_t> buffer(width_, 0xFFFF);
     for (int y = 0; y < height_; y++) {
@@ -494,6 +496,7 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     if (offset_x != 0 || offset_y != 0) {
         lv_display_set_offset(display_, offset_x, offset_y);
     }
+    // 屏幕初始化结束
 
     // 初始化默认设置
     kline_frequency = 3; // 默认一小时的K线频率
@@ -2163,6 +2166,7 @@ void WXT185Display::ConnectToBiJieCoins() {
             }
             
             self->bijie_coins_connected_ = true;
+            ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for currency %d", self->current_crypto_data_.currency_id)
         } catch (const std::exception& e) {
             ESP_LOGE(TAG, "Exception occurred while connecting to BiJie coins: %s", e.what());
         } catch (...) {
