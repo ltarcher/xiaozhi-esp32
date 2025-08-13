@@ -464,11 +464,25 @@ private:
         
         ESP_LOGI(TAG, "Fetching K-line data from: %s", url.c_str());
         
+        // 根据URL协议判断传输类型
+        http_transport_t transport_type = HTTP_TRANSPORT_UNKNOWN;
+        bool skip_cert_check = false;
+        
+        // 检查URL是否以https开头
+        if (url.substr(0, 8) == "https://") {
+            transport_type = HTTP_TRANSPORT_OVER_SSL;
+            skip_cert_check = true;  // 对于HTTPS跳过证书检查
+        } else {
+            transport_type = HTTP_TRANSPORT_OVER_TCP;
+        }
+        
         // 配置HTTP客户端
         esp_http_client_config_t config = {
             .url = url.c_str(),
             .method = HTTP_METHOD_POST,
             .timeout_ms = 10000,
+            .transport_type = transport_type,
+            .skip_cert_common_name_check = skip_cert_check,
         };
         
         esp_http_client_handle_t client = esp_http_client_init(&config);
