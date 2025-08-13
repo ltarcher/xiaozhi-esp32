@@ -352,6 +352,7 @@ void WXT185Display::SaveSettings() {
     int crypto_index = lv_roller_get_selected(settings_default_crypto_roller_);
     int kline_index = lv_roller_get_selected(settings_kline_time_roller_);
     bool screensaver_state = lv_obj_has_state(settings_screensaver_switch_, LV_STATE_CHECKED);
+    // TODO: 获取实时行情和K线行情开关状态
     
     // 保存设置到NVS
     Settings settings("display", true);
@@ -359,6 +360,7 @@ void WXT185Display::SaveSettings() {
     settings.SetInt("default_crypto", crypto_index);
     settings.SetInt("kline_frequency", kline_index);
     settings.SetInt("screensaver_enabled", screensaver_state ? 1 : 0);
+    // TODO: 保存实时行情和K线行情开关状态
     
     ESP_LOGI(TAG, "Settings saved - Theme: %d, Crypto: %d, KLine: %d, Screensaver: %d", 
              theme_index, crypto_index, kline_index, screensaver_state);
@@ -540,6 +542,8 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     ESP_LOGI(TAG, "Crypto update timer created");
 
     // 初始化币界虚拟币行情数据支持
+    bijie_coins_connected_ = false;
+    bijie_coins_ = nullptr;
     bijie_coins_ = std::make_unique<BiJieCoins>();
     ESP_LOGI(TAG, "BiJieCoins initialized");
 
@@ -987,7 +991,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_label_set_text(settings_screensaver_label_, "Screensaver:");
     lv_obj_set_style_text_font(settings_screensaver_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(settings_screensaver_label_, current_wxt185_theme_.text, 0);
-    lv_obj_align(settings_screensaver_label_, LV_ALIGN_TOP_MID, -80, 150);
+    lv_obj_align(settings_screensaver_label_, LV_ALIGN_TOP_MID, -80, 180);
 
     settings_screensaver_switch_ = lv_switch_create(settings_page_);
     ESP_LOGI(TAG, "Screensaver switch created");
@@ -998,7 +1002,41 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_add_event_cb(settings_screensaver_switch_, screensaver_switch_event_handler, LV_EVENT_VALUE_CHANGED, this);
     lv_obj_align_to(settings_screensaver_switch_, settings_screensaver_label_, LV_ALIGN_OUT_RIGHT_MID, 55, 0);
     
-    // 8. 创建保存按钮
+    // 8. 创建实时行情开关
+    lv_obj_t* settings_realtime_crypto_label_ = lv_label_create(settings_page_);
+    ESP_LOGI(TAG, "Realtime crypto label created");
+    lv_label_set_text(settings_realtime_crypto_label_, "Realtime Data:");
+    lv_obj_set_style_text_font(settings_realtime_crypto_label_, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(settings_realtime_crypto_label_, current_wxt185_theme_.text, 0);
+    lv_obj_align(settings_realtime_crypto_label_, LV_ALIGN_TOP_MID, -80, 210);
+
+    lv_obj_t* settings_realtime_crypto_switch_ = lv_switch_create(settings_page_);
+    ESP_LOGI(TAG, "Realtime crypto switch created");
+    lv_obj_set_style_bg_color(settings_realtime_crypto_switch_, current_wxt185_theme_.settings_screensaver_switch, 0);
+    if (enable_realtime_crypto_data_) {
+        lv_obj_add_state(settings_realtime_crypto_switch_, LV_STATE_CHECKED);
+    }
+    // TODO: 添加实时行情开关事件处理函数
+    lv_obj_align_to(settings_realtime_crypto_switch_, settings_realtime_crypto_label_, LV_ALIGN_OUT_RIGHT_MID, 55, 0);
+    
+    // 9. 创建K线行情开关
+    lv_obj_t* settings_kline_crypto_label_ = lv_label_create(settings_page_);
+    ESP_LOGI(TAG, "KLine crypto label created");
+    lv_label_set_text(settings_kline_crypto_label_, "K-Line Data:");
+    lv_obj_set_style_text_font(settings_kline_crypto_label_, &lv_font_montserrat_16, 0);
+    lv_obj_set_style_text_color(settings_kline_crypto_label_, current_wxt185_theme_.text, 0);
+    lv_obj_align(settings_kline_crypto_label_, LV_ALIGN_TOP_MID, -80, 240);
+
+    lv_obj_t* settings_kline_crypto_switch_ = lv_switch_create(settings_page_);
+    ESP_LOGI(TAG, "KLine crypto switch created");
+    lv_obj_set_style_bg_color(settings_kline_crypto_switch_, current_wxt185_theme_.settings_screensaver_switch, 0);
+    if (enable_kline_crypto_data_) {
+        lv_obj_add_state(settings_kline_crypto_switch_, LV_STATE_CHECKED);
+    }
+    // TODO: 添加K线行情开关事件处理函数
+    lv_obj_align_to(settings_kline_crypto_switch_, settings_kline_crypto_label_, LV_ALIGN_OUT_RIGHT_MID, 55, 0);
+    
+    // 10. 创建保存按钮
     settings_save_button_ = lv_button_create(settings_page_);
     ESP_LOGI(TAG, "Save button created");
     lv_obj_set_style_bg_color(settings_save_button_, current_wxt185_theme_.settings_screensaver_switch, 0);
@@ -1089,7 +1127,7 @@ void WXT185Display::CreateScreensaverPage() {
     lv_label_set_text(screensaver_time_, "");
     lv_obj_set_style_text_font(screensaver_time_, &lv_font_montserrat_32, 0);
     lv_obj_set_style_text_color(screensaver_time_, current_wxt185_theme_.crypto_sub_text, 0);
-    lv_obj_align(screensaver_time_, LV_ALIGN_BOTTOM_MID, 0, -60);
+    lv_obj_align(screensaver_time_, LV_ALIGN_BOTTOM_MID, 0, -30);
 
     // 初始隐藏屏保页面
     lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
@@ -1629,6 +1667,56 @@ void WXT185Display::StartScreensaverTimer() {
     }
 }
 
+// 添加友元函数用于LVGL异步调用
+static void update_crypto_data_async(void* user_data) {
+    // 检查参数有效性
+    if (!user_data) {
+        ESP_LOGE(TAG, "update_crypto_data_async: user_data is null");
+        return;
+    }
+    
+    try {
+        WXT185Display* self = static_cast<WXT185Display*>(user_data);
+        
+        // 再次检查对象有效性
+        if (!self) {
+            ESP_LOGE(TAG, "update_crypto_data_async: self is null after cast");
+            return;
+        }
+
+        // 根据控制变量决定是否获取实时行情
+        if (self->enable_realtime_crypto_data_) {
+            // 触发Connect
+            if (!self->bijie_coins_connected_) {
+                self->ConnectToBiJieCoins();
+            }
+            
+            // 更新虚拟币数据
+            self->UpdateCryptoDataFromBiJie();
+        }
+        
+        // 如果屏保处于激活状态，更新屏保内容
+        if (self->screensaver_active_) {
+            self->UpdateScreensaverContent();
+        }
+        
+        // 如果当前在虚拟币页面，更新虚拟币页面内容
+        if (self->current_page_index_ == 1) {  // 1是虚拟币页面索引
+            self->UpdateCryptoData();
+            
+            // 根据控制变量决定是否获取K线数据
+            if (self->enable_kline_crypto_data_) {
+                // 更新K线图表
+                self->DrawKLineChart();
+            }
+        }
+    } catch (const std::exception& e) {
+        ESP_LOGE(TAG, "Exception occurred in update_crypto_data_async: %s", e.what());
+    } catch (...) {
+        ESP_LOGE(TAG, "Unknown exception occurred in update_crypto_data_async");
+    }
+}
+
 void WXT185Display::CryptoUpdateTimerCallback(void* arg) {
     // 检查参数有效性
     if (!arg) {
@@ -1644,45 +1732,7 @@ void WXT185Display::CryptoUpdateTimerCallback(void* arg) {
             ESP_LOGI(TAG, "Crypto update timer triggered");
             
             // 使用LVGL异步调用来更新UI，确保在LVGL线程中执行
-            lv_async_call([](void* user_data) {
-                // 检查用户数据有效性
-                if (!user_data) {
-                    ESP_LOGE(TAG, "CryptoUpdateTimerCallback: user_data is null");
-                    return;
-                }
-                
-                try {
-                    WXT185Display* self = static_cast<WXT185Display*>(user_data);
-                    
-                    // 再次检查对象有效性
-                    if (!self) {
-                        ESP_LOGE(TAG, "CryptoUpdateTimerCallback: self is null after cast");
-                        return;
-                    }
-
-                    // 触发Conenct
-                    if (!self->bijie_coins_connected_) {
-                        self->ConnectToBiJieCoins();
-                    }
-                    
-                    // 更新虚拟币数据
-                    self->UpdateCryptoDataFromBiJie();
-                    
-                    // 如果屏保处于激活状态，更新屏保内容
-                    if (self->screensaver_active_) {
-                        self->UpdateScreensaverContent();
-                    }
-                    
-                    // 如果当前在虚拟币页面，更新虚拟币页面内容
-                    if (self->current_page_index_ == 1) {  // 1是虚拟币页面索引
-                        self->UpdateCryptoData();
-                    }
-                } catch (const std::exception& e) {
-                    ESP_LOGE(TAG, "Exception occurred in CryptoUpdateTimerCallback: %s", e.what());
-                } catch (...) {
-                    ESP_LOGE(TAG, "Unknown exception occurred in CryptoUpdateTimerCallback");
-                }
-            }, self);
+            lv_async_call(update_crypto_data_async, self);
         }
     } catch (const std::exception& e) {
         ESP_LOGE(TAG, "Exception occurred in CryptoUpdateTimerCallback: %s", e.what());
@@ -1857,8 +1907,8 @@ void WXT185Display::UpdateScreensaverContent() {
 
     ESP_LOGI(TAG, "Screensaver content updated, getting KLine data...");
     
-    // 获取K线数据用于屏保显示
-    if (bijie_coins_) {
+    // 根据控制变量决定是否获取K线数据用于屏保显示
+    if (enable_kline_crypto_data_ && bijie_coins_) {
         try {
             bijie_coins_->GetKLineData(screensaver_crypto_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
                 ESP_LOGI(TAG, "Received K-line data for screensaver with %d points", (int)kline_data.size());
@@ -1967,6 +2017,63 @@ bool WXT185Display::WaitForNetworkReady(int max_wait_time) {
     return false;
 }
 
+// 添加友元函数用于LVGL异步调用处理K线数据
+static void process_kline_data_async(void* user_data) {
+    // 检查参数有效性
+    if (!user_data) {
+        ESP_LOGE(TAG, "process_kline_data_async: user_data is null");
+        return;
+    }
+    
+    auto kline_data_ptr = static_cast<std::pair<WXT185Display*, std::vector<KLineData>*>*>(user_data);
+    
+    // 检查参数有效性
+    if (!kline_data_ptr) {
+        ESP_LOGE(TAG, "process_kline_data_async: kline_data_ptr is null");
+        // 清理可能分配的内存
+        delete static_cast<std::pair<WXT185Display*, std::vector<KLineData>*>*>(user_data);
+        return;
+    }
+    
+    WXT185Display* self = kline_data_ptr->first;
+    std::vector<KLineData>* kline_data = kline_data_ptr->second;
+    
+    // 检查对象有效性
+    if (!self || !kline_data) {
+        ESP_LOGE(TAG, "process_kline_data_async: self or kline_data is null");
+        delete kline_data;
+        delete kline_data_ptr;
+        return;
+    }
+    
+    ESP_LOGI(TAG, "Received K-line data with %d points", (int)kline_data->size());
+    
+    try {
+        // 更新当前货币的K线数据
+        for (auto& crypto : self->crypto_data_) {
+            if (crypto.currency_id == self->current_crypto_data_.currency_id) {
+                // 转换K线数据格式并存储
+                crypto.kline_data_1h.clear();
+                for (const auto& kline : *kline_data) {
+                    crypto.kline_data_1h.emplace_back(kline.open, kline.close);
+                }
+                break;
+            }
+        }
+        
+        // 更新图表显示
+        self->DrawKLineChart();
+    } catch (const std::exception& e) {
+        ESP_LOGE(TAG, "Exception occurred while processing K-line data: %s", e.what());
+    } catch (...) {
+        ESP_LOGE(TAG, "Unknown exception occurred while processing K-line data");
+    }
+    
+    // 清理临时分配的内存
+    delete kline_data;
+    delete kline_data_ptr;
+}
+
 void WXT185Display::ConnectToBiJieCoins() {
     ESP_LOGI(TAG, "Connecting to BiJie coins service");
     if (!bijie_coins_) {
@@ -2030,69 +2137,30 @@ void WXT185Display::ConnectToBiJieCoins() {
                 }
             }
             
-            // 获取K线数据用于图表显示
-            self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, 2, 30, [self](const std::vector<KLineData>& kline_data) {
-                // 检查参数有效性
-                if (!self) {
-                    ESP_LOGE(TAG, "K-line data callback: self is null");
-                    return;
-                }
-                
-                try {
-                    // 使用LVGL异步调用更新UI，确保在LVGL线程中执行
-                    lv_async_call([](void* user_data) {
-                        auto kline_data_ptr = static_cast<std::pair<WXT185Display*, std::vector<KLineData>*>*>(user_data);
-                        
-                        // 检查参数有效性
-                        if (!kline_data_ptr) {
-                            ESP_LOGE(TAG, "LVGL async call: user_data is null");
-                            return;
-                        }
-                        
-                        WXT185Display* self = kline_data_ptr->first;
-                        std::vector<KLineData>* kline_data = kline_data_ptr->second;
-                        
-                        ESP_LOGI(TAG, "Received K-line data with %d points", (int)kline_data->size());
-                        
-                        // 检查对象有效性
-                        if (!self) {
-                            ESP_LOGE(TAG, "WXT185Display instance is null");
-                            delete kline_data;
-                            delete kline_data_ptr;
-                            return;
-                        }
-                        
-                        try {
-                            // 更新当前货币的K线数据
-                            for (auto& crypto : self->crypto_data_) {
-                                if (crypto.currency_id == self->current_crypto_data_.currency_id) {
-                                    // 转换K线数据格式并存储
-                                    crypto.kline_data_1h.clear();
-                                    for (const auto& kline : *kline_data) {
-                                        crypto.kline_data_1h.emplace_back(kline.open, kline.close);
-                                    }
-                                    break;
-                                }
-                            }
-                            
-                            // 更新图表显示
-                            self->DrawKLineChart();
-                        } catch (const std::exception& e) {
-                            ESP_LOGE(TAG, "Exception occurred while processing K-line data: %s", e.what());
-                        } catch (...) {
-                            ESP_LOGE(TAG, "Unknown exception occurred while processing K-line data");
-                        }
-                        
-                        // 清理临时分配的内存
-                        delete kline_data;
-                        delete kline_data_ptr;
-                    }, new std::pair<WXT185Display*, std::vector<KLineData>*>(self, new std::vector<KLineData>(kline_data)));
-                } catch (const std::exception& e) {
-                    ESP_LOGE(TAG, "Exception occurred in K-line data callback: %s", e.what());
-                } catch (...) {
-                    ESP_LOGE(TAG, "Unknown exception occurred in K-line data callback");
-                }
-            });
+            // 根据控制变量决定是否获取K线数据
+            if (self->enable_kline_crypto_data_) {
+                // 获取K线数据用于图表显示
+                self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, 2, 30, [self](const std::vector<KLineData>& kline_data) {
+                    // 检查参数有效性
+                    if (!self) {
+                        ESP_LOGE(TAG, "K-line data callback: self is null");
+                        return;
+                    }
+                    
+                    try {
+                        // 使用LVGL异步调用更新UI，确保在LVGL线程中执行
+                        auto kline_data_ptr = new std::pair<WXT185Display*, std::vector<KLineData>*>(
+                            self, new std::vector<KLineData>(kline_data));
+                        lv_async_call(process_kline_data_async, kline_data_ptr);
+                    } catch (const std::exception& e) {
+                        ESP_LOGE(TAG, "Exception occurred in K-line data callback: %s", e.what());
+                        // 清理可能分配的内存
+                    } catch (...) {
+                        ESP_LOGE(TAG, "Unknown exception occurred in K-line data callback");
+                        // 清理可能分配的内存
+                    }
+                });
+            }
             
             self->bijie_coins_connected_ = true;
         } catch (const std::exception& e) {

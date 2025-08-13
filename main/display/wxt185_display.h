@@ -59,7 +59,16 @@ struct WXT185ThemeColors {
     lv_color_t settings_screensaver_switch;
 };
 
+// 前向声明用于友元函数
+class WXT185Display;
+static void update_crypto_data_async(void* user_data);
+static void process_kline_data_async(void* user_data);
+
 class WXT185Display : public LcdDisplay {
+    // 声明友元函数
+    friend void update_crypto_data_async(void* user_data);
+    friend void process_kline_data_async(void* user_data);
+    
 protected:
     lv_obj_t* main_screen_ = nullptr;
     lv_obj_t* page_container_ = nullptr;
@@ -132,6 +141,9 @@ public:
     esp_timer_handle_t crypto_update_timer_ = nullptr;
 
 protected:
+    // 控制虚拟币行情获取的变量
+    bool enable_realtime_crypto_data_ = true;   // 是否启用实时行情获取，默认启用
+    bool enable_kline_crypto_data_ = false;     // 是否启用历史K线行情获取，默认不启用
 
     // 代理配置
     ProxyConfig proxy_config_;
