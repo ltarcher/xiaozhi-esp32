@@ -1367,57 +1367,80 @@ void WXT185Display::DrawKLineChart() {
     DisplayLockGuard lock(this);
     if (crypto_chart_ == nullptr) return;
     
-    // 清除现有图表
-    lv_obj_clean(crypto_chart_);
-    
-    // 获取当前货币的K线数据
-    auto market_data = bijie_coins_->GetMarketData(current_crypto_data_.currency_id);
-    if (!market_data) {
-        ESP_LOGW(TAG, "No market data available for currency ID: %d", current_crypto_data_.currency_id);
-        return;
+    try {
+        // 清除现有图表
+        lv_obj_clean(crypto_chart_);
+        
+        // 检查币界服务是否已初始化
+        if (!bijie_coins_) {
+            ESP_LOGW(TAG, "BiJie coins service not initialized");
+            return;
+        }
+        
+        // 获取当前货币的K线数据
+        auto market_data = bijie_coins_->GetMarketData(current_crypto_data_.currency_id);
+        if (!market_data) {
+            ESP_LOGW(TAG, "No market data available for currency ID: %d", current_crypto_data_.currency_id);
+            return;
+        }
+        
+        // 检查是否有K线数据
+        if (market_data->kline_data_1h.empty()) {
+            ESP_LOGW(TAG, "No K-line data available for currency ID: %d", current_crypto_data_.currency_id);
+            return;
+        }
+        
+        // 创建图表对象
+        lv_obj_t* chart = lv_chart_create(crypto_chart_);
+        if (!chart) {
+            ESP_LOGE(TAG, "Failed to create chart object");
+            return;
+        }
+        
+        lv_obj_set_size(chart, lv_obj_get_width(crypto_chart_) - 20, lv_obj_get_height(crypto_chart_) - 20);
+        lv_obj_center(chart);
+        
+        // 设置图表样式
+        lv_chart_set_type(chart, LV_CHART_TYPE_LINE); // 使用线图替代K线图，因为LVGL不直接支持K线图
+        lv_chart_set_div_line_count(chart, 5, 5);
+        
+        // 设置图表样式
+        lv_obj_set_style_bg_color(chart, current_wxt185_theme_.background, 0);
+        lv_obj_set_style_border_color(chart, current_wxt185_theme_.border, 0);
+        lv_obj_set_style_text_color(chart, current_wxt185_theme_.text, 0);
+        
+        // 添加数据系列 - 只显示收盘价
+        lv_chart_series_t* close_ser = lv_chart_add_series(chart, lv_color_hex(0x00FF00), LV_CHART_AXIS_PRIMARY_Y);
+        if (!close_ser) {
+            ESP_LOGE(TAG, "Failed to add chart series");
+            return;
+        }
+        
+        // 获取K线数据（使用1小时K线作为示例）
+        const auto& kline_data = market_data->kline_data_1h;
+        
+        // 添加点到图表
+        int point_count = 0;
+        for (size_t i = 0; i < kline_data.size() && point_count < 30; i++) { // 限制显示30个点
+            // 只添加收盘价到图表
+            lv_chart_set_next_value(chart, close_ser, static_cast<int32_t>(kline_data[i].second * 100)); // 收盘价
+            point_count++;
+        }
+        
+        ESP_LOGI(TAG, "Added %d points to K-line chart", point_count);
+        
+        // 添加标题
+        lv_obj_t* chart_title = lv_label_create(crypto_chart_);
+        if (chart_title) {
+            lv_label_set_text(chart_title, "Price Trend (Close Prices)");
+            lv_obj_set_style_text_color(chart_title, current_wxt185_theme_.text, 0);
+            lv_obj_align_to(chart_title, chart, LV_ALIGN_OUT_TOP_MID, 0, -5);
+        }
+    } catch (const std::exception& e) {
+        ESP_LOGE(TAG, "Exception occurred while drawing K-line chart: %s", e.what());
+    } catch (...) {
+        ESP_LOGE(TAG, "Unknown exception occurred while drawing K-line chart");
     }
-    
-    // 检查是否有K线数据
-    if (market_data->kline_data_1h.empty()) {
-        ESP_LOGW(TAG, "No K-line data available for currency ID: %d", current_crypto_data_.currency_id);
-        return;
-    }
-    
-    // 创建图表对象
-    lv_obj_t* chart = lv_chart_create(crypto_chart_);
-    lv_obj_set_size(chart, lv_obj_get_width(crypto_chart_) - 20, lv_obj_get_height(crypto_chart_) - 20);
-    lv_obj_center(chart);
-    
-    // 设置图表样式
-    lv_chart_set_type(chart, LV_CHART_TYPE_LINE); // 使用线图替代K线图，因为LVGL不直接支持K线图
-    lv_chart_set_div_line_count(chart, 5, 5);
-    
-    // 设置图表样式
-    lv_obj_set_style_bg_color(chart, current_wxt185_theme_.background, 0);
-    lv_obj_set_style_border_color(chart, current_wxt185_theme_.border, 0);
-    lv_obj_set_style_text_color(chart, current_wxt185_theme_.text, 0);
-    
-    // 添加数据系列 - 只显示收盘价
-    lv_chart_series_t* close_ser = lv_chart_add_series(chart, lv_color_hex(0x00FF00), LV_CHART_AXIS_PRIMARY_Y);
-    
-    // 获取K线数据（使用1小时K线作为示例）
-    const auto& kline_data = market_data->kline_data_1h;
-    
-    // 添加点到图表
-    int point_count = 0;
-    for (size_t i = 0; i < kline_data.size() && point_count < 30; i++) { // 限制显示30个点
-        // 只添加收盘价到图表
-        lv_chart_set_next_value(chart, close_ser, static_cast<int32_t>(kline_data[i].second * 100)); // 收盘价
-        point_count++;
-    }
-    
-    ESP_LOGI(TAG, "Added %d points to K-line chart", point_count);
-    
-    // 添加标题
-    lv_obj_t* chart_title = lv_label_create(crypto_chart_);
-    lv_label_set_text(chart_title, "Price Trend (Close Prices)");
-    lv_obj_set_style_text_color(chart_title, current_wxt185_theme_.text, 0);
-    lv_obj_align_to(chart_title, chart, LV_ALIGN_OUT_TOP_MID, 0, -5);
 }
 
 void WXT185Display::TouchEventHandler(lv_event_t* e) {
@@ -1548,32 +1571,67 @@ void WXT185Display::SettingsSaveButtonEventHandler(lv_event_t* e) {
 }
 
 void WXT185Display::ScreensaverTimerCallback(void* arg) {
-    WXT185Display* self = static_cast<WXT185Display*>(arg);
-    ESP_LOGI(TAG, "Screensaver timer callback triggered");
-    
-    // 检查屏保功能是否启用
-    extern bool screensaver_enabled;
-    if (!screensaver_enabled) {
-        ESP_LOGI(TAG, "Screensaver is disabled, exiting callback");
-        return;
-    }
-    
-    // 检查设备当前状态，避免在配网模式下进入屏保
-    auto& app = Application::GetInstance();
-    DeviceState current_state = app.GetDeviceState();
-    if (current_state == kDeviceStateWifiConfiguring) {
-        ESP_LOGI(TAG, "Device is in WiFi configuring mode, skip screensaver");
-        return;
-    }
+    try {
+        WXT185Display* self = static_cast<WXT185Display*>(arg);
+        if (!self) {
+            ESP_LOGE(TAG, "ScreensaverTimerCallback: self is null");
+            return;
+        }
+        
+        ESP_LOGI(TAG, "Screensaver timer callback triggered");
+        
+        // 检查屏保功能是否启用
+        extern bool screensaver_enabled;
+        if (!screensaver_enabled) {
+            ESP_LOGI(TAG, "Screensaver is disabled, exiting callback");
+            return;
+        }
+        
+        // 检查设备当前状态，避免在配网模式下进入屏保
+        // 添加异常处理，防止Application实例访问失败
+        try {
+            auto& app = Application::GetInstance();
+            DeviceState current_state = app.GetDeviceState();
+            if (current_state == kDeviceStateWifiConfiguring) {
+                ESP_LOGI(TAG, "Device is in WiFi configuring mode, skip screensaver");
+                return;
+            }
+            if (current_state == kDeviceStateStarting) {
+                ESP_LOGI(TAG, "Device is in starting mode, skip screensaver");
+                return;
+            }
+            if (current_state == kDeviceStateActivating) {
+                ESP_LOGI(TAG, "Device is in activating mode, skip screensaver");
+                return;
 
-    // 检查是否超时
-    int64_t current_time = esp_timer_get_time() / 1000; // 转换为毫秒
-    if (current_time - self->last_activity_time_ >= SCREENSAVER_TIMEOUT_MS) {
-        ESP_LOGI(TAG, "Screensaver timeout reached, entering screensaver mode");
-        // 进入屏保模式
-        self->EnterScreensaver();
-    } else {
-        ESP_LOGV(TAG, "Screensaver timeout not reached yet");
+            }
+            if (current_state == kDeviceStateConnecting) {
+                ESP_LOGI(TAG, "Device is in connecting mode, skip screensaver");
+                return;
+            }
+            if (current_state == kDeviceStateFatalError) {
+                ESP_LOGI(TAG, "Device is in offline mode, skip screensaver");
+                return;
+            }
+        } catch (const std::exception& e) {
+            ESP_LOGW(TAG, "Exception while getting device state: %s", e.what());
+        } catch (...) {
+            ESP_LOGW(TAG, "Unknown exception while getting device state");
+        }
+
+        // 检查是否超时
+        int64_t current_time = esp_timer_get_time() / 1000; // 转换为毫秒
+        if (current_time - self->last_activity_time_ >= SCREENSAVER_TIMEOUT_MS) {
+            ESP_LOGI(TAG, "Screensaver timeout reached, entering screensaver mode");
+            // 进入屏保模式
+            self->EnterScreensaver();
+        } else {
+            ESP_LOGV(TAG, "Screensaver timeout not reached yet");
+        }
+    } catch (const std::exception& e) {
+        ESP_LOGE(TAG, "Exception occurred in ScreensaverTimerCallback: %s", e.what());
+    } catch (...) {
+        ESP_LOGE(TAG, "Unknown exception occurred in ScreensaverTimerCallback");
     }
 }
 
@@ -1587,32 +1645,59 @@ void WXT185Display::StartScreensaverTimer() {
 void WXT185Display::CryptoUpdateTimerCallback(void* arg) {
     WXT185Display* self = static_cast<WXT185Display*>(arg);
     
-    // 检查是否启用了币界虚拟币行情数据或屏保功能
-    if ((self->bijie_coins_ && self->bijie_coins_connected_) || screensaver_enabled) {
-        ESP_LOGI(TAG, "Crypto update timer triggered");
-        
-        // 使用LVGL异步调用来更新UI，确保在LVGL线程中执行
-        lv_async_call([](void* user_data) {
-            WXT185Display* self = static_cast<WXT185Display*>(user_data);
+    try {
+        // 检查是否启用了币界虚拟币行情数据或屏保功能
+        if ((self->bijie_coins_ && self->bijie_coins_connected_) || screensaver_enabled) {
+            ESP_LOGI(TAG, "Crypto update timer triggered");
+            
+            // 使用LVGL异步调用来更新UI，确保在LVGL线程中执行
+            lv_async_call([](void* user_data) {
+                try {
+                    WXT185Display* self = static_cast<WXT185Display*>(user_data);
 
-            // 触发Conenct
-            if (!self->bijie_coins_connected_) {
-                self->ConnectToBiJieCoins();
-            }
-            
-            // 更新虚拟币数据
-            self->UpdateCryptoDataFromBiJie();
-            
-            // 如果屏保处于激活状态，更新屏保内容
-            if (self->screensaver_active_) {
-                self->UpdateScreensaverContent();
-            }
-            
-            // 如果当前在虚拟币页面，更新虚拟币页面内容
-            if (self->current_page_index_ == 1) {  // 1是虚拟币页面索引
-                self->UpdateCryptoData();
-            }
-        }, self);
+                    // 触发Conenct
+                    if (!self->bijie_coins_connected_) {
+                        self->ConnectToBiJieCoins();
+                    }
+                    
+                    // 更新虚拟币数据
+                    self->UpdateCryptoDataFromBiJie();
+                    
+                    // 如果屏保处于激活状态，更新屏保内容
+                    if (self->screensaver_active_) {
+                        self->UpdateScreensaverContent();
+                    }
+                    
+                    // 如果当前在虚拟币页面，更新虚拟币页面内容
+                    if (self->current_page_index_ == 1) {  // 1是虚拟币页面索引
+                        self->UpdateCryptoData();
+                    }
+                } catch (const std::exception& e) {
+                    ESP_LOGE(TAG, "Exception occurred in CryptoUpdateTimerCallback: %s", e.what());
+                } catch (...) {
+                    ESP_LOGE(TAG, "Unknown exception occurred in CryptoUpdateTimerCallback");
+                }
+            }, self);
+        }
+    } catch (const std::exception& e) {
+        ESP_LOGE(TAG, "Exception occurred in CryptoUpdateTimerCallback: %s", e.what());
+    } catch (...) {
+        ESP_LOGE(TAG, "Unknown exception occurred in CryptoUpdateTimerCallback");
+    }
+}
+
+                    }
+                } catch (const std::exception& e) {
+                    ESP_LOGE(TAG, "Exception occurred in LVGL async call: %s", e.what());
+                } catch (...) {
+                    ESP_LOGE(TAG, "Unknown exception occurred in LVGL async call");
+                }
+            }, self);
+        }
+    } catch (const std::exception& e) {
+        ESP_LOGE(TAG, "Exception occurred in CryptoUpdateTimerCallback: %s", e.what());
+    } catch (...) {
+        ESP_LOGE(TAG, "Unknown exception occurred in CryptoUpdateTimerCallback");
     }
     
     // 重新启动定时器，每30秒更新一次行情
@@ -1644,51 +1729,65 @@ void WXT185Display::StopScreensaverTimer() {
 }
 
 void WXT185Display::EnterScreensaver() {
-    DisplayLockGuard lock(this);
-    
-    if (screensaver_active_ || !screensaver_page_) return;
-    
-    screensaver_active_ = true;
-    ESP_LOGI(TAG, "Entering screensaver mode begin");
-    
-    // 隐藏当前页面
-    if (chat_page_) lv_obj_add_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
-    if (crypto_page_) lv_obj_add_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
-    if (settings_page_) lv_obj_add_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
-    
-    // 显示屏保页面
-    if (screensaver_page_) lv_obj_clear_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
-    
-    // 更新屏保内容
-    UpdateScreensaverContent();
-    
-    ESP_LOGI(TAG, "Entered screensaver mode end");
+    try {
+        DisplayLockGuard lock(this);
+        
+        if (screensaver_active_ || !screensaver_page_) return;
+        
+        screensaver_active_ = true;
+        ESP_LOGI(TAG, "Entering screensaver mode begin");
+        
+        // 隐藏当前页面
+        if (chat_page_) lv_obj_add_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
+        if (crypto_page_) lv_obj_add_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
+        if (settings_page_) lv_obj_add_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
+        
+        // 显示屏保页面
+        if (screensaver_page_) lv_obj_clear_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
+        
+        // 更新屏保内容
+        UpdateScreensaverContent();
+        
+        ESP_LOGI(TAG, "Entered screensaver mode end");
+    } catch (const std::exception& e) {
+        ESP_LOGE(TAG, "Exception occurred while entering screensaver: %s", e.what());
+        screensaver_active_ = false; // 确保状态一致性
+    } catch (...) {
+        ESP_LOGE(TAG, "Unknown exception occurred while entering screensaver");
+        screensaver_active_ = false; // 确保状态一致性
+    }
 }
 
 void WXT185Display::ExitScreensaver() {
-    DisplayLockGuard lock(this);
-    
-    if (!screensaver_active_ || !screensaver_page_) return;
-    
-    screensaver_active_ = false;
-    
-    // 隐藏屏保页面
-    lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
-    
-    // 显示当前页面
-    switch (current_page_index_) {
-        case 0:
-            lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
-            break;
-        case 1:
-            lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
-            break;
-        case 2:
-            lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
-            break;
+    try {
+        DisplayLockGuard lock(this);
+        
+        if (!screensaver_active_ || !screensaver_page_) return;
+        
+        screensaver_active_ = false;
+        
+        // 隐藏屏保页面
+        lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
+        
+        // 显示当前页面
+        switch (current_page_index_) {
+            case 0:
+                if (chat_page_) lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
+                break;
+            case 1:
+                if (crypto_page_) lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
+                break;
+            case 2:
+                if (settings_page_) lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
+                break;
+        }
+        
+        ESP_LOGI(TAG, "Exited screensaver mode");
+    } catch (const std::exception& e) {
+        ESP_LOGE(TAG, "Exception occurred while exiting screensaver: %s", e.what());
+    } catch (...) {
+        ESP_LOGE(TAG, "Unknown exception occurred while exiting screensaver");
     }
-    
-    ESP_LOGI(TAG, "Exited screensaver mode");
 }
 
 void WXT185Display::UpdateScreensaverContent() {
@@ -1697,38 +1796,56 @@ void WXT185Display::UpdateScreensaverContent() {
     if (!screensaver_active_) return;
 
     ESP_LOGI(TAG, "Updating screensaver content");
+    
+    // 检查屏保相关对象是否存在
+    if (!screensaver_page_) {
+        ESP_LOGW(TAG, "Screensaver page is null");
+        return;
+    }
 
     // 更新虚拟币名称
     if (screensaver_crypto_name_) {
         lv_label_set_text(screensaver_crypto_name_, screensaver_crypto_.name.c_str());
     }
     
+    // 检查币界服务是否已初始化
     if (bijie_coins_) {
-        // 从币界获取屏保虚拟币数据
-        auto market_data = bijie_coins_->GetMarketData(screensaver_crypto_.currency_id);
-        
-        if (!market_data) return;
-        
-        // 更新价格
-        if (screensaver_crypto_price_) {
-            char price_text[32];
-            snprintf(price_text, sizeof(price_text), "$%.2f", market_data->close);
-            lv_label_set_text(screensaver_crypto_price_, price_text);
-        }
-        
-        // 更新涨跌幅
-        if (screensaver_crypto_change_) {
-            char change_text[32];
-            snprintf(change_text, sizeof(change_text), "%.2f%%", market_data->change_24h);
-            lv_label_set_text(screensaver_crypto_change_, change_text);
+        try {
+            // 从币界获取屏保虚拟币数据
+            auto market_data = bijie_coins_->GetMarketData(screensaver_crypto_.currency_id);
             
-            // 根据涨跌设置颜色
-            if (market_data->change_24h >= 0) {
-                lv_obj_set_style_text_color(screensaver_crypto_change_, lv_color_hex(0x00FF00), 0); // 绿色
-            } else {
-                lv_obj_set_style_text_color(screensaver_crypto_change_, lv_color_hex(0xFF0000), 0); // 红色
+            if (!market_data) {
+                ESP_LOGW(TAG, "No market data available for currency ID: %d", screensaver_crypto_.currency_id);
+                return;
             }
+            
+            // 更新价格
+            if (screensaver_crypto_price_) {
+                char price_text[32];
+                snprintf(price_text, sizeof(price_text), "$%.2f", market_data->close);
+                lv_label_set_text(screensaver_crypto_price_, price_text);
+            }
+            
+            // 更新涨跌幅
+            if (screensaver_crypto_change_) {
+                char change_text[32];
+                snprintf(change_text, sizeof(change_text), "%.2f%%", market_data->change_24h);
+                lv_label_set_text(screensaver_crypto_change_, change_text);
+                
+                // 根据涨跌设置颜色
+                if (market_data->change_24h >= 0) {
+                    lv_obj_set_style_text_color(screensaver_crypto_change_, lv_color_hex(0x00FF00), 0); // 绿色
+                } else {
+                    lv_obj_set_style_text_color(screensaver_crypto_change_, lv_color_hex(0xFF0000), 0); // 红色
+                }
+            }
+        } catch (const std::exception& e) {
+            ESP_LOGE(TAG, "Exception occurred while updating screensaver market data: %s", e.what());
+        } catch (...) {
+            ESP_LOGE(TAG, "Unknown exception occurred while updating screensaver market data");
         }
+    } else {
+        ESP_LOGW(TAG, "BiJie coins service not initialized");
     }
     
     // 更新时间
@@ -1747,11 +1864,17 @@ void WXT185Display::UpdateScreensaverContent() {
     
     // 获取K线数据用于屏保显示
     if (bijie_coins_) {
-        bijie_coins_->GetKLineData(screensaver_crypto_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
-            ESP_LOGI(TAG, "Received K-line data for screensaver with %d points", kline_data.size());
-            // 这里可以更新屏保的K线图表，但由于屏保页面结构限制，暂不实现
-            // 在完整实现中，可以在这里更新屏保的K线图表显示
-        });
+        try {
+            bijie_coins_->GetKLineData(screensaver_crypto_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
+                ESP_LOGI(TAG, "Received K-line data for screensaver with %d points", (int)kline_data.size());
+                // 这里可以更新屏保的K线图表，但由于屏保页面结构限制，暂不实现
+                // 在完整实现中，可以在这里更新屏保的K线图表显示
+            });
+        } catch (const std::exception& e) {
+            ESP_LOGE(TAG, "Exception occurred while getting K-line data: %s", e.what());
+        } catch (...) {
+            ESP_LOGE(TAG, "Unknown exception occurred while getting K-line data");
+        }
     }
 }
 
@@ -1861,61 +1984,87 @@ void WXT185Display::ConnectToBiJieCoins() {
     xTaskCreate([](void* param) {
         WXT185Display* self = static_cast<WXT185Display*>(param);
         
-        // 等待网络就绪
-        if (!self->WaitForNetworkReady()) {
-            ESP_LOGE(TAG, "Network is not ready, aborting BiJie coins connection");
-            vTaskDelete(nullptr);
-            return;
-        }
-        
-        // 连接到当前显示的虚拟币行情数据
-        if (self->bijie_coins_->Connect(self->current_crypto_data_.currency_id)) {
-            ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for currency %d", self->current_crypto_data_.currency_id);
-        } else {
-            ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for currency %d", self->current_crypto_data_.currency_id);
-        }
-        
-        // 连接到屏保显示的虚拟币行情数据（如果不同的话）
-        if (self->screensaver_crypto_.currency_id != self->current_crypto_data_.currency_id) {
-            if (self->bijie_coins_->Connect(self->screensaver_crypto_.currency_id)) {
-                ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for screensaver currency %d", self->screensaver_crypto_.currency_id);
-            } else {
-                ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for screensaver currency %d", self->screensaver_crypto_.currency_id);
+        try {
+            // 等待网络就绪
+            if (!self->WaitForNetworkReady()) {
+                ESP_LOGE(TAG, "Network is not ready, aborting BiJie coins connection");
+                vTaskDelete(nullptr);
+                return;
             }
-        }
-        
-        // 获取K线数据用于图表显示
-        self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, 2, 30, [self](const std::vector<KLineData>& kline_data) {
-            // 使用LVGL异步调用更新UI，确保在LVGL线程中执行
-            lv_async_call([](void* user_data) {
-                auto kline_data_ptr = static_cast<std::pair<WXT185Display*, std::vector<KLineData>*>*>(user_data);
-                WXT185Display* self = kline_data_ptr->first;
-                std::vector<KLineData>* kline_data = kline_data_ptr->second;
-                
-                ESP_LOGI(TAG, "Received K-line data with %d points", kline_data->size());
-                
-                // 更新当前货币的K线数据
-                for (auto& crypto : self->crypto_data_) {
-                    if (crypto.currency_id == self->current_crypto_data_.currency_id) {
-                        // 转换K线数据格式并存储
-                        crypto.kline_data_1h.clear();
-                        for (const auto& kline : *kline_data) {
-                            crypto.kline_data_1h.emplace_back(kline.open, kline.close);
-                        }
-                        break;
-                    }
+            
+            // 连接到当前显示的虚拟币行情数据
+            if (self->bijie_coins_->Connect(self->current_crypto_data_.currency_id)) {
+                ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for currency %d", self->current_crypto_data_.currency_id);
+            } else {
+                ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for currency %d", self->current_crypto_data_.currency_id);
+            }
+            
+            // 连接到屏保显示的虚拟币行情数据（如果不同的话）
+            if (self->screensaver_crypto_.currency_id != self->current_crypto_data_.currency_id) {
+                if (self->bijie_coins_->Connect(self->screensaver_crypto_.currency_id)) {
+                    ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for screensaver currency %d", self->screensaver_crypto_.currency_id);
+                } else {
+                    ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for screensaver currency %d", self->screensaver_crypto_.currency_id);
                 }
-                
-                // 更新图表显示
-                self->DrawKLineChart();
-                
-                // 清理临时分配的内存
-                delete kline_data;
-                delete kline_data_ptr;
-            }, new std::pair<WXT185Display*, std::vector<KLineData>*>(self, new std::vector<KLineData>(kline_data)));
-        });
-        
-        self->bijie_coins_connected_ = true;
+            }
+            
+            // 获取K线数据用于图表显示
+            self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, 2, 30, [self](const std::vector<KLineData>& kline_data) {
+                try {
+                    // 使用LVGL异步调用更新UI，确保在LVGL线程中执行
+                    lv_async_call([](void* user_data) {
+                        auto kline_data_ptr = static_cast<std::pair<WXT185Display*, std::vector<KLineData>*>*>(user_data);
+                        WXT185Display* self = kline_data_ptr->first;
+                        std::vector<KLineData>* kline_data = kline_data_ptr->second;
+                        
+                        ESP_LOGI(TAG, "Received K-line data with %d points", (int)kline_data->size());
+                        
+                        // 检查对象有效性
+                        if (!self) {
+                            ESP_LOGE(TAG, "WXT185Display instance is null");
+                            delete kline_data;
+                            delete kline_data_ptr;
+                            return;
+                        }
+                        
+                        try {
+                            // 更新当前货币的K线数据
+                            for (auto& crypto : self->crypto_data_) {
+                                if (crypto.currency_id == self->current_crypto_data_.currency_id) {
+                                    // 转换K线数据格式并存储
+                                    crypto.kline_data_1h.clear();
+                                    for (const auto& kline : *kline_data) {
+                                        crypto.kline_data_1h.emplace_back(kline.open, kline.close);
+                                    }
+                                    break;
+                                }
+                            }
+                            
+                            // 更新图表显示
+                            self->DrawKLineChart();
+                        } catch (const std::exception& e) {
+                            ESP_LOGE(TAG, "Exception occurred while processing K-line data: %s", e.what());
+                        } catch (...) {
+                            ESP_LOGE(TAG, "Unknown exception occurred while processing K-line data");
+                        }
+                        
+                        // 清理临时分配的内存
+                        delete kline_data;
+                        delete kline_data_ptr;
+                    }, new std::pair<WXT185Display*, std::vector<KLineData>*>(self, new std::vector<KLineData>(kline_data)));
+                } catch (const std::exception& e) {
+                    ESP_LOGE(TAG, "Exception occurred in K-line data callback: %s", e.what());
+                } catch (...) {
+                    ESP_LOGE(TAG, "Unknown exception occurred in K-line data callback");
+                }
+            });
+            
+            self->bijie_coins_connected_ = true;
+        } catch (const std::exception& e) {
+            ESP_LOGE(TAG, "Exception occurred while connecting to BiJie coins: %s", e.what());
+        } catch (...) {
+            ESP_LOGE(TAG, "Unknown exception occurred while connecting to BiJie coins");
+        }
         
         // 任务完成，删除自身
         vTaskDelete(nullptr);
@@ -1929,21 +2078,27 @@ void WXT185Display::UpdateCryptoDataFromBiJie() {
         return;
     }
     
-    // 获取币界虚拟币列表
-    auto coin_list = bijie_coins_->GetCoinList();
-    
-    // 更新我们的虚拟币数据
-    for (auto& crypto : crypto_data_) {
-        for (const auto& coin_info : coin_list) {
-            if (crypto.symbol == coin_info.symbol) {
-                crypto.price = coin_info.price;
-                crypto.change_24h = coin_info.change_24h;
-                crypto.currency_id = coin_info.id;
-                ESP_LOGI(TAG, "Updated %s: price=%.2f, change=%.2f", 
-                         crypto.symbol.c_str(), crypto.price, crypto.change_24h);
-                break;
+    try {
+        // 获取币界虚拟币列表
+        auto coin_list = bijie_coins_->GetCoinList();
+        
+        // 更新我们的虚拟币数据
+        for (auto& crypto : crypto_data_) {
+            for (const auto& coin_info : coin_list) {
+                if (crypto.symbol == coin_info.symbol) {
+                    crypto.price = coin_info.price;
+                    crypto.change_24h = coin_info.change_24h;
+                    crypto.currency_id = coin_info.id;
+                    ESP_LOGI(TAG, "Updated %s: price=%.2f, change=%.2f", 
+                             crypto.symbol.c_str(), crypto.price, crypto.change_24h);
+                    break;
+                }
             }
         }
+    } catch (const std::exception& e) {
+        ESP_LOGE(TAG, "Exception occurred while updating crypto data from BiJie: %s", e.what());
+    } catch (...) {
+        ESP_LOGE(TAG, "Unknown exception occurred while updating crypto data from BiJie");
     }
 }
 
@@ -1954,55 +2109,67 @@ void WXT185Display::SwitchCrypto(int currency_id) {
         return;
     }
     
-    // 如果要切换到的虚拟币已经是当前虚拟币，则直接返回
-    if (currency_id == current_crypto_data_.currency_id) {
-        ESP_LOGI(TAG, "Already on the selected currency, no switch needed");
-        return;
-    }
-    
-    // 断开当前连接（如果当前虚拟币不是屏保虚拟币）
-    if (current_crypto_data_.currency_id != screensaver_crypto_.currency_id) {
-        bijie_coins_->Disconnect(current_crypto_data_.currency_id);
-        ESP_LOGI(TAG, "Disconnected from previous currency ID: %d", current_crypto_data_.currency_id);
-    }
-    
-    // 更新当前虚拟币ID
-    current_crypto_data_.currency_id = currency_id;
-    
-    // 连接到新的虚拟币（如果新虚拟币不是屏保虚拟币）
-    if (current_crypto_data_.currency_id != screensaver_crypto_.currency_id) {
-        if (bijie_coins_->Connect(current_crypto_data_.currency_id)) {
-            ESP_LOGI(TAG, "Switched to BiJie coins WebSocket for currency %d", current_crypto_data_.currency_id);
-        } else {
-            ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for currency %d", current_crypto_data_.currency_id);
+    try {
+        // 如果要切换到的虚拟币已经是当前虚拟币，则直接返回
+        if (currency_id == current_crypto_data_.currency_id) {
+            ESP_LOGI(TAG, "Already on the selected currency, no switch needed");
+            return;
         }
-    }
-
-    // 设置屏保虚拟币
-    screensaver_crypto_ = current_crypto_data_;
-    
-    // 获取K线数据用于图表显示
-    bijie_coins_->GetKLineData(current_crypto_data_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
-        ESP_LOGI(TAG, "Received K-line data with %d points", kline_data.size());
         
-        // 更新当前货币的K线数据
-        for (auto& crypto : crypto_data_) {
-            if (crypto.currency_id == current_crypto_data_.currency_id) {
-                // 转换K线数据格式并存储
-                crypto.kline_data_1h.clear();
-                for (const auto& kline : kline_data) {
-                    crypto.kline_data_1h.emplace_back(kline.open, kline.close);
-                }
-                break;
+        // 断开当前连接（如果当前虚拟币不是屏保虚拟币）
+        if (current_crypto_data_.currency_id != screensaver_crypto_.currency_id) {
+            bijie_coins_->Disconnect(current_crypto_data_.currency_id);
+            ESP_LOGI(TAG, "Disconnected from previous currency ID: %d", current_crypto_data_.currency_id);
+        }
+        
+        // 更新当前虚拟币ID
+        current_crypto_data_.currency_id = currency_id;
+        
+        // 连接到新的虚拟币（如果新虚拟币不是屏保虚拟币）
+        if (current_crypto_data_.currency_id != screensaver_crypto_.currency_id) {
+            if (bijie_coins_->Connect(current_crypto_data_.currency_id)) {
+                ESP_LOGI(TAG, "Switched to BiJie coins WebSocket for currency %d", current_crypto_data_.currency_id);
+            } else {
+                ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for currency %d", current_crypto_data_.currency_id);
             }
         }
+
+        // 设置屏保虚拟币
+        screensaver_crypto_ = current_crypto_data_;
         
-        // 更新图表显示
-        DrawKLineChart();
-    });
-    
-    // 更新虚拟币页面内容
-    UpdateCryptoData();
+        // 获取K线数据用于图表显示
+        bijie_coins_->GetKLineData(current_crypto_data_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
+            try {
+                ESP_LOGI(TAG, "Received K-line data with %d points", (int)kline_data.size());
+                
+                // 更新当前货币的K线数据
+                for (auto& crypto : crypto_data_) {
+                    if (crypto.currency_id == current_crypto_data_.currency_id) {
+                        // 转换K线数据格式并存储
+                        crypto.kline_data_1h.clear();
+                        for (const auto& kline : kline_data) {
+                            crypto.kline_data_1h.emplace_back(kline.open, kline.close);
+                        }
+                        break;
+                    }
+                }
+                
+                // 更新图表显示
+                DrawKLineChart();
+            } catch (const std::exception& e) {
+                ESP_LOGE(TAG, "Exception occurred while processing K-line data in SwitchCrypto: %s", e.what());
+            } catch (...) {
+                ESP_LOGE(TAG, "Unknown exception occurred while processing K-line data in SwitchCrypto");
+            }
+        });
+        
+        // 更新虚拟币页面内容
+        UpdateCryptoData();
+    } catch (const std::exception& e) {
+        ESP_LOGE(TAG, "Exception occurred while switching crypto: %s", e.what());
+    } catch (...) {
+        ESP_LOGE(TAG, "Unknown exception occurred while switching crypto");
+    }
 }
 
 void WXT185Display::SetScreensaverCrypto(int currency_id) {
@@ -2013,50 +2180,62 @@ void WXT185Display::SetScreensaverCrypto(int currency_id) {
         return;
     }
     
-    // 如果要设置的虚拟币已经是屏保虚拟币，则直接返回
-    if (currency_id == screensaver_crypto_.currency_id) {
-        ESP_LOGI(TAG, "Already set to the selected screensaver currency, no change needed");
-        return;
-    }
-    
-    // 断开之前的屏保虚拟币连接（如果之前的屏保虚拟币不是当前显示的虚拟币）
-    if (screensaver_crypto_.currency_id != current_crypto_data_.currency_id) {
-        bijie_coins_->Disconnect(screensaver_crypto_.currency_id);
-        ESP_LOGI(TAG, "Disconnected from previous screensaver currency ID: %d", screensaver_crypto_.currency_id);
-    }
-    
-    // 更新屏保虚拟币ID
-    screensaver_crypto_.currency_id = currency_id;
-    
-    // 如果该虚拟币尚未连接，则连接它（如果该虚拟币不是当前显示的虚拟币）
-    if (screensaver_crypto_.currency_id != current_crypto_data_.currency_id) {
-        if (!bijie_coins_->IsConnected(screensaver_crypto_.currency_id)) {
-            if (bijie_coins_->Connect(screensaver_crypto_.currency_id)) {
-                ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_.currency_id);
-            } else {
-                ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_.currency_id);
+    try {
+        // 如果要设置的虚拟币已经是屏保虚拟币，则直接返回
+        if (currency_id == screensaver_crypto_.currency_id) {
+            ESP_LOGI(TAG, "Already set to the selected screensaver currency, no change needed");
+            return;
+        }
+        
+        // 断开之前的屏保虚拟币连接（如果之前的屏保虚拟币不是当前显示的虚拟币）
+        if (screensaver_crypto_.currency_id != current_crypto_data_.currency_id) {
+            bijie_coins_->Disconnect(screensaver_crypto_.currency_id);
+            ESP_LOGI(TAG, "Disconnected from previous screensaver currency ID: %d", screensaver_crypto_.currency_id);
+        }
+        
+        // 更新屏保虚拟币ID
+        screensaver_crypto_.currency_id = currency_id;
+        
+        // 如果该虚拟币尚未连接，则连接它（如果该虚拟币不是当前显示的虚拟币）
+        if (screensaver_crypto_.currency_id != current_crypto_data_.currency_id) {
+            if (!bijie_coins_->IsConnected(screensaver_crypto_.currency_id)) {
+                if (bijie_coins_->Connect(screensaver_crypto_.currency_id)) {
+                    ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_.currency_id);
+                } else {
+                    ESP_LOGE(TAG, "Failed to connect to BiJie coins WebSocket for screensaver currency %d", screensaver_crypto_.currency_id);
+                }
             }
         }
-    }
-    
-    // 请求K线数据用于屏保显示
-    bijie_coins_->GetKLineData(screensaver_crypto_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
-        ESP_LOGI(TAG, "Received K-line data for screensaver with %d points", kline_data.size());
+        
+        // 请求K线数据用于屏保显示
+        bijie_coins_->GetKLineData(screensaver_crypto_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
+            try {
+                ESP_LOGI(TAG, "Received K-line data for screensaver with %d points", (int)kline_data.size());
 
-        // 更新屏保关联的K线数据
-        screensaver_kline_data_.clear();
-        for (const auto& kline : kline_data) {
-            screensaver_kline_data_.emplace_back(kline.open, kline.close);
-        }
+                // 更新屏保关联的K线数据
+                screensaver_kline_data_.clear();
+                for (const auto& kline : kline_data) {
+                    screensaver_kline_data_.emplace_back(kline.open, kline.close);
+                }
 
-        // 如果屏保处于激活状态，更新内容
+                // 如果屏保处于激活状态，更新内容
+                if (screensaver_active_) {
+                    UpdateScreensaverContent();
+                }
+            } catch (const std::exception& e) {
+                ESP_LOGE(TAG, "Exception occurred while processing K-line data in SetScreensaverCrypto: %s", e.what());
+            } catch (...) {
+                ESP_LOGE(TAG, "Unknown exception occurred while processing K-line data in SetScreensaverCrypto");
+            }
+        });
+
+        // 如果屏保处于激活状态，更新屏保内容
         if (screensaver_active_) {
             UpdateScreensaverContent();
         }
-    });
-
-    // 如果屏保处于激活状态，更新屏保内容
-    if (screensaver_active_) {
-        UpdateScreensaverContent();
+    } catch (const std::exception& e) {
+        ESP_LOGE(TAG, "Exception occurred while setting screensaver crypto: %s", e.what());
+    } catch (...) {
+        ESP_LOGE(TAG, "Unknown exception occurred while setting screensaver crypto");
     }
 }
