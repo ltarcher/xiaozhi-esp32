@@ -146,7 +146,7 @@ public:
 protected:
     // 控制虚拟币行情获取的变量
     bool enable_realtime_crypto_data_ = true;   // 是否启用实时行情获取，默认启用
-    bool enable_kline_crypto_data_ = false;     // 是否启用历史K线行情获取，默认不启用
+    bool enable_kline_crypto_data_ = true;     // 是否启用历史K线行情获取，默认不启用
 
     // 代理配置
     ProxyConfig proxy_config_;

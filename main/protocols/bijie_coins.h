@@ -154,7 +154,7 @@ public:
     /**
      * @brief 获取指定货币的历史K线数据
      * @param currency_id 货币ID
-     * @param kline_type K线类型 (1=1小时, 2=日K, 3=周K, 4=月K)
+     * @param kline_type K线类型
      * @param limit 数据条数限制
      * @param callback 回调函数
      */

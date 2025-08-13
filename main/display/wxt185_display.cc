@@ -1784,7 +1784,7 @@ void WXT185Display::StopCryptoUpdateTimer() {
 }
 
 // 屏保时间更新定时器回调函数
-static void ScreensaverTimeUpdateTimerCallback(void* arg) {
+void WXT185Display::ScreensaverTimeUpdateTimerCallback(void* arg) {
     WXT185Display* self = static_cast<WXT185Display*>(arg);
     
     // 使用LVGL异步调用来更新UI，确保在LVGL线程中执行
@@ -1987,6 +1987,7 @@ void WXT185Display::UpdateScreensaverContent() {
             ESP_LOGE(TAG, "Unknown exception occurred while getting K-line data");
         }
     }
+    ESP_LOGI(TAG, "Screensaver content updated")
 }
 
 void WXT185Display::OnActivity() {
@@ -2112,7 +2113,7 @@ static void process_kline_data_async(void* user_data) {
         return;
     }
     
-    ESP_LOGI(TAG, "Received K-line data with %d points", (int)kline_data->size());
+    ESP_LOGI(TAG, "process_kline_data_async Received K-line data with %d points", (int)kline_data->size());
     
     try {
         // 更新当前货币的K线数据
@@ -2208,6 +2209,7 @@ void WXT185Display::ConnectToBiJieCoins() {
             
             // 根据控制变量决定是否获取K线数据
             if (self->enable_kline_crypto_data_) {
+                ESP_LOGI(TAG, "Getting K-line data for currency %d", self->current_crypto_data_.currency_id)
                 // 获取K线数据用于图表显示
                 self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, 2, 30, [self](const std::vector<KLineData>& kline_data) {
                     // 检查参数有效性
