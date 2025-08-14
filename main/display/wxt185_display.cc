@@ -768,7 +768,7 @@ void WXT185Display::CreateChatPage() {
     /* Status bar */
     status_bar_ = lv_obj_create(chat_page_);
     // 设置状态栏宽度为屏幕宽度的 20%
-    lv_obj_set_size(status_bar_, LV_HOR_RES * 0.5f, fonts_.text_font->line_height);
+    lv_obj_set_size(status_bar_, LV_HOR_RES * 0.4f, fonts_.text_font->line_height);
     // 设置文本居中
     lv_obj_set_style_text_align(status_bar_, LV_TEXT_ALIGN_CENTER, 0);
     // 设置背景
