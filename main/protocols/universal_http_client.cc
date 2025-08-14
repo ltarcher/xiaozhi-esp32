@@ -53,6 +53,21 @@ void UniversalHttpClient::SetContent(std::string&& content) {
     ESP_LOGV(TAG, "Setting content with size: %d", content_.has_value() ? (int)content_.value().size() : 0);
 }
 
+void UniversalHttpClient::SetParam(const std::string& key, const std::string& value) {
+    params_[key] = value;
+    ESP_LOGV(TAG, "Setting param: %s=%s", key.c_str(), value.c_str());
+}
+
+void UniversalHttpClient::SetBody(const std::string& body) {
+    body_ = std::make_optional(body);
+    ESP_LOGV(TAG, "Setting body with size: %d", body_.has_value() ? (int)body_.value().size() : 0);
+    
+    // 如果客户端已经初始化，则更新Content-Type为application/json
+    if (http_client_) {
+        esp_http_client_set_header(http_client_, "Content-Type", "application/json");
+    }
+}
+
 bool UniversalHttpClient::SetCookie(const std::string& name, const std::string& value) {
     cookies_[name] = value;
     ESP_LOGV(TAG, "Setting cookie: %s=%s", name.c_str(), value.c_str());
@@ -111,6 +126,30 @@ std::string UniversalHttpClient::BuildCookieHeader() const {
     return cookie_stream.str();
 }
 
+std::string UniversalHttpClient::BuildUrlWithParams(const std::string& base_url) const {
+    if (params_.empty()) {
+        return base_url;
+    }
+    
+    std::string url = base_url;
+    
+    // 检查URL是否已包含查询参数
+    bool has_query = base_url.find('?') != std::string::npos;
+    char separator = has_query ? '&' : '?';
+    
+    bool first = true;
+    for (const auto& param : params_) {
+        if (!first || !has_query) {
+            url += separator;
+        }
+        url += param.first + "=" + param.second;
+        separator = '&';
+        first = false;
+    }
+    
+    return url;
+}
+
 esp_http_client_method_t UniversalHttpClient::GetMethod(const std::string& method) {
     std::string upper_method = method;
     std::transform(upper_method.begin(), upper_method.end(), upper_method.begin(), ::toupper);
@@ -134,17 +173,19 @@ esp_http_client_method_t UniversalHttpClient::GetMethod(const std::string& metho
 }
 
 bool UniversalHttpClient::Open(const std::string& method, const std::string& url) {
-    ESP_LOGI(TAG, "Opening HTTP connection - Method: %s, URL: %s", method.c_str(), url.c_str());
+    // 构建带参数的URL
+    std::string final_url = BuildUrlWithParams(url);
+    ESP_LOGI(TAG, "Opening HTTP connection - Method: %s, URL: %s", method.c_str(), final_url.c_str());
     
     method_ = method;
-    url_ = url;
+    url_ = final_url;
     
     // 先关闭之前的连接（如果有的话）
     Close();
     
     // 配置HTTP客户端
     esp_http_client_config_t config = {};
-    config.url = url.c_str();
+    config.url = final_url.c_str();
     config.method = GetMethod(method);
     config.timeout_ms = timeout_ms_;
     
@@ -190,8 +231,13 @@ bool UniversalHttpClient::Open(const std::string& method, const std::string& url
         }
     }
     
-    // 如果有内容，则设置内容
-    if (content_.has_value()) {
+    // 设置请求内容（优先使用body_，然后是content_）
+    if (body_.has_value()) {
+        const std::string& body = body_.value();
+        esp_http_client_set_post_field(http_client_, body.c_str(), body.length());
+        // 确保Content-Type设置为application/json
+        esp_http_client_set_header(http_client_, "Content-Type", "application/json");
+    } else if (content_.has_value()) {
         const std::string& content = content_.value();
         esp_http_client_set_post_field(http_client_, content.c_str(), content.length());
     }

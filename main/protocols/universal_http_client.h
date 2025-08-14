@@ -32,6 +32,12 @@ public:
     size_t GetBodyLength() override;
     std::string ReadAll() override;
     
+    // 新增设置URL参数的方法
+    void SetParam(const std::string& key, const std::string& value);
+    
+    // 新增设置请求体的方法（用于JSON等格式）
+    void SetBody(const std::string& body);
+    
     // 重写基类的SetProxy方法
     void SetProxy(const std::string& host, int port);
     
@@ -62,6 +68,10 @@ private:
     std::map<std::string, std::string> cookies_;
     std::optional<std::string> content_ = std::nullopt;
     
+    // 新增URL参数和请求体
+    std::map<std::string, std::string> params_;
+    std::optional<std::string> body_ = std::nullopt;
+    
     // 响应相关
     int status_code_ = -1;
     std::map<std::string, std::string> response_headers_;
@@ -74,6 +84,7 @@ private:
     // 内部方法
     bool ParseUrl(const std::string& url);
     esp_http_client_method_t GetMethod(const std::string& method);
+    std::string BuildUrlWithParams(const std::string& base_url) const;
     std::string BuildCookieHeader() const;
 };
 

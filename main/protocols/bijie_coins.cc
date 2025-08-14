@@ -458,16 +458,7 @@ private:
             default: symbol = "UNK"; slug = "unknow"; break;
         }
         
-        // 构造POST数据
-        std::string post_data = "m=kline&c=coin&id=" + std::to_string(task_data->currency_id);
-        post_data += "&type=" + std::to_string(task_data->kline_type);
-        post_data += "&limit=" + std::to_string(task_data->limit);
-        post_data += "&sortByDate=true&sortByDateRule=false";
-        post_data += "&symbol=" + symbol;
-        post_data += "&slug=" + slug;
-        post_data += "&start=\'\'";
-        
-        ESP_LOGI(TAG, "Fetching K-line data from: %s with POST data: %s", url.c_str(), post_data.c_str());
+        ESP_LOGI(TAG, "Fetching K-line data from: %s ", url.c_str());
         
         // 使用NetworkInterface中的HTTP客户端
         auto network = Board::GetInstance().GetNetwork();
@@ -511,7 +502,7 @@ private:
         client->SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
         client->SetHeader("Origin", "https://www.528btc.com");
         client->SetHeader("Pragma", "no-cache");
-        client->SetHeader("Referer", "https://www.528btc.com/coin");
+        client->SetHeader("Referer", "https://www.528btc.com/coin/3008.html");
         client->SetHeader("Sec-Ch-Ua", "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"138\", \"Google Chrome\";v=\"138\"");
         client->SetHeader("Sec-Ch-Ua-Mobile", "?0");
         client->SetHeader("Sec-Ch-Ua-Platform", "\"Windows\"");
@@ -521,17 +512,33 @@ private:
         client->SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36");
         client->SetHeader("X-Requested-With", "XMLHttpRequest");
         
-        ESP_LOGI(TAG, "Sending POST data: %s", post_data.c_str());
-        // 设置POST内容
-        client->SetContent(std::move(post_data));
+        // 设置Params
+        client->SetParam("m", "kline");
+        client->SetParam("c", "coin");
+        char buffer[32] = {0};
+        itoa(task_data->currency_id, buffer, 10);
+        client->SetParam("id", buffer);
+        client->SetParam("symbol", symbol);
+        client->SetParam("slug", slug);
+        client->SetParam("sortByDate", "true");
+        client->SetParam("sortByDateRule", "true");
+        itoa(task_data->kline_type, buffer, 10);
+        client->SetParam("type", buffer);
+        itoa(task_data->limit, buffer, 10);
+        client->SetParam("limit", buffer);
+        client->SetParam("start", "");
 
         // 设置Cookie
-        if (!client->SetCookie("__vtins__3ExGyQaAoNSqsSUY", "{\"sid\": \"723e1fb3-b2aa-5172-b01f-fffa645921e9\", \"vd\": 3, \"stt\": 8434, \"dr\": 4345, \"expires\": 1755104204431, \"ct\": 1755102404431}")) {
+        /*
+        if (!client->SetCookie("__vtins__3ExGyQaAoNSqsSUY", "%7B%22sid%22%3A%20%22723e1fb3-b2aa-5172-b01f-fffa645921e9%22%2C%20%22vd%22%3A%203%2C%20%22stt%22%3A%208434%2C%20%22dr%22%3A%204345%2C%20%22expires%22%3A%201755104204431%2C%20%22ct%22%3A%201755102404431%7D")) {
             ESP_LOGE(TAG, "Failed to set cookie");
-        }
+        }*/
+       if (!client->SetCookie("__51vcke__3ExGyQaAoNSqsSUY=c6b3e8cb-b05e-5774-9d03-d237d3836dfd; __51vuft__3ExGyQaAoNSqsSUY=1755099710259; __51uvsct__3ExGyQaAoNSqsSUY=2; PHPSESSID=pm10f8d6tof3r41a1aiqahtbjr; Hm_lvt_1605442054faab140873b7c14e40c707=1755099711,1755102402; HMACCOUNT=ABC3E376595FECC3; __vtins__3ExGyQaAoNSqsSUY=%7B%22sid%22%3A%20%22723e1fb3-b2aa-5172-b01f-fffa645921e9%22%2C%20%22vd%22%3A%203%2C%20%22stt%22%3A%208434%2C%20%22dr%22%3A%204345%2C%20%22expires%22%3A%201755104204431%2C%20%22ct%22%3A%201755102404431%7D; Hm_lpvt_1605442054faab140873b7c14e40c707=1755102421")) {
+            ESP_LOGE(TAG, "Failed to set cookie");
+       }
         
         // 执行请求
-        ESP_LOGI(TAG, "Opening HTTP connection");
+        ESP_LOGI(TAG, "Opening HTTP connection with Cookie: %s ", client->GetAllCookies().c_str());
         if (!client->Open("POST", url)) {
             ESP_LOGE(TAG, "Failed to open HTTP connection");
             if (task_data->callback) {
