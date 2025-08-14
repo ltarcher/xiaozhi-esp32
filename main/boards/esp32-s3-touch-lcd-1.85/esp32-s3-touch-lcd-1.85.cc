@@ -236,6 +236,10 @@ private:
             .sda_io_num = I2C_SDA_IO,
             .scl_io_num = I2C_SCL_IO,
             .clk_source = I2C_CLK_SRC_DEFAULT,
+            .glitch_ignore_cnt = 7,  // 增加抗干扰能力
+            .flags = {
+                .enable_internal_pullup = 1,  // 启用内部上拉电阻
+            },
         };
         ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &i2c_bus_));
     }
@@ -399,9 +403,9 @@ private:
             .sda_io_num = TP_PIN_NUM_SDA,
             .scl_io_num = TP_PIN_NUM_SCL,
             .clk_source = I2C_CLK_SRC_DEFAULT,
-            .glitch_ignore_cnt = 7,
+            .glitch_ignore_cnt = 7,  // 增加抗干扰能力
             .flags = {
-                .enable_internal_pullup = 1,
+                .enable_internal_pullup = 1,  // 启用内部上拉电阻
             },
         };
         ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &tp_i2c_bus));
@@ -416,7 +420,7 @@ private:
         
         esp_lcd_panel_io_handle_t tp_io_handle = NULL;
         esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
-        tp_io_config.scl_speed_hz = 400 * 1000;
+        tp_io_config.scl_speed_hz = 100 * 1000;  // 降低I2C时钟速度以提高稳定性
         ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(tp_i2c_bus, &tp_io_config, &tp_io_handle));
         ESP_LOGI(TAG, "Initialize touch controller CST816S");
         
