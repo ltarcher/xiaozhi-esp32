@@ -1117,7 +1117,7 @@ void WXT185Display::CreateScreensaverPage() {
     lv_obj_set_size(screensaver_page_, width_, height_);
     lv_obj_set_style_radius(screensaver_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(screensaver_page_, current_wxt185_theme_.background, 0);
-    //lv_obj_clear_flag(screensaver_page_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_SCROLLABLE);
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
     ESP_LOGI(TAG, "Added touch event handlers to screensaver page start");
