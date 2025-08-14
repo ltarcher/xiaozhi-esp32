@@ -53,7 +53,7 @@ void UniversalHttpClient::SetContent(std::string&& content) {
     ESP_LOGV(TAG, "Setting content with size: %d", content_.has_value() ? (int)content_.value().size() : 0);
 }
 
-void UniversalHttpClient::SetCookie(const std::string& name, const std::string& value) {
+bool UniversalHttpClient::SetCookie(const std::string& name, const std::string& value) {
     cookies_[name] = value;
     ESP_LOGV(TAG, "Setting cookie: %s=%s", name.c_str(), value.c_str());
     
@@ -64,17 +64,20 @@ void UniversalHttpClient::SetCookie(const std::string& name, const std::string& 
             esp_http_client_set_header(http_client_, "Cookie", cookie_header.c_str());
         }
     }
+    
+    return true;
 }
 
-void UniversalHttpClient::SetCookie(const std::string& cookie) {
+bool UniversalHttpClient::SetCookie(const std::string& cookie) {
     // 解析cookie字符串 "name=value" 格式
     size_t equal_pos = cookie.find('=');
     if (equal_pos != std::string::npos) {
         std::string name = cookie.substr(0, equal_pos);
         std::string value = cookie.substr(equal_pos + 1);
-        SetCookie(name, value);
+        return SetCookie(name, value);
     } else {
         ESP_LOGW(TAG, "Invalid cookie format: %s", cookie.c_str());
+        return false;
     }
 }
 

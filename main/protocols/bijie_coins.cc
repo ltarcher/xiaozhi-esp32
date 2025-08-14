@@ -511,7 +511,7 @@ private:
         client->SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
         client->SetHeader("Origin", "https://www.528btc.com");
         client->SetHeader("Pragma", "no-cache");
-        client->SetHeader("Referer", "https://www.528btc.com/coin/3008/trend-all");
+        client->SetHeader("Referer", "https://www.528btc.com/coin");
         client->SetHeader("Sec-Ch-Ua", "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"138\", \"Google Chrome\";v=\"138\"");
         client->SetHeader("Sec-Ch-Ua-Mobile", "?0");
         client->SetHeader("Sec-Ch-Ua-Platform", "\"Windows\"");

@@ -42,8 +42,8 @@ public:
     void DisableSslVerification(bool disable) { disable_ssl_verification_ = disable; };
     
     // Cookie支持
-    void SetCookie(const std::string& name, const std::string& value);
-    void SetCookie(const std::string& cookie);
+    bool SetCookie(const std::string& name, const std::string& value);
+    bool SetCookie(const std::string& cookie);
     std::string GetCookie(const std::string& name) const;
     std::string GetAllCookies() const;
 
