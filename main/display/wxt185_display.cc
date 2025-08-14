@@ -636,7 +636,7 @@ void WXT185Display::SetupUI() {
     ESP_LOGI(TAG, "Created page view container");
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
-    ESP_LOGI(TAG, "Enabling horizontal scrolling")
+    ESP_LOGI(TAG, "Enabling horizontal scrolling");
     // 启用水平滚动
     lv_obj_set_scroll_dir(page_container_, LV_DIR_HOR);
     lv_obj_set_scroll_snap_x(page_container_, LV_SCROLL_SNAP_CENTER);
@@ -757,7 +757,7 @@ void WXT185Display::CreateChatPage() {
     lv_obj_set_x(chat_page_, PAGE_CHAT * width_);
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
-    ESP_LOGI(TAG, "Enabling horizontal scrolling to chat page begin")
+    ESP_LOGI(TAG, "Enabling horizontal scrolling to chat page begin");
     // 添加页面滚动回调
     lv_obj_add_event_cb(chat_page_, PageEventHandler, LV_EVENT_SCROLL_END, this);
     // 添加触摸事件处理（仅在有触摸屏时添加）
@@ -882,7 +882,7 @@ void WXT185Display::CreateCryptoPage() {
     crypto_roller = lv_label_create(crypto_page_);
 
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
-    ESP_LOGI(TAG, "Added touch event handlers to crypto page begin")
+    ESP_LOGI(TAG, "Added touch event handlers to crypto page begin");
     // 添加页面滚动回调
     lv_obj_add_event_cb(crypto_page_, PageEventHandler, LV_EVENT_SCROLL_END, this);
     // 添加触摸事件处理（仅在有触摸屏时添加）
@@ -913,7 +913,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_set_x(settings_page_, PAGE_SETTINGS * width_);
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
-    ESP_LOGI(TAG, "Added touch event handlers to settings page begin")
+    ESP_LOGI(TAG, "Added touch event handlers to settings page begin");
     // 添加页面滚动回调
     lv_obj_add_event_cb(settings_page_, PageEventHandler, LV_EVENT_SCROLL_END, this);
     // 添加触摸事件处理（仅在有触摸屏时添加）
