@@ -133,11 +133,11 @@ protected:
     WXT185ThemeColors current_wxt185_theme_;
     
     // 触摸滑动相关
-    int current_page_index_ = 0;
     lv_point_t touch_start_point_ = {0, 0};
     bool is_touching_ = false;
     
 public:
+    static uint32_t current_page_index_;
     // 屏幕保护相关
     bool screensaver_active_ = false;
     int64_t last_activity_time_ = 0;

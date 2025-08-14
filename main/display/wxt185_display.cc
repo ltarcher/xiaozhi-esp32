@@ -269,6 +269,9 @@ LV_FONT_DECLARE(lv_font_montserrat_48)
 //
 LV_FONT_DECLARE(font_awesome_30_4);
 
+// 静态成员变量定义
+uint32_t WXT185Display::current_page_index_ = PAGE_CHAT;
+
 // 主题样式字符串
 static const char* ThemeString[] = {
     "Light",
@@ -640,7 +643,7 @@ void WXT185Display::SetupUI() {
     lv_obj_set_scrollbar_mode(page_container_, LV_SCROLLBAR_MODE_OFF);
 
     // 添加页面滚动回调
-    lv_obj_add_event_cb(page_container_, PageEventHandler, LV_EVENT_SCROLL_END, this)
+    lv_obj_add_event_cb(page_container_, PageEventHandler, LV_EVENT_SCROLL_END, this);
 
     // 添加触摸事件处理（仅在有触摸屏时添加）
     lv_obj_add_event_cb(page_container_, TouchEventHandler, LV_EVENT_PRESSED, this);
