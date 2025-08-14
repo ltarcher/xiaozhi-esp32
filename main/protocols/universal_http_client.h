@@ -77,6 +77,7 @@ private:
     std::map<std::string, std::string> response_headers_;
     std::string response_body_;
     size_t content_length_ = 0;
+    bool response_complete_ = false; // 标记响应是否完成
     
     // 是否禁用ssl
     bool disable_ssl_verification_ = false;
@@ -86,6 +87,9 @@ private:
     esp_http_client_method_t GetMethod(const std::string& method);
     std::string BuildUrlWithParams(const std::string& base_url) const;
     std::string BuildCookieHeader() const;
+    
+    // 事件处理回调函数
+    static esp_err_t HttpEventHandler(esp_http_client_event_t *evt);
 };
 
 #endif // UNIVERSAL_HTTP_CLIENT_H

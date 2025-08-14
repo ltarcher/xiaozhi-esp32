@@ -6,8 +6,48 @@
 
 static const char* TAG = "UniversalHttpClient";
 
+// 事件处理回调函数
+esp_err_t UniversalHttpClient::HttpEventHandler(esp_http_client_event_t *evt) {
+    UniversalHttpClient* client = static_cast<UniversalHttpClient*>(evt->user_data);
+    
+    switch (evt->event_id) {
+        case HTTP_EVENT_ON_CONNECTED:
+            ESP_LOGI(TAG, "HTTP connected");
+            break;
+            
+        case HTTP_EVENT_HEADER_SENT:
+            ESP_LOGV(TAG, "HTTP header sent");
+            break;
+            
+        case HTTP_EVENT_ON_HEADER:
+            ESP_LOGV(TAG, "HTTP header received: %s: %s", evt->header_key, evt->header_value);
+            client->response_headers_[std::string(evt->header_key)] = std::string(evt->header_value);
+            break;
+            
+        case HTTP_EVENT_ON_DATA:
+            ESP_LOGV(TAG, "HTTP data received: %d bytes", evt->data_len);
+            client->response_body_.append(static_cast<char*>(evt->data), evt->data_len);
+            break;
+            
+        case HTTP_EVENT_ON_FINISH:
+            ESP_LOGI(TAG, "HTTP finished");
+            client->response_complete_ = true;
+            break;
+            
+        case HTTP_EVENT_DISCONNECTED:
+            ESP_LOGI(TAG, "HTTP disconnected");
+            client->response_complete_ = true;
+            break;
+            
+        default:
+            break;
+    }
+    
+    return ESP_OK;
+}
+
 UniversalHttpClient::UniversalHttpClient(NetworkInterface* network_interface) 
-    : network_interface_(network_interface), http_client_(nullptr) {
+    : network_interface_(network_interface), http_client_(nullptr), response_complete_(false) {
     ESP_LOGI(TAG, "Creating UniversalHttpClient with network interface: %p", network_interface_);
 }
 
@@ -183,11 +223,20 @@ bool UniversalHttpClient::Open(const std::string& method, const std::string& url
     // 先关闭之前的连接（如果有的话）
     Close();
     
+    // 重置响应状态
+    response_headers_.clear();
+    response_body_.clear();
+    response_complete_ = false;
+    status_code_ = -1;
+    content_length_ = 0;
+    
     // 配置HTTP客户端
     esp_http_client_config_t config = {};
     config.url = final_url.c_str();
     config.method = GetMethod(method);
     config.timeout_ms = timeout_ms_;
+    config.event_handler = HttpEventHandler;
+    config.user_data = this;
     
     // 禁用服务器证书验证（对于自签名证书或测试环境）
     if (disable_ssl_verification_) {
@@ -271,20 +320,19 @@ void UniversalHttpClient::Close() {
 int UniversalHttpClient::Read(char* buffer, size_t buffer_size) {
     ESP_LOGV(TAG, "Reading HTTP response, buffer size: %d", (int)buffer_size);
     
-    if (!http_client_) {
-        ESP_LOGE(TAG, "HTTP client is not initialized");
-        return -1;
+    if (response_body_.empty()) {
+        ESP_LOGW(TAG, "No response body available");
+        return 0;
     }
     
-    // 从HTTP客户端读取数据
-    int bytes_read = esp_http_client_read(http_client_, buffer, buffer_size);
-    if (bytes_read < 0) {
-        ESP_LOGE(TAG, "Failed to read HTTP response");
-        return -1;
-    }
+    size_t bytes_to_read = std::min(response_body_.size(), buffer_size);
+    std::memcpy(buffer, response_body_.data(), bytes_to_read);
     
-    ESP_LOGV(TAG, "Read %d bytes from HTTP response", bytes_read);
-    return bytes_read;
+    // 从响应体中移除已读取的数据
+    response_body_.erase(0, bytes_to_read);
+    
+    ESP_LOGV(TAG, "Read %d bytes from HTTP response", (int)bytes_to_read);
+    return static_cast<int>(bytes_to_read);
 }
 
 int UniversalHttpClient::Write(const char* buffer, size_t buffer_size) {
@@ -302,20 +350,12 @@ int UniversalHttpClient::GetStatusCode() {
 std::string UniversalHttpClient::GetResponseHeader(const std::string& key) const {
     ESP_LOGV(TAG, "Getting response header: %s", key.c_str());
     
-    if (!http_client_) {
-        ESP_LOGE(TAG, "HTTP client is not initialized");
-        return "";
+    auto it = response_headers_.find(key);
+    if (it != response_headers_.end()) {
+        return it->second;
     }
     
-    // 从HTTP客户端获取头部
-    char* header_value = nullptr;
-    esp_err_t err = esp_http_client_get_header(http_client_, key.c_str(), &header_value);
-    if (err != ESP_OK || header_value == nullptr) {
-        ESP_LOGV(TAG, "Header %s not found", key.c_str());
-        return "";
-    }
-    
-    return std::string(header_value);
+    return "";
 }
 
 size_t UniversalHttpClient::GetBodyLength() {
@@ -324,41 +364,8 @@ size_t UniversalHttpClient::GetBodyLength() {
 }
 
 std::string UniversalHttpClient::ReadAll() {
-    ESP_LOGV(TAG, "Reading all HTTP response data");
-    
-    if (!http_client_) {
-        ESP_LOGE(TAG, "HTTP client is not initialized");
-        return "";
-    }
-    
-    // 获取内容长度
-    size_t content_len = esp_http_client_get_content_length(http_client_);
-    ESP_LOGV(TAG, "Content length from header: %d", (int)content_len);
-    
-    // 尝试读取数据直到结束
-    std::string result;
-    char buffer[512]; // 使用较小的缓冲区以减少内存占用
-    int bytes_read;
-    int total_bytes_read = 0;
-    
-    // 循环读取直到没有更多数据
-    while ((bytes_read = esp_http_client_read(http_client_, buffer, sizeof(buffer))) > 0) {
-        ESP_LOGV(TAG, "Read %d bytes in this iteration", bytes_read);
-        result.append(buffer, bytes_read);
-        total_bytes_read += bytes_read;
-        
-        // 添加一个安全检查，防止无限循环
-        if (total_bytes_read > 100000) { // 限制最大读取100KB
-            ESP_LOGW(TAG, "Maximum response size exceeded (100KB), truncating");
-            break;
-        }
-    }
-    
-    if (bytes_read < 0) {
-        ESP_LOGE(TAG, "Error reading HTTP response: %d", bytes_read);
-        return "";
-    }
-    
-    ESP_LOGV(TAG, "Total bytes read: %d", total_bytes_read);
+    ESP_LOGV(TAG, "Reading all HTTP response data, size: %d", (int)response_body_.size());
+    std::string result = response_body_;
+    response_body_.clear(); // 清空已读取的数据
     return result;
 }
