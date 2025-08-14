@@ -298,11 +298,16 @@ bool UniversalHttpClient::Open(const std::string& method, const std::string& url
         Close();
         return false;
     }
-    
+
+    // 等待HTTP请求完成
+    while (!response_complete_) {
+        vTaskDelay(10 / portTICK_PERIOD_MS); // 简单忙等待，适当延时降低CPU使用率
+    }
+
     // 获取状态码
     status_code_ = esp_http_client_get_status_code(http_client_);
     content_length_ = esp_http_client_get_content_length(http_client_);
-    
+
     ESP_LOGI(TAG, "HTTP request completed successfully - Status: %d, Content-Length: %d", 
              status_code_, (int)content_length_);
     return true;
