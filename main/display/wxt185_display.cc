@@ -1719,6 +1719,12 @@ static void update_crypto_data_async(void* user_data) {
             return;
         }
 
+        // 检查网络是否就绪，如果未就绪则直接返回，不发出HTTP请求
+        if (!self->WaitForNetworkReady(0)) {  // 0表示立即返回，不等待
+            ESP_LOGW(TAG, "Network not ready, skipping crypto data update");
+            return;
+        }
+
         // 根据控制变量决定是否获取实时行情
         if (self->enable_realtime_crypto_data_) {
             // 触发Connect
@@ -2079,7 +2085,7 @@ bool WXT185Display::WaitForNetworkReady(int max_wait_time) {
     const int retry_interval = 1000; // 1秒间隔
     const int max_retries = max_wait_time / retry_interval;
     
-    while (retry_count < max_retries) {
+    while (retry_count <= max_retries) {
         // 检查设备状态是否已经联网就绪
         current_state = app.GetDeviceState();
         if (current_state == kDeviceStateIdle || 
