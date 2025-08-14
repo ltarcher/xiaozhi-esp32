@@ -79,7 +79,6 @@ class WXT185Display : public LcdDisplay {
     
 protected:
     lv_obj_t* main_screen_ = nullptr;
-    lv_obj_t* page_container_ = nullptr;
     // 页面通用组件
     lv_obj_t* common_outer_ring_ = nullptr;
     lv_obj_t* common_inner_ring_ = nullptr;

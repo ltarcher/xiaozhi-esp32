@@ -626,29 +626,27 @@ void WXT185Display::SetupUI() {
     lv_obj_set_style_text_font(main_screen_, fonts_.text_font, 0);
     lv_obj_set_style_text_color(main_screen_, current_wxt185_theme_.text, 0);
     lv_obj_set_style_bg_color(main_screen_, current_wxt185_theme_.background, 0);
-    
-    // 创建页面视图容器（针对360*360圆形屏幕优化）
-    page_container_ = lv_obj_create(main_screen_);
-    lv_obj_set_size(page_container_, width_ * 3, height_);  // 3倍宽度以容纳三个页面
-    lv_obj_set_style_radius(page_container_, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(page_container_, current_wxt185_theme_.background, 0);
+
+    lv_obj_set_size(main_screen_, width_ * 3, height_);  // 3倍宽度以容纳三个页面
+    lv_obj_set_style_radius(main_screen_, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(main_screen_, current_wxt185_theme_.background, 0);
     
     ESP_LOGI(TAG, "Created page view container");
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
     ESP_LOGI(TAG, "Enabling horizontal scrolling");
     // 启用水平滚动
-    lv_obj_set_scroll_dir(page_container_, LV_DIR_HOR);
-    lv_obj_set_scroll_snap_x(page_container_, LV_SCROLL_SNAP_CENTER);
-    lv_obj_set_scrollbar_mode(page_container_, LV_SCROLLBAR_MODE_OFF);
-    lv_obj_add_flag(page_container_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(main_screen_, LV_DIR_HOR);
+    lv_obj_set_scroll_snap_x(main_screen_, LV_SCROLL_SNAP_CENTER);
+    lv_obj_set_scrollbar_mode(main_screen_, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_add_flag(main_screen_, LV_OBJ_FLAG_SCROLLABLE);
 
     // 添加页面滚动回调
-    lv_obj_add_event_cb(page_container_, PageEventHandler, LV_EVENT_SCROLL_END, this);
+    lv_obj_add_event_cb(main_screen_, PageEventHandler, LV_EVENT_SCROLL_END, this);
 
     // 添加触摸事件处理（仅在有触摸屏时添加）
-    lv_obj_add_event_cb(page_container_, TouchEventHandler, LV_EVENT_PRESSED, this);
-    lv_obj_add_event_cb(page_container_, TouchEventHandler, LV_EVENT_RELEASED, this);
+    lv_obj_add_event_cb(main_screen_, TouchEventHandler, LV_EVENT_PRESSED, this);
+    lv_obj_add_event_cb(main_screen_, TouchEventHandler, LV_EVENT_RELEASED, this);
     ESP_LOGI(TAG, "Added touch event handlers to page view");
 #endif
     
@@ -744,7 +742,7 @@ void WXT185Display::CreateCommonComponents()
 void WXT185Display::CreateChatPage() {
     ESP_LOGI(TAG, "Creating chat page");
     
-    chat_page_ = lv_obj_create(page_container_);
+    chat_page_ = lv_obj_create(main_screen_);
     lv_obj_set_size(chat_page_, width_, height_);
     lv_obj_set_style_radius(chat_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(chat_page_, current_wxt185_theme_.background, 0);
@@ -866,7 +864,7 @@ void WXT185Display::CreateCryptoPage() {
     ESP_LOGI(TAG, "Creating crypto page");
     
     // 1. 创建背景
-    crypto_page_ = lv_obj_create(page_container_);
+    crypto_page_ = lv_obj_create(main_screen_);
     lv_obj_set_size(crypto_page_, width_, height_);
     lv_obj_set_style_radius(crypto_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(crypto_page_, current_wxt185_theme_.crypto_background, 0);
@@ -899,7 +897,7 @@ void WXT185Display::CreateSettingsPage() {
     ESP_LOGI(TAG, "Creating settings page");
     
     // 1. 初始化背景
-    settings_page_ = lv_obj_create(page_container_);
+    settings_page_ = lv_obj_create(main_screen_);
     ESP_LOGI(TAG, "Settings page background created");
     lv_obj_set_size(settings_page_, width_, height_);
     lv_obj_set_style_radius(settings_page_, LV_RADIUS_CIRCLE, 0);
@@ -1606,7 +1604,7 @@ void WXT185Display::HandleTouchEnd(lv_point_t point) {
 void WXT185Display::SwitchToPage(int page_index) {
     ESP_LOGI(TAG, "Switching to page %d", page_index);
     DisplayLockGuard lock(this);
-    if (page_container_ == nullptr || page_index < 0 || page_index > 2) return;
+    if (main_screen_ == nullptr || page_index < 0 || page_index > 2) return;
     
     current_page_index_ = page_index;
     
@@ -1640,7 +1638,7 @@ void WXT185Display::PageEventHandler(lv_event_t* e) {
      
     if (code == LV_EVENT_SCROLL_END) {
         lv_point_t scroll_end;
-        lv_obj_get_scroll_end(self->page_container_, &scroll_end);
+        lv_obj_get_scroll_end(self->main_screen_, &scroll_end);
         ESP_LOGI(TAG, "Scroll end: (%d, %d)", scroll_end.x, scroll_end.y);
 
         // 使用屏幕宽度而不是content_width来计算页面
