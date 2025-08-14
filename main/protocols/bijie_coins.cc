@@ -11,11 +11,15 @@
 #include <esp_tls.h>
 #include "board.h"
 #include "universal_http_client.h"  // 使用 UniversalHttpClient
+#include <set>
+#include <mutex>
 
 static const char* TAG = "BiJieCoins";
 
 // 重连间隔时间（毫秒）
 static const int RECONNECT_INTERVAL_MS = 5000; // 5秒
+static std::set<int> pending_kline_requests_; // 跟踪正在进行的K线数据请求
+static std::mutex kline_requests_mutex_; // 互斥锁保护pending_kline_requests_
 
 // 为每个WebSocket连接创建一个独立的实现类
 class BiJieCoinConnection {
@@ -412,6 +416,22 @@ public:
     }
     
     void GetKLineData(int currency_id, int kline_type, int limit, OnKLineDataCallback callback) {
+        // 检查是否已经有相同currency_id的请求正在进行
+        {
+            std::lock_guard<std::mutex> lock(kline_requests_mutex_);
+            if (pending_kline_requests_.find(currency_id) != pending_kline_requests_.end()) {
+                ESP_LOGW(TAG, "K-line data request for currency %d is already in progress, skipping duplicate request", currency_id);
+                // 如果已经有请求在进行，直接调用回调函数返回空数据
+                if (callback) {
+                    callback(std::vector<KLineData>());
+                }
+                return;
+            }
+            
+            // 将当前currency_id添加到正在进行的请求集合中
+            pending_kline_requests_.insert(currency_id);
+        }
+        
         // 创建一个新的任务来处理HTTP请求
         auto task_data = new KLineTaskData{currency_id, kline_type, limit, callback, proxy_config_};
         
@@ -459,7 +479,6 @@ private:
         }
         
         ESP_LOGI(TAG, "Fetching K-line data from: %s ", url.c_str());
-        
         // 使用NetworkInterface中的HTTP客户端
         auto network = Board::GetInstance().GetNetwork();
         ESP_LOGI(TAG, "Network interface: %p", network);
@@ -468,6 +487,13 @@ private:
             if (task_data->callback) {
                 task_data->callback(kline_data);
             }
+            
+            // 从正在进行的请求集合中移除currency_id
+            {
+                std::lock_guard<std::mutex> lock(kline_requests_mutex_);
+                pending_kline_requests_.erase(task_data->currency_id);
+            }
+            
             delete task_data;
             vTaskDelete(nullptr);
             return;
@@ -481,6 +507,13 @@ private:
             if (task_data->callback) {
                 task_data->callback(kline_data);
             }
+            
+            // 从正在进行的请求集合中移除currency_id
+            {
+                std::lock_guard<std::mutex> lock(kline_requests_mutex_);
+                pending_kline_requests_.erase(task_data->currency_id);
+            }
+            
             delete task_data;
             vTaskDelete(nullptr);
             return;
@@ -499,18 +532,10 @@ private:
         client->SetHeader("Accept", "application/json, text/javascript, */*; q=0.01");
         client->SetHeader("Accept-Language", "zh-CN,zh;q=0.9");
         client->SetHeader("Cache-Control", "no-cache");
-        client->SetHeader("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8");
+        client->SetHeader("Host", "www.528btc.com");
         client->SetHeader("Origin", "https://www.528btc.com");
-        client->SetHeader("Pragma", "no-cache");
         client->SetHeader("Referer", "https://www.528btc.com/coin/3008.html");
-        client->SetHeader("Sec-Ch-Ua", "\"Not)A;Brand\";v=\"8\", \"Chromium\";v=\"138\", \"Google Chrome\";v=\"138\"");
-        client->SetHeader("Sec-Ch-Ua-Mobile", "?0");
-        client->SetHeader("Sec-Ch-Ua-Platform", "\"Windows\"");
-        client->SetHeader("Sec-Fetch-Dest", "empty");
-        client->SetHeader("Sec-Fetch-Mode", "cors");
-        client->SetHeader("Sec-Fetch-Site", "same-origin");
         client->SetHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36");
-        client->SetHeader("X-Requested-With", "XMLHttpRequest");
         
         // 设置Params
         client->SetParam("m", "kline");
@@ -521,7 +546,7 @@ private:
         client->SetParam("symbol", symbol);
         client->SetParam("slug", slug);
         client->SetParam("sortByDate", "true");
-        client->SetParam("sortByDateRule", "true");
+        client->SetParam("sortByDateRule", "false");
         itoa(task_data->kline_type, buffer, 10);
         client->SetParam("type", buffer);
         itoa(task_data->limit, buffer, 10);
@@ -533,17 +558,26 @@ private:
         if (!client->SetCookie("__vtins__3ExGyQaAoNSqsSUY", "%7B%22sid%22%3A%20%22723e1fb3-b2aa-5172-b01f-fffa645921e9%22%2C%20%22vd%22%3A%203%2C%20%22stt%22%3A%208434%2C%20%22dr%22%3A%204345%2C%20%22expires%22%3A%201755104204431%2C%20%22ct%22%3A%201755102404431%7D")) {
             ESP_LOGE(TAG, "Failed to set cookie");
         }*/
-       if (!client->SetCookie("__51vcke__3ExGyQaAoNSqsSUY=c6b3e8cb-b05e-5774-9d03-d237d3836dfd; __51vuft__3ExGyQaAoNSqsSUY=1755099710259; __51uvsct__3ExGyQaAoNSqsSUY=2; PHPSESSID=pm10f8d6tof3r41a1aiqahtbjr; Hm_lvt_1605442054faab140873b7c14e40c707=1755099711,1755102402; HMACCOUNT=ABC3E376595FECC3; __vtins__3ExGyQaAoNSqsSUY=%7B%22sid%22%3A%20%22723e1fb3-b2aa-5172-b01f-fffa645921e9%22%2C%20%22vd%22%3A%203%2C%20%22stt%22%3A%208434%2C%20%22dr%22%3A%204345%2C%20%22expires%22%3A%201755104204431%2C%20%22ct%22%3A%201755102404431%7D; Hm_lpvt_1605442054faab140873b7c14e40c707=1755102421")) {
+        // 设置Cookie
+        /*if (!client->SetCookie("__vtins__3ExGyQaAoNSqsSUY", "{\"sid\": \"723e1fb3-b2aa-5172-b01f-fffa645921e9\", \"vd\": 3, \"stt\": 8434, \"dr\": 4345, \"expires\": 1755104204431, \"ct\": 1755102404431}")) {
             ESP_LOGE(TAG, "Failed to set cookie");
-       }
+        }
+        */
         
         // 执行请求
-        ESP_LOGI(TAG, "Opening HTTP connection with Cookie: %s ", client->GetAllCookies().c_str());
+        ESP_LOGI(TAG, "Opening HTTP connection");
         if (!client->Open("POST", url)) {
             ESP_LOGE(TAG, "Failed to open HTTP connection");
             if (task_data->callback) {
                 task_data->callback(kline_data);
             }
+            
+            // 从正在进行的请求集合中移除currency_id
+            {
+                std::lock_guard<std::mutex> lock(kline_requests_mutex_);
+                pending_kline_requests_.erase(task_data->currency_id);
+            }
+            
             delete task_data;
             vTaskDelete(nullptr);
             return;
@@ -634,6 +668,12 @@ private:
             task_data->callback(kline_data);
         }
         
+        // 从正在进行的请求集合中移除currency_id
+        {
+            std::lock_guard<std::mutex> lock(kline_requests_mutex_);
+            pending_kline_requests_.erase(task_data->currency_id);
+        }
+        
         // 清理任务数据
         delete task_data;
         
@@ -649,6 +689,7 @@ private:
     OnMarketDataCallback market_data_callback_;
     OnCoinListCallback coin_list_callback_;
     ProxyConfig proxy_config_; // 代理配置
+    
 };
 
 // BiJieCoins类的实现
