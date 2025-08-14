@@ -524,6 +524,11 @@ private:
         ESP_LOGI(TAG, "Sending POST data: %s", post_data.c_str());
         // 设置POST内容
         client->SetContent(std::move(post_data));
+
+        // 设置Cookie
+        if (!client->SetCookie("__vtins__3ExGyQaAoNSqsSUY", "{\"sid\": \"723e1fb3-b2aa-5172-b01f-fffa645921e9\", \"vd\": 3, \"stt\": 8434, \"dr\": 4345, \"expires\": 1755104204431, \"ct\": 1755102404431}")) {
+            ESP_LOGE(TAG, "Failed to set cookie");
+        }
         
         // 执行请求
         ESP_LOGI(TAG, "Opening HTTP connection");

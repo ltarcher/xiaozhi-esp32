@@ -2,6 +2,7 @@
 #include <esp_log.h>
 #include <cstring>
 #include <algorithm>
+#include <sstream>
 
 static const char* TAG = "UniversalHttpClient";
 
@@ -50,6 +51,61 @@ void UniversalHttpClient::SetHeader(const std::string& key, const std::string& v
 void UniversalHttpClient::SetContent(std::string&& content) {
     content_ = std::make_optional(std::move(content));
     ESP_LOGV(TAG, "Setting content with size: %d", content_.has_value() ? (int)content_.value().size() : 0);
+}
+
+void UniversalHttpClient::SetCookie(const std::string& name, const std::string& value) {
+    cookies_[name] = value;
+    ESP_LOGV(TAG, "Setting cookie: %s=%s", name.c_str(), value.c_str());
+    
+    // 如果客户端已经初始化，则更新Cookie头
+    if (http_client_) {
+        std::string cookie_header = BuildCookieHeader();
+        if (!cookie_header.empty()) {
+            esp_http_client_set_header(http_client_, "Cookie", cookie_header.c_str());
+        }
+    }
+}
+
+void UniversalHttpClient::SetCookie(const std::string& cookie) {
+    // 解析cookie字符串 "name=value" 格式
+    size_t equal_pos = cookie.find('=');
+    if (equal_pos != std::string::npos) {
+        std::string name = cookie.substr(0, equal_pos);
+        std::string value = cookie.substr(equal_pos + 1);
+        SetCookie(name, value);
+    } else {
+        ESP_LOGW(TAG, "Invalid cookie format: %s", cookie.c_str());
+    }
+}
+
+std::string UniversalHttpClient::GetCookie(const std::string& name) const {
+    auto it = cookies_.find(name);
+    if (it != cookies_.end()) {
+        return it->second;
+    }
+    return "";
+}
+
+std::string UniversalHttpClient::GetAllCookies() const {
+    return BuildCookieHeader();
+}
+
+std::string UniversalHttpClient::BuildCookieHeader() const {
+    if (cookies_.empty()) {
+        return "";
+    }
+    
+    std::ostringstream cookie_stream;
+    bool first = true;
+    for (const auto& cookie : cookies_) {
+        if (!first) {
+            cookie_stream << "; ";
+        }
+        cookie_stream << cookie.first << "=" << cookie.second;
+        first = false;
+    }
+    
+    return cookie_stream.str();
 }
 
 esp_http_client_method_t UniversalHttpClient::GetMethod(const std::string& method) {
@@ -120,6 +176,15 @@ bool UniversalHttpClient::Open(const std::string& method, const std::string& url
     ESP_LOGV(TAG, "Applying %d cached headers", (int)headers_.size());
     for (const auto& header : headers_) {
         esp_http_client_set_header(http_client_, header.first.c_str(), header.second.c_str());
+    }
+    
+    // 设置Cookie头
+    if (!cookies_.empty()) {
+        std::string cookie_header = BuildCookieHeader();
+        if (!cookie_header.empty()) {
+            ESP_LOGV(TAG, "Setting Cookie header: %s", cookie_header.c_str());
+            esp_http_client_set_header(http_client_, "Cookie", cookie_header.c_str());
+        }
     }
     
     // 如果有内容，则设置内容

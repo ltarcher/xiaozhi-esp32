@@ -40,6 +40,12 @@ public:
 
     // 禁用SSL验证
     void DisableSslVerification(bool disable) { disable_ssl_verification_ = disable; };
+    
+    // Cookie支持
+    void SetCookie(const std::string& name, const std::string& value);
+    void SetCookie(const std::string& cookie);
+    std::string GetCookie(const std::string& name) const;
+    std::string GetAllCookies() const;
 
 private:
     NetworkInterface* network_interface_;
@@ -53,6 +59,7 @@ private:
     // 配置设置
     int timeout_ms_ = 30000;
     std::map<std::string, std::string> headers_;
+    std::map<std::string, std::string> cookies_;
     std::optional<std::string> content_ = std::nullopt;
     
     // 响应相关
@@ -67,6 +74,7 @@ private:
     // 内部方法
     bool ParseUrl(const std::string& url);
     esp_http_client_method_t GetMethod(const std::string& method);
+    std::string BuildCookieHeader() const;
 };
 
 #endif // UNIVERSAL_HTTP_CLIENT_H
