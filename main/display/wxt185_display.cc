@@ -712,10 +712,10 @@ void WXT185Display::CreateCommonComponents()
     lv_obj_set_style_bg_color(common_outer_ring_, current_wxt185_theme_.outer_ring_background, 0);
     lv_obj_set_style_border_width(common_outer_ring_, 2, 0);
     lv_obj_set_style_border_color(common_outer_ring_, current_wxt185_theme_.border, 0);
-    lv_obj_clear_flag(common_outer_ring_, LV_OBJ_FLAG_SCROLLABLE);
     // 设置为透明，避免挡住其他内容
     lv_obj_set_style_bg_opa(common_outer_ring_, LV_OPA_TRANSP, 0);
 
+    /*
     // 2. 计算基础比例参数（基于屏幕直径）
     uint16_t screen_diameter = lv_obj_get_width(main_screen_);
     float scale = screen_diameter / 360.0f; // 缩放比例（以360为基准）
@@ -736,6 +736,7 @@ void WXT185Display::CreateCommonComponents()
     lv_obj_clear_flag(common_inner_ring_, LV_OBJ_FLAG_CLICKABLE);
     // 设置为透明，避免挡住其他内容
     lv_obj_set_style_bg_opa(common_inner_ring_, LV_OPA_TRANSP, 0);
+    */
 
 }
 
@@ -905,7 +906,6 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_set_style_pad_all(settings_page_, 0, 0);
     lv_obj_set_style_border_width(settings_page_, 0, 0);
     lv_obj_set_style_bg_opa(settings_page_, LV_OPA_TRANSP, 0);
-    lv_obj_add_flag(settings_page_, LV_OBJ_FLAG_SCROLLABLE);
 
     // 水平对齐，排在第三个页面 (修复错误：原来是crypto_page_)
     lv_obj_set_x(settings_page_, PAGE_SETTINGS * width_);
@@ -1115,7 +1115,10 @@ void WXT185Display::CreateScreensaverPage() {
     lv_obj_set_size(screensaver_page_, width_, height_);
     lv_obj_set_style_radius(screensaver_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(screensaver_page_, current_wxt185_theme_.background, 0);
+    // 设置可滚动（用于退出屏保）
     lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_SCROLLABLE);
+    // 隐藏滚动条
+    lv_obj_set_scrollbar_mode(screensaver_page_, LV_SCROLLBAR_MODE_OFF);
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
     ESP_LOGI(TAG, "Added touch event handlers to screensaver page start");
@@ -1127,19 +1130,20 @@ void WXT185Display::CreateScreensaverPage() {
     
     // 2. 创建外圆环（刻度环）
     screensaver_outer_ring_ = lv_obj_create(screensaver_page_);
-    lv_obj_set_size(screensaver_outer_ring_, width_ - 20, width_ - 20);
+    lv_obj_set_size(screensaver_outer_ring_, width_ - 20 , width_ - 20);
     lv_obj_center(screensaver_outer_ring_);
     lv_obj_set_style_radius(screensaver_outer_ring_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(screensaver_outer_ring_, current_wxt185_theme_.outer_ring_background, 0);
     lv_obj_set_style_border_width(screensaver_outer_ring_, 2, 0);
     lv_obj_set_style_border_color(screensaver_outer_ring_, current_wxt185_theme_.border, 0);
-    lv_obj_clear_flag(screensaver_outer_ring_, LV_OBJ_FLAG_SCROLLABLE);
 
+    /*
     // 3. 计算基础比例参数（基于屏幕直径）
     uint16_t screen_diameter = lv_obj_get_width(screensaver_outer_ring_);
     float scale = screen_diameter / 360.0f; // 缩放比例（以360为基准）
 
     // 4. 内圆环（进度环，直径为屏幕的89%）
+    
     uint16_t progress_ring_size = screen_diameter * 0.89;
     screensaver_progress_ring_ = lv_arc_create(screensaver_page_);
     lv_obj_set_size(screensaver_progress_ring_, progress_ring_size, progress_ring_size);
@@ -1152,6 +1156,7 @@ void WXT185Display::CreateScreensaverPage() {
     //lv_obj_set_style_arc_width(screensaver_progress_ring_, scale * 4, 0);
     lv_arc_set_mode(screensaver_progress_ring_, LV_ARC_MODE_SYMMETRICAL);
     lv_obj_clear_flag(screensaver_progress_ring_, LV_OBJ_FLAG_CLICKABLE);
+    */
 
     // 5. 创建币名显示
     screensaver_crypto_name_ = lv_label_create(screensaver_page_);
