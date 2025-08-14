@@ -59,6 +59,14 @@ struct WXT185ThemeColors {
     lv_color_t settings_screensaver_switch;
 };
 
+// 定义页面
+enum Page {
+    PAGE_CHAT,
+    PAGE_CRYPTO,
+    PAGE_SETTINGS,
+    MAX_PAGE_INDEX
+};
+
 // 前向声明用于友元函数
 class WXT185Display;
 static void update_crypto_data_async(void* user_data);
@@ -146,7 +154,7 @@ public:
 protected:
     // 控制虚拟币行情获取的变量
     bool enable_realtime_crypto_data_ = true;   // 是否启用实时行情获取，默认启用
-    bool enable_kline_crypto_data_ = true;     // 是否启用历史K线行情获取，默认不启用
+    bool enable_kline_crypto_data_ = true;     // 是否启用历史K线行情获取，默认启用
 
     // 代理配置
     ProxyConfig proxy_config_;

@@ -634,6 +634,14 @@ void WXT185Display::SetupUI() {
     ESP_LOGI(TAG, "Created page view container");
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+    // 启用水平滚动
+    lv_obj_set_scroll_dir(page_container_, LV_DIR_HOR);
+    lv_obj_set_scroll_snap_x(page_container_, LV_SCROLL_SNAP_CENTER);
+    lv_obj_set_scrollbar_mode(page_container_, LV_SCROLLBAR_MODE_OFF);
+
+    // 添加页面滚动回调
+    lv_obj_add_event_cb(page_container_, PageEventHandler, LV_EVENT_SCROLL_END, this)
+
     // 添加触摸事件处理（仅在有触摸屏时添加）
     lv_obj_add_event_cb(page_container_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(page_container_, TouchEventHandler, LV_EVENT_RELEASED, this);
@@ -648,10 +656,10 @@ void WXT185Display::SetupUI() {
     CreateChatPage();
     ESP_LOGI(TAG, "Created chat page");
     
-    //CreateCryptoPage();
+    CreateCryptoPage();
     ESP_LOGI(TAG, "Created crypto page");
     
-    //CreateSettingsPage();
+    CreateSettingsPage();
     ESP_LOGI(TAG, "Created settings page");
     
     // 创建屏保页面
@@ -1556,13 +1564,13 @@ void WXT185Display::HandleTouchEnd(lv_point_t point) {
         if (diff_x > 0) {
             // 向右滑动，切换到上一个页面
             ESP_LOGI(TAG, "Swipe right detected, switching to previous page");
-            if (current_page_index_ > 0) {
+            if (current_page_index_ > PAGE_CHAT) {
                 SwitchToPage(current_page_index_ - 1);
             }
         } else {
             // 向左滑动，切换到下一个页面
             ESP_LOGI(TAG, "Swipe left detected, switching to next page");
-            if (current_page_index_ < 2) {
+            if (current_page_index_ < PAGE_SETTINGS) {
                 SwitchToPage(current_page_index_ + 1);
             }
         }
@@ -1603,6 +1611,27 @@ void WXT185Display::SwitchToPage(int page_index) {
 void WXT185Display::PageEventHandler(lv_event_t* e) {
     ESP_LOGI(TAG, "Page event handler called");
     // 页面事件处理
+    lv_obj_t* obj = (lv_obj_t* )lv_event_get_target(e);
+    lv_event_code_t code = lv_event_get_code(e);
+     
+    if (code == LV_EVENT_SCROLL_END) {
+        lv_point_t scroll_end;
+        lv_obj_get_scroll_end(obj, &scroll_end);
+        ESP_LOGI(TAG, "Scroll end: (%d, %d)", scroll_end.x, scroll_end.y);
+
+        int32_t width = lv_obj_get_content_width(obj);
+        if (width <= 0) return;
+
+        /* 计算当前页面 */
+        uint32_t page = (scroll_end.x + width / 2) / width;
+
+        /* 确保页面索引有效 */
+        if (page >= MAX_PAGE_INDEX) page = PAGE_SETTINGS;
+        if (page <= PAGE_CHAT) page = PAGE_CHAT;
+
+        /* 更新当前页面索引 */
+        current_page_index_ = page;
+    }
 }
 
 void WXT185Display::CryptoSelectorEventHandler(lv_event_t* e) {
@@ -1742,7 +1771,7 @@ static void update_crypto_data_async(void* user_data) {
         }
         
         // 如果当前在虚拟币页面，更新虚拟币页面内容
-        if (self->current_page_index_ == 1) {  // 1是虚拟币页面索引
+        if (self->current_page_index_ == PAGE_CRYPTO) {  // 1是虚拟币页面索引
             self->UpdateCryptoData();
             
             // 根据控制变量决定是否获取K线数据
@@ -1907,13 +1936,13 @@ void WXT185Display::ExitScreensaver() {
         
         // 显示当前页面
         switch (current_page_index_) {
-            case 0:
+            case PAGE_CHAT:
                 if (chat_page_) lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
                 break;
-            case 1:
+            case PAGE_CRYPTO:
                 if (crypto_page_) lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
                 break;
-            case 2:
+            case PAGE_SETTINGS:
                 if (settings_page_) lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
                 break;
         }
