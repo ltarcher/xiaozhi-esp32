@@ -746,6 +746,9 @@ void WXT185Display::CreateChatPage() {
     lv_obj_set_style_pad_all(chat_page_, 0, 0);
     lv_obj_set_style_border_width(chat_page_, 0, 0);
     lv_obj_set_style_bg_opa(chat_page_, LV_OPA_TRANSP, 0);
+
+    // 水平对齐, 排在第一个
+    lv_obj_align(chat_page_, LV_ALIGN_TOP_LEFT, PAGE_CHAT * width_, 0);
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
     // 添加触摸事件处理（仅在有触摸屏时添加）
@@ -866,6 +869,9 @@ void WXT185Display::CreateCryptoPage() {
     crypto_page_ = lv_obj_create(page_container_);
     lv_obj_set_style_bg_color(crypto_page_, current_wxt185_theme_.crypto_background, 0);
     lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_SCROLLABLE);
+
+    // 水平对齐，排在第二个页面
+    lv_obj_align(crypto_page_, LV_ALIGN_TOP_LEFT, PAGE_CRYPTO * width_, 0);
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
     // 添加触摸事件处理（仅在有触摸屏时添加）
@@ -889,6 +895,9 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_set_style_radius(settings_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(settings_page_, current_wxt185_theme_.background, 0);
     lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_SCROLLABLE);
+
+    // 水平对齐，排在第三个页面
+    lv_obj_align(crypto_page_, LV_ALIGN_TOP_LEFT, PAGE_SETTINGS * width_, 0);
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
     // 添加触摸事件处理（仅在有触摸屏时添加）
