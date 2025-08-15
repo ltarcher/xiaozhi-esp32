@@ -375,11 +375,20 @@ private:
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH
     void InitializeTouch()
     {
-        esp_lcd_touch_handle_t tp;
+        esp_lcd_touch_handle_t tp = NULL;
+        
+        // Use the I2C bus already initialized for the IO expander
+        // Create IO handle for touch controller
+        esp_lcd_panel_io_handle_t tp_io_handle = NULL;
+        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
+        tp_io_config.scl_speed_hz = 400 * 1000; // 400kHz
+        ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(i2c_bus_, &tp_io_config, &tp_io_handle));
+        
+        // Touch controller configuration
         esp_lcd_touch_config_t tp_cfg = {
             .x_max = DISPLAY_WIDTH,
             .y_max = DISPLAY_HEIGHT,
-            .rst_gpio_num = TP_PIN_NUM_RST,
+            .rst_gpio_num = TP_PIN_NUM_RST, // This should be controlled by IO expander
             .int_gpio_num = TP_PIN_NUM_INT,
             .levels = {
                 .reset = 0,
@@ -392,41 +401,14 @@ private:
             },
         };
         
-        // Create a separate I2C bus for touch controller
-        i2c_master_bus_handle_t tp_i2c_bus;
-        i2c_master_bus_config_t i2c_bus_cfg = {
-            .i2c_port = TP_PORT,
-            .sda_io_num = TP_PIN_NUM_SDA,
-            .scl_io_num = TP_PIN_NUM_SCL,
-            .clk_source = I2C_CLK_SRC_DEFAULT,
-            .glitch_ignore_cnt = 7,
-            .flags = {
-                .enable_internal_pullup = 1,
-            },
-        };
-        ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &tp_i2c_bus));
-        
-        // Probe for touch controller before initializing
-        esp_err_t ret = i2c_master_probe(tp_i2c_bus, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, 1000);
-        if (ret != ESP_OK) {
-            ESP_LOGW(TAG, "CST816S touch controller not found on I2C bus at address 0x%02X, skipping touch initialization",
-                     ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS);
-            return;
-        }
-        
-        esp_lcd_panel_io_handle_t tp_io_handle = NULL;
-        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
-        tp_io_config.scl_speed_hz = 400 * 1000;
-        ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(tp_i2c_bus, &tp_io_config, &tp_io_handle));
-        ESP_LOGI(TAG, "Initialize touch controller CST816S");
-        
-        // Initialize touch controller with error checking
-        ret = esp_lcd_touch_new_i2c_cst816s(tp_io_handle, &tp_cfg, &tp);
+        // Try to initialize the touch controller
+        esp_err_t ret = esp_lcd_touch_new_i2c_cst816s(tp_io_handle, &tp_cfg, &tp);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to initialize CST816S touch controller: %s", esp_err_to_name(ret));
             return;
         }
         
+        // Add touch to LVGL
         const lvgl_port_touch_cfg_t touch_cfg = {
             .disp = lv_display_get_default(), 
             .handle = tp,
