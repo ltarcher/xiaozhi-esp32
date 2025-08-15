@@ -377,7 +377,14 @@ private:
     {
         esp_lcd_touch_handle_t tp = NULL;
         
-        // Use the I2C bus already initialized for the IO expander
+        // Reset touch controller using IO expander (EXIO1)
+        // This follows the official example where EXIO1 controls the touch reset
+        esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 0);  // Reset low
+        vTaskDelay(pdMS_TO_TICKS(10));
+        esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 1);  // Reset high
+        vTaskDelay(pdMS_TO_TICKS(50));
+        
+        // Reuse the existing I2C bus for touch controller
         // Create IO handle for touch controller
         esp_lcd_panel_io_handle_t tp_io_handle = NULL;
         esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
@@ -388,7 +395,7 @@ private:
         esp_lcd_touch_config_t tp_cfg = {
             .x_max = DISPLAY_WIDTH,
             .y_max = DISPLAY_HEIGHT,
-            .rst_gpio_num = TP_PIN_NUM_RST, // This should be controlled by IO expander
+            .rst_gpio_num = TP_PIN_NUM_RST,  // This should be GPIO_NUM_NC since we're using IO expander
             .int_gpio_num = TP_PIN_NUM_INT,
             .levels = {
                 .reset = 0,
