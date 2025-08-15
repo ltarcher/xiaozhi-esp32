@@ -414,8 +414,8 @@ static void settings_save_button_event_handler(lv_event_t * e) {
 WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
                            int width, int height, int offset_x, int offset_y,
                            bool mirror_x, bool mirror_y, bool swap_xy,
-                           DisplayFonts fonts)
-    : LcdDisplay(panel_io, panel, fonts, width, height) {
+                           DisplayFonts fonts, esp_lcd_touch_handle_t touch_handler)
+    : LcdDisplay(panel_io, panel, fonts, width, height), touch_handler_(touch_handler) {
     ESP_LOGI(TAG, "Initializing WXT185 Display");
 
     // Load theme from settings

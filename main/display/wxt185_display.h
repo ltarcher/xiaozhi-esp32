@@ -9,6 +9,8 @@
 #include <memory>
 #include "http_client.h"  // 添加HTTP客户端头文件
 
+#include <esp_lcd_touch.h>
+
 // 屏保虚拟币数据结构
 struct CryptocurrencyData {
     std::string symbol;
@@ -195,6 +197,8 @@ protected:
     static void TouchEventHandler(lv_event_t* e);
     void HandleTouchStart(lv_point_t point);
     void HandleTouchEnd(lv_point_t point);
+
+    esp_lcd_touch_handle_t touch_handler_;
     
 public:
     void SaveSettings(); // 保存设置方法
@@ -221,7 +225,7 @@ public:
     WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
                   int width, int height, int offset_x, int offset_y,
                   bool mirror_x, bool mirror_y, bool swap_xy,
-                  DisplayFonts fonts);
+                  DisplayFonts fonts, esp_lcd_touch_handle_t touch_handler);
     
     ~WXT185Display();
     
