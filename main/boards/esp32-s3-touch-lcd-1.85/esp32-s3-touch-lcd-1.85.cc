@@ -240,10 +240,6 @@ private:
             .flags = {
                 .enable_internal_pullup = 1,  // 启用内部上拉电阻
             },
-            .glitch_ignore_cnt = 7,  // 增加抗干扰能力
-            .flags = {
-                .enable_internal_pullup = 1,  // 启用内部上拉电阻
-            },
         };
         ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &i2c_bus_));
     }
@@ -388,17 +384,10 @@ private:
         // Reset touch controller using IO expander (EXIO1)
         // This follows the official example where EXIO1 controls the touch reset
         esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 0);  // Reset low
-        vTaskDelay(pdMS_TO_TICKS(300));
+        vTaskDelay(pdMS_TO_TICKS(100));
         esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 1);  // Reset high
-        vTaskDelay(pdMS_TO_TICKS(300));
-        
-        // Reuse the existing I2C bus for touch controller
-        // Create IO handle for touch controller
-        esp_lcd_panel_io_handle_t tp_io_handle = NULL;
-        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
-        tp_io_config.scl_speed_hz = 400 * 1000; // 400kHz
-        ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(i2c_bus_, &tp_io_config, &tp_io_handle));
-        
+        vTaskDelay(pdMS_TO_TICKS(50));
+
         // Touch controller configuration
         esp_lcd_touch_config_t tp_cfg = {
             .x_max = DISPLAY_WIDTH,
