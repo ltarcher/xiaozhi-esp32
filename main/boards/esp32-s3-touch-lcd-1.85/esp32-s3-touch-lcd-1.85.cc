@@ -236,6 +236,10 @@ private:
             .sda_io_num = I2C_SDA_IO,
             .scl_io_num = I2C_SCL_IO,
             .clk_source = I2C_CLK_SRC_DEFAULT,
+            .glitch_ignore_cnt = 7,  // 增加抗干扰能力
+            .flags = {
+                .enable_internal_pullup = 1,  // 启用内部上拉电阻
+            },
         };
         ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &i2c_bus_));
     }
@@ -380,9 +384,9 @@ private:
         // Reset touch controller using IO expander (EXIO1)
         // This follows the official example where EXIO1 controls the touch reset
         esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 0);  // Reset low
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(300));
         esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 1);  // Reset high
-        vTaskDelay(pdMS_TO_TICKS(50));
+        vTaskDelay(pdMS_TO_TICKS(300));
         
         // Reuse the existing I2C bus for touch controller
         // Create IO handle for touch controller
@@ -395,7 +399,7 @@ private:
         esp_lcd_touch_config_t tp_cfg = {
             .x_max = DISPLAY_WIDTH,
             .y_max = DISPLAY_HEIGHT,
-            .rst_gpio_num = TP_PIN_NUM_RST,  // This should be GPIO_NUM_NC since we're using IO expander
+            .rst_gpio_num = GPIO_NUM_NC,  // Using IO expander for reset, not a dedicated GPIO
             .int_gpio_num = TP_PIN_NUM_INT,
             .levels = {
                 .reset = 0,
