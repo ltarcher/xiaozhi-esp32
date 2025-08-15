@@ -257,15 +257,15 @@ private:
         // ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_2 | IO_EXPANDER_PIN_NUM_3, 1);                             // 将引脚电平设置为 1
         // ret = esp_io_expander_print_state(io_expander);                                                                             // 打印引脚状态
 
-        ret = esp_io_expander_set_dir(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, IO_EXPANDER_OUTPUT);                 // 设置引脚 EXIO0 和 EXIO1 模式为输出
+        ret = esp_io_expander_set_dir(io_expander, IO_EXPANDER_PIN_NUM_0 , IO_EXPANDER_OUTPUT);                 // 设置引脚 EXIO0 和 EXIO1 模式为输出
         ESP_ERROR_CHECK(ret);
-        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, 1);                                // 复位 LCD 与 TouchPad
-        ESP_ERROR_CHECK(ret);
-        vTaskDelay(pdMS_TO_TICKS(300));
-        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, 0);                                // 复位 LCD 与 TouchPad
+        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 , 1);                                // 复位 LCD 
         ESP_ERROR_CHECK(ret);
         vTaskDelay(pdMS_TO_TICKS(300));
-        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, 1);                                // 复位 LCD 与 TouchPad
+        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 , 0);                                // 复位 LCD 
+        ESP_ERROR_CHECK(ret);
+        vTaskDelay(pdMS_TO_TICKS(300));
+        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 , 1);                                // 复位 LCD
         ESP_ERROR_CHECK(ret);
     }
 
@@ -377,22 +377,31 @@ private:
     }
  
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH
+    // 在I2C探测前添加总线复位
+    esp_err_t i2c_reset_bus(i2c_master_bus_handle_t bus) {
+        // 强制SDA和SCL为输出并拉高，释放总线
+        gpio_set_direction(TP_PIN_NUM_SDA, GPIO_MODE_OUTPUT);
+        gpio_set_direction(TP_PIN_NUM_SCL, GPIO_MODE_OUTPUT);
+        gpio_set_level(TP_PIN_NUM_SDA, 1);
+        gpio_set_level(TP_PIN_NUM_SCL, 1);
+        vTaskDelay(pdMS_TO_TICKS(10));
+        // 恢复为I2C功能
+        gpio_set_direction(TP_PIN_NUM_SDA, GPIO_MODE_INPUT_OUTPUT);
+        gpio_set_direction(TP_PIN_NUM_SCL, GPIO_MODE_INPUT_OUTPUT);
+        return ESP_OK;
+    }
+
     void InitializeTouch()
     {
         esp_lcd_touch_handle_t tp = NULL;
-        
+        esp_err_t ret;
         // Reset touch controller using IO expander (EXIO1)
-        // This follows the official example where EXIO1 controls the touch reset
-        esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 0);  // Reset low
-        vTaskDelay(pdMS_TO_TICKS(100));
-        esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 1);  // Reset high
-        vTaskDelay(pdMS_TO_TICKS(50));
 
         // Touch controller configuration
         esp_lcd_touch_config_t tp_cfg = {
             .x_max = DISPLAY_WIDTH,
             .y_max = DISPLAY_HEIGHT,
-            .rst_gpio_num = GPIO_NUM_NC,  // Using IO expander for reset, not a dedicated GPIO
+            .rst_gpio_num = TP_PIN_NUM_RST,  // Using IO expander for reset, not a dedicated GPIO
             .int_gpio_num = TP_PIN_NUM_INT,
             .levels = {
                 .reset = 0,
@@ -422,11 +431,37 @@ private:
         esp_lcd_panel_io_handle_t tp_io_handle = NULL;
         esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
         tp_io_config.scl_speed_hz = 400 * 1000;
+
+        // 在触摸复位前增加上电等待
+        vTaskDelay(pdMS_TO_TICKS(300));  // 等待300ms，确保芯片供电稳定
+        // This follows the official example where EXIO1 controls the touch reset
+        // 关键修改：将EXIO_PIN1（IO_EXPANDER_PIN_NUM_1）配置为输出模式
+        ret = esp_io_expander_set_dir(io_expander, IO_EXPANDER_PIN_NUM_1, IO_EXPANDER_OUTPUT);
+        if(ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to set EXIO_PIN1 as output: %s", esp_err_to_name(ret));
+        }
+
+        esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 0);  // Reset low
+        vTaskDelay(pdMS_TO_TICKS(10));
+        esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 1);  // Reset high
+        vTaskDelay(pdMS_TO_TICKS(100));
         
+        //i2c_reset_bus(tp_i2c_bus);
         // 添加I2C设备探测，确保触摸控制器存在
-        esp_err_t ret = i2c_master_probe(tp_i2c_bus, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, 1000);
+        // 增加多次探测机制
+        int retry_count = 3;
+        while (retry_count-- > 0) {
+            ret = i2c_master_probe(tp_i2c_bus, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, 1000);
+            if (ret == ESP_OK) {
+                ESP_LOGI(TAG, "Touch controller found at address 0x%02x", ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS);
+                break;
+            }
+            ESP_LOGI(TAG, "Touch controller not found, retrying...");
+            vTaskDelay(pdMS_TO_TICKS(100)); // 等待100ms后重试
+        }
+
         if (ret != ESP_OK) {
-            ESP_LOGW(TAG, "CST816S touch controller not found on I2C bus, skipping touch initialization");
+            ESP_LOGE(TAG, "Failed to probe touch controller: %s", esp_err_to_name(ret));
             return;
         }
         
@@ -437,8 +472,12 @@ private:
         ret = esp_lcd_touch_new_i2c_cst816s(tp_io_handle, &tp_cfg, &tp);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to initialize CST816S touch controller: %s", esp_err_to_name(ret));
+            // 释放资源
+            i2c_del_master_bus(tp_i2c_bus);
             return;
         }
+
+        ESP_LOGI(TAG, "Touch controller initialized successfully");
         
         // Add touch to LVGL
         const lvgl_port_touch_cfg_t touch_cfg = {
