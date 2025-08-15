@@ -21,6 +21,9 @@
 #include <esp_lcd_touch.h>
 #include <esp_lcd_touch_cst816s.h>
 #include <esp_lvgl_port.h>
+// 添加缺失的头文件
+#include <esp_check.h>
+#include <driver/gpio.h>
 
 #define TAG "waveshare_lcd_1_85"
 
@@ -30,6 +33,334 @@
 
 LV_FONT_DECLARE(font_puhui_16_4);
 LV_FONT_DECLARE(font_awesome_16_4);
+
+/**
+ * 新增cts816s扩展实现
+ */
+/**
+ * @brief Create a new CST816S touch driver with external reset control
+ *
+ * @note  The I2C communication should be initialized before use this function.
+ *
+ * @param io LCD panel IO handle, it should be created by `esp_lcd_new_panel_io_i2c()`
+ * @param config Touch panel configuration
+ * @param tp Touch panel handle
+ * @param io_expander IO expander handle for reset control
+ * @param reset_pin IO expander pin number for reset control
+ * @return
+ *      - ESP_OK: on success
+ */
+esp_err_t esp_lcd_touch_new_i2c_cst816s_with_reset(const esp_lcd_panel_io_handle_t io, 
+                                                   const esp_lcd_touch_config_t *config, 
+                                                   esp_lcd_touch_handle_t *tp,
+                                                   void *io_expander,
+                                                   uint8_t reset_pin);
+
+/**
+ * @brief I2C address of the CST816S controller
+ *
+ */
+#define ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS    (0x15)
+
+/**
+ * @brief Touch IO configuration structure
+ *
+ */
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 2, 0)
+#define ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG()             \
+    {                                                     \
+        .dev_addr = ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, \
+        .on_color_trans_done = 0,                         \
+        .user_ctx = 0,                                    \
+        .control_phase_bytes = 1,                         \
+        .dc_bit_offset = 0,                               \
+        .lcd_cmd_bits = 8,                                \
+        .lcd_param_bits = 0,                              \
+        .flags =                                          \
+        {                                                 \
+            .dc_low_on_data = 0,                          \
+            .disable_control_phase = 1,                   \
+        }                                                 \
+    }
+#else
+#define ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG()             \
+    {                                                     \
+        .dev_addr = ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, \
+        .on_color_trans_done = 0,                         \
+        .user_ctx = 0,                                    \
+        .control_phase_bytes = 1,                         \
+        .dc_bit_offset = 0,                               \
+        .lcd_cmd_bits = 8,                                \
+        .lcd_param_bits = 0,                              \
+        .flags =                                          \
+        {                                                 \
+            .dc_low_on_data = 0,                          \
+            .disable_control_phase = 1,                   \
+        },                                                \
+        .scl_speed_hz = 100000                            \
+    }
+#endif
+
+#define POINT_NUM_MAX       (1)
+
+#define DATA_START_REG      (0x02)
+#define CHIP_ID_REG         (0xA7)
+
+typedef struct {
+    esp_lcd_touch_t base;
+    void *io_expander;
+    uint8_t reset_pin;
+} esp_lcd_touch_cst816s_ext_t;
+
+static esp_err_t read_data(esp_lcd_touch_handle_t tp);
+static bool get_xy(esp_lcd_touch_handle_t tp, uint16_t *x, uint16_t *y, uint16_t *strength, uint8_t *point_num, uint8_t max_point_num);
+static esp_err_t del(esp_lcd_touch_handle_t tp);
+
+static esp_err_t i2c_read_bytes(esp_lcd_touch_handle_t tp, uint16_t reg, uint8_t *data, uint8_t len);
+
+static esp_err_t reset(esp_lcd_touch_handle_t tp);
+static esp_err_t read_id(esp_lcd_touch_handle_t tp);
+
+esp_err_t esp_lcd_touch_new_i2c_cst816s_with_reset(const esp_lcd_panel_io_handle_t io, 
+                                                   const esp_lcd_touch_config_t *config, 
+                                                   esp_lcd_touch_handle_t *tp,
+                                                   void *io_expander,
+                                                   uint8_t reset_pin)
+{
+    esp_err_t ret = ESP_OK;
+    // 修复ESP_RETURN_ON_FALSE未定义的问题
+    if (!io) {
+        ESP_LOGE(TAG, "Invalid io");
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (!config) {
+        ESP_LOGE(TAG, "Invalid config");
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (!tp) {
+        ESP_LOGE(TAG, "Invalid touch handle");
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (!io_expander) {
+        ESP_LOGE(TAG, "Invalid io expander");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    ESP_LOGI(TAG, "Initializing CST816S touch controller with custom reset");
+
+    /* Prepare main structure */
+    esp_lcd_touch_cst816s_ext_t *cst816s_ext = (esp_lcd_touch_cst816s_ext_t*)calloc(1, sizeof(esp_lcd_touch_cst816s_ext_t));
+    // 修复类型转换错误和ESP_GOTO_ON_FALSE未定义的问题
+    if (!cst816s_ext) {
+        ESP_LOGE(TAG, "Touch handle malloc failed");
+        ret = ESP_ERR_NO_MEM;
+        goto err;
+    }
+
+    /* Communication interface */
+    cst816s_ext->base.io = io;
+    /* Only supported callbacks are set */
+    cst816s_ext->base.read_data = read_data;
+    cst816s_ext->base.get_xy = get_xy;
+    cst816s_ext->base.del = del;
+    /* Mutex */
+    cst816s_ext->base.data.lock.owner = portMUX_FREE_VAL;
+    /* Save config */
+    memcpy(&cst816s_ext->base.config, config, sizeof(esp_lcd_touch_config_t));
+    
+    /* Save IO expander info */
+    cst816s_ext->io_expander = io_expander;
+    cst816s_ext->reset_pin = reset_pin;
+
+    /* Reset controller */
+    ret = reset(&cst816s_ext->base);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Reset failed");
+        goto err;
+    }
+    
+    /* Wait a bit more for the controller to be ready after reset */
+    vTaskDelay(pdMS_TO_TICKS(20));
+
+    /* Prepare pin for touch interrupt */
+    if (cst816s_ext->base.config.int_gpio_num != GPIO_NUM_NC) {
+        // 修复GPIO配置结构体字段顺序问题
+        const gpio_config_t int_gpio_config = {
+            .pin_bit_mask = BIT64(cst816s_ext->base.config.int_gpio_num),
+            .mode = GPIO_MODE_INPUT,
+            .intr_type = (cst816s_ext->base.config.levels.interrupt ? GPIO_INTR_POSEDGE : GPIO_INTR_NEGEDGE),
+        };
+        // 修复ESP_GOTO_ON_ERROR未定义的问题
+        ret = gpio_config(&int_gpio_config);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "GPIO intr config failed");
+            goto err;
+        }
+        // 添加上拉电阻配置
+        gpio_pullup_en(cst816s_ext->base.config.int_gpio_num);
+
+        /* Register interrupt callback */
+        if (cst816s_ext->base.config.interrupt_callback) {
+            esp_lcd_touch_register_interrupt_callback(&cst816s_ext->base, cst816s_ext->base.config.interrupt_callback);
+        }
+    }
+    
+    /* Read product id */
+    ret = read_id(&cst816s_ext->base);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Read ID failed");
+        goto err;
+    }
+
+    *tp = &cst816s_ext->base;
+
+    ESP_LOGI(TAG, "CST816S touch controller initialization completed successfully");
+    return ESP_OK;
+err:
+    if (cst816s_ext) {
+        del(&cst816s_ext->base);
+    }
+    ESP_LOGE(TAG, "Initialization failed!");
+    return ret;
+}
+
+static esp_err_t read_data(esp_lcd_touch_handle_t tp)
+{
+    typedef struct {
+        uint8_t num;
+        uint8_t x_h : 4;
+        uint8_t : 4;
+        uint8_t x_l;
+        uint8_t y_h : 4;
+        uint8_t : 4;
+        uint8_t y_l;
+    } data_t;
+
+    data_t point;
+    // 修复ESP_RETURN_ON_ERROR未定义的问题
+    esp_err_t ret = i2c_read_bytes(tp, DATA_START_REG, (uint8_t *)&point, sizeof(data_t));
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "I2C read failed");
+        return ret;
+    }
+
+    portENTER_CRITICAL(&tp->data.lock);
+    point.num = (point.num > POINT_NUM_MAX ? POINT_NUM_MAX : point.num);
+    tp->data.points = point.num;
+    /* Fill all coordinates */
+    for (int i = 0; i < point.num; i++) {
+        tp->data.coords[i].x = point.x_h << 8 | point.x_l;
+        tp->data.coords[i].y = point.y_h << 8 | point.y_l;
+    }
+    portEXIT_CRITICAL(&tp->data.lock);
+
+    return ESP_OK;
+}
+
+static bool get_xy(esp_lcd_touch_handle_t tp, uint16_t *x, uint16_t *y, uint16_t *strength, uint8_t *point_num, uint8_t max_point_num)
+{
+    portENTER_CRITICAL(&tp->data.lock);
+    /* Count of points */
+    *point_num = (tp->data.points > max_point_num ? max_point_num : tp->data.points);
+    for (size_t i = 0; i < *point_num; i++) {
+        x[i] = tp->data.coords[i].x;
+        y[i] = tp->data.coords[i].y;
+
+        if (strength) {
+            strength[i] = tp->data.coords[i].strength;
+        }
+    }
+    /* Invalidate */
+    tp->data.points = 0;
+    portEXIT_CRITICAL(&tp->data.lock);
+
+    return (*point_num > 0);
+}
+
+static esp_err_t del(esp_lcd_touch_handle_t tp)
+{
+    /* Reset GPIO pin settings */
+    if (tp->config.int_gpio_num != GPIO_NUM_NC) {
+        gpio_reset_pin(tp->config.int_gpio_num);
+        if (tp->config.interrupt_callback) {
+            gpio_isr_handler_remove(tp->config.int_gpio_num);
+        }
+    }
+    /* Release memory */
+    free(tp);
+
+    return ESP_OK;
+}
+
+static esp_err_t reset(esp_lcd_touch_handle_t tp)
+{
+    esp_lcd_touch_cst816s_ext_t *cst816s_ext = __containerof(tp, esp_lcd_touch_cst816s_ext_t, base);
+    
+    // 修复类型转换错误和ESP_RETURN_ON_ERROR未定义的问题
+    esp_io_expander_handle_t io_expander = (esp_io_expander_handle_t)cst816s_ext->io_expander;
+    ESP_LOGI(TAG, "Resetting CST816S touch controller via IO expander");
+    // Use IO expander for reset
+    esp_err_t ret = esp_io_expander_set_level(io_expander, cst816s_ext->reset_pin, 0);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "IO expander set level failed");
+        return ret;
+    }
+    vTaskDelay(pdMS_TO_TICKS(10));
+    ret = esp_io_expander_set_level(io_expander, cst816s_ext->reset_pin, 1);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "IO expander set level failed");
+        return ret;
+    }
+    vTaskDelay(pdMS_TO_TICKS(50));  // 增加等待时间确保控制器完全启动
+
+    ESP_LOGI(TAG, "CST816S touch controller reset completed");
+    return ESP_OK;
+}
+
+static esp_err_t read_id(esp_lcd_touch_handle_t tp)
+{
+    uint8_t id;
+    // 修复ESP_RETURN_ON_ERROR未定义的问题
+    esp_err_t ret = ESP_OK;
+    // 添加重试机制
+    for (int i = 0; i < 3; i++) {
+        ret = i2c_read_bytes(tp, CHIP_ID_REG, &id, 1);
+        if (ret == ESP_OK) {
+            break;
+        }
+        ESP_LOGW(TAG, "Read ID attempt %d failed, retrying...", i + 1);
+        vTaskDelay(pdMS_TO_TICKS(20));
+    }
+    
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "I2C read failed after retries");
+        return ret;
+    }
+    ESP_LOGI(TAG, "IC id: 0x%02X", id);
+    return ESP_OK;
+}
+
+static esp_err_t i2c_read_bytes(esp_lcd_touch_handle_t tp, uint16_t reg, uint8_t *data, uint8_t len)
+{
+    // 修复ESP_RETURN_ON_FALSE未定义的问题
+    if (!data) {
+        ESP_LOGE(TAG, "Invalid data");
+        return ESP_ERR_INVALID_ARG;
+    }
+    
+    esp_err_t ret = ESP_OK;
+    // 添加重试机制
+    for (int i = 0; i < 3; i++) {
+        ret = esp_lcd_panel_io_rx_param(tp->io, reg, data, len);
+        if (ret == ESP_OK) {
+            break;
+        }
+        ESP_LOGW(TAG, "I2C read attempt %d failed, retrying...", i + 1);
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+    
+    return ret;
+}
 
 static const st77916_lcd_init_cmd_t vendor_specific_init_new[] = {
     {0xF0, (uint8_t []){0x28}, 1, 0},
@@ -240,37 +571,31 @@ private:
             .flags = {
                 .enable_internal_pullup = 1,  // 启用内部上拉电阻
             },
-            .glitch_ignore_cnt = 7,  // 增加抗干扰能力
-            .flags = {
-                .enable_internal_pullup = 1,  // 启用内部上拉电阻
-            },
         };
         ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &i2c_bus_));
     }
     
     void InitializeTca9554(void) {
         esp_err_t ret = esp_io_expander_new_i2c_tca9554(i2c_bus_, I2C_ADDRESS, &io_expander);
-        if(ret != ESP_OK)
+        if(ret != ESP_OK) {
             ESP_LOGE(TAG, "TCA9554 create returned error");        
+            return;
+        }
 
-        // uint32_t input_level_mask = 0;
-        // ret = esp_io_expander_set_dir(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, IO_EXPANDER_INPUT);               // 设置引脚 EXIO0 和 EXIO1 模式为输入 
-        // ret = esp_io_expander_get_level(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, &input_level_mask);             // 获取引脚 EXIO0 和 EXIO1 的电平状态,存放在 input_level_mask 中
-
-        // ret = esp_io_expander_set_dir(io_expander, IO_EXPANDER_PIN_NUM_2 | IO_EXPANDER_PIN_NUM_3, IO_EXPANDER_OUTPUT);              // 设置引脚 EXIO2 和 EXIO3 模式为输出
-        // ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_2 | IO_EXPANDER_PIN_NUM_3, 1);                             // 将引脚电平设置为 1
-        // ret = esp_io_expander_print_state(io_expander);                                                                             // 打印引脚状态
-
-        ret = esp_io_expander_set_dir(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, IO_EXPANDER_OUTPUT);                 // 设置引脚 EXIO0 和 EXIO1 模式为输出
+        ret = esp_io_expander_set_dir(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, IO_EXPANDER_OUTPUT);
         ESP_ERROR_CHECK(ret);
-        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, 1);                                // 复位 LCD 与 TouchPad
+        
+        ESP_LOGI(TAG, "Resetting LCD and TouchPad via IO expander");
+        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, 1);
         ESP_ERROR_CHECK(ret);
-        vTaskDelay(pdMS_TO_TICKS(300));
-        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, 0);                                // 复位 LCD 与 TouchPad
+        vTaskDelay(pdMS_TO_TICKS(10));  // 缩短初始高电平时间
+        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, 0);
         ESP_ERROR_CHECK(ret);
-        vTaskDelay(pdMS_TO_TICKS(300));
-        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, 1);                                // 复位 LCD 与 TouchPad
+        vTaskDelay(pdMS_TO_TICKS(10));  // 保持低电平10ms
+        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, 1);
         ESP_ERROR_CHECK(ret);
+        vTaskDelay(pdMS_TO_TICKS(100)); // 增加等待时间确保设备完全启动
+        ESP_LOGI(TAG, "LCD and TouchPad reset completed");
     }
 
     void InitializeSpi() {
@@ -385,25 +710,26 @@ private:
     {
         esp_lcd_touch_handle_t tp = NULL;
         
-        // Reset touch controller using IO expander (EXIO1)
-        // This follows the official example where EXIO1 controls the touch reset
-        esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 0);  // Reset low
-        vTaskDelay(pdMS_TO_TICKS(300));
-        esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 1);  // Reset high
-        vTaskDelay(pdMS_TO_TICKS(300));
-        
         // Reuse the existing I2C bus for touch controller
         // Create IO handle for touch controller
         esp_lcd_panel_io_handle_t tp_io_handle = NULL;
         esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
-        tp_io_config.scl_speed_hz = 400 * 1000; // 400kHz
-        ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(i2c_bus_, &tp_io_config, &tp_io_handle));
+        // 确保I2C速度设置正确
+        #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 2, 0)
+            tp_io_config.scl_speed_hz = 400000;  // 400kHz
+        #endif
+        ESP_LOGI(TAG, "Creating I2C panel IO for touch controller with I2C address 0x%02X", tp_io_config.dev_addr);
+        esp_err_t ret = esp_lcd_new_panel_io_i2c(i2c_bus_, &tp_io_config, &tp_io_handle);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to create I2C panel IO for touch controller: %s", esp_err_to_name(ret));
+            return;
+        }
         
         // Touch controller configuration
         esp_lcd_touch_config_t tp_cfg = {
             .x_max = DISPLAY_WIDTH,
             .y_max = DISPLAY_HEIGHT,
-            .rst_gpio_num = GPIO_NUM_NC,  // Using IO expander for reset, not a dedicated GPIO
+            .rst_gpio_num = GPIO_NUM_NC,  // 使用IO扩展器进行复位，不使用GPIO
             .int_gpio_num = TP_PIN_NUM_INT,
             .levels = {
                 .reset = 0,
@@ -416,39 +742,29 @@ private:
             },
         };
         
-        // Create a separate I2C bus for touch controller
-        i2c_master_bus_handle_t tp_i2c_bus;
-        i2c_master_bus_config_t i2c_bus_cfg = {
-            .i2c_port = TP_PORT,
-            .sda_io_num = TP_PIN_NUM_SDA,
-            .scl_io_num = TP_PIN_NUM_SCL,
-            .clk_source = I2C_CLK_SRC_DEFAULT,
-            .glitch_ignore_cnt = 7,
-            .flags = {
-                .enable_internal_pullup = 1,
-            },
-        };
-        ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &tp_i2c_bus));
-        
-        esp_lcd_panel_io_handle_t tp_io_handle = NULL;
-        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
-        tp_io_config.scl_speed_hz = 400 * 1000;
-        
-        // 添加I2C设备探测，确保触摸控制器存在
-        esp_err_t ret = i2c_master_probe(tp_i2c_bus, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, 1000);
-        if (ret != ESP_OK) {
-            ESP_LOGW(TAG, "CST816S touch controller not found on I2C bus, skipping touch initialization");
-            return;
-        }
-        
-        ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(tp_i2c_bus, &tp_io_config, &tp_io_handle));
-        ESP_LOGI(TAG, "Initialize touch controller CST816S");
-        
-        // 添加错误检查，避免系统崩溃
-        ret = esp_lcd_touch_new_i2c_cst816s(tp_io_handle, &tp_cfg, &tp);
+        ESP_LOGI(TAG, "Initializing CST816S touch controller with IO expander reset");
+        // Try to initialize the touch controller with custom driver that uses IO expander for reset
+        ret = esp_lcd_touch_new_i2c_cst816s_with_reset(tp_io_handle, &tp_cfg, &tp, io_expander, IO_EXPANDER_PIN_NUM_1);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to initialize CST816S touch controller: %s", esp_err_to_name(ret));
-            return;
+            // 尝试使用官方驱动作为备选方案
+            ESP_LOGI(TAG, "Trying with official CST816S driver...");
+            ret = esp_lcd_touch_new_i2c_cst816s(tp_io_handle, &tp_cfg, &tp);
+            if (ret != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to initialize CST816S touch controller with official driver: %s", esp_err_to_name(ret));
+                // 再次尝试，但这次不使用中断引脚
+                ESP_LOGI(TAG, "Trying with official CST816S driver without interrupt pin...");
+                tp_cfg.int_gpio_num = GPIO_NUM_NC;
+                ret = esp_lcd_touch_new_i2c_cst816s(tp_io_handle, &tp_cfg, &tp);
+                if (ret != ESP_OK) {
+                    ESP_LOGE(TAG, "Failed to initialize CST816S touch controller even without interrupt pin: %s", esp_err_to_name(ret));
+                    return;
+                } else {
+                    ESP_LOGI(TAG, "Successfully initialized with official CST816S driver without interrupt pin");
+                }
+            } else {
+                ESP_LOGI(TAG, "Successfully initialized with official CST816S driver");
+            }
         }
         
         // Add touch to LVGL
