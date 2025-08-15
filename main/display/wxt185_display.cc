@@ -269,6 +269,9 @@ LV_FONT_DECLARE(lv_font_montserrat_48)
 //
 LV_FONT_DECLARE(font_awesome_30_4);
 
+// 静态成员变量定义
+uint32_t WXT185Display::current_page_index_ = PAGE_CHAT;
+
 // 主题样式字符串
 static const char* ThemeString[] = {
     "Light",
@@ -623,28 +626,27 @@ void WXT185Display::SetupUI() {
     lv_obj_set_style_text_font(main_screen_, fonts_.text_font, 0);
     lv_obj_set_style_text_color(main_screen_, current_wxt185_theme_.text, 0);
     lv_obj_set_style_bg_color(main_screen_, current_wxt185_theme_.background, 0);
-    
-    // 创建页面视图容器（针对360*360圆形屏幕优化）
-    page_container_ = lv_obj_create(main_screen_);
-    lv_obj_set_size(page_container_, width_, height_);
-    lv_obj_set_style_radius(page_container_, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(page_container_, current_wxt185_theme_.background, 0);
-    lv_obj_clear_flag(page_container_, LV_OBJ_FLAG_SCROLLABLE);
+
+    lv_obj_set_size(main_screen_, width_ * 3, height_);  // 3倍宽度以容纳三个页面
+    lv_obj_set_style_radius(main_screen_, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(main_screen_, current_wxt185_theme_.background, 0);
     
     ESP_LOGI(TAG, "Created page view container");
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+    ESP_LOGI(TAG, "Enabling horizontal scrolling");
     // 启用水平滚动
-    lv_obj_set_scroll_dir(page_container_, LV_DIR_HOR);
-    lv_obj_set_scroll_snap_x(page_container_, LV_SCROLL_SNAP_CENTER);
-    lv_obj_set_scrollbar_mode(page_container_, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_set_scroll_dir(main_screen_, LV_DIR_HOR);
+    lv_obj_set_scroll_snap_x(main_screen_, LV_SCROLL_SNAP_CENTER);
+    lv_obj_set_scrollbar_mode(main_screen_, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_add_flag(main_screen_, LV_OBJ_FLAG_SCROLLABLE);
 
     // 添加页面滚动回调
-    lv_obj_add_event_cb(page_container_, PageEventHandler, LV_EVENT_SCROLL_END, this)
+    lv_obj_add_event_cb(main_screen_, PageEventHandler, LV_EVENT_SCROLL_END, this);
 
     // 添加触摸事件处理（仅在有触摸屏时添加）
-    lv_obj_add_event_cb(page_container_, TouchEventHandler, LV_EVENT_PRESSED, this);
-    lv_obj_add_event_cb(page_container_, TouchEventHandler, LV_EVENT_RELEASED, this);
+    lv_obj_add_event_cb(main_screen_, TouchEventHandler, LV_EVENT_PRESSED, this);
+    lv_obj_add_event_cb(main_screen_, TouchEventHandler, LV_EVENT_RELEASED, this);
     ESP_LOGI(TAG, "Added touch event handlers to page view");
 #endif
     
@@ -710,10 +712,10 @@ void WXT185Display::CreateCommonComponents()
     lv_obj_set_style_bg_color(common_outer_ring_, current_wxt185_theme_.outer_ring_background, 0);
     lv_obj_set_style_border_width(common_outer_ring_, 2, 0);
     lv_obj_set_style_border_color(common_outer_ring_, current_wxt185_theme_.border, 0);
-    lv_obj_clear_flag(common_outer_ring_, LV_OBJ_FLAG_SCROLLABLE);
     // 设置为透明，避免挡住其他内容
     lv_obj_set_style_bg_opa(common_outer_ring_, LV_OPA_TRANSP, 0);
 
+    /*
     // 2. 计算基础比例参数（基于屏幕直径）
     uint16_t screen_diameter = lv_obj_get_width(main_screen_);
     float scale = screen_diameter / 360.0f; // 缩放比例（以360为基准）
@@ -734,42 +736,39 @@ void WXT185Display::CreateCommonComponents()
     lv_obj_clear_flag(common_inner_ring_, LV_OBJ_FLAG_CLICKABLE);
     // 设置为透明，避免挡住其他内容
     lv_obj_set_style_bg_opa(common_inner_ring_, LV_OPA_TRANSP, 0);
+    */
 
 }
 
 void WXT185Display::CreateChatPage() {
     ESP_LOGI(TAG, "Creating chat page");
     
-    chat_page_ = lv_obj_create(page_container_);
+    chat_page_ = lv_obj_create(main_screen_);
+    lv_obj_set_size(chat_page_, width_, height_);
+    lv_obj_set_style_radius(chat_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(chat_page_, current_wxt185_theme_.background, 0);
-    lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(chat_page_, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_pad_all(chat_page_, 0, 0);
     lv_obj_set_style_border_width(chat_page_, 0, 0);
     lv_obj_set_style_bg_opa(chat_page_, LV_OPA_TRANSP, 0);
 
-    // 水平对齐, 排在第一个
-    lv_obj_align(chat_page_, LV_ALIGN_TOP_LEFT, PAGE_CHAT * width_, 0);
+    // 确保聊天页面在第一个位置
+    lv_obj_set_x(chat_page_, PAGE_CHAT * width_);
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+    ESP_LOGI(TAG, "Enabling horizontal scrolling to chat page begin");
+    // 添加页面滚动回调
+    lv_obj_add_event_cb(chat_page_, PageEventHandler, LV_EVENT_SCROLL_END, this);
     // 添加触摸事件处理（仅在有触摸屏时添加）
     lv_obj_add_event_cb(chat_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(chat_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
-    ESP_LOGV(TAG, "Added touch event handlers to chat page");
+    ESP_LOGV(TAG, "Added touch event handlers to chat page end");
 #endif
-    // 先用当前的组件创建聊天页面
-    /* Container */
-    container_ = lv_obj_create(chat_page_);
-    lv_obj_set_flex_flow(container_, LV_FLEX_FLOW_COLUMN);
-    lv_obj_set_style_pad_all(container_, 0, 0);
-    lv_obj_set_style_border_width(container_, 0, 0);
-    lv_obj_set_style_pad_row(container_, 0, 0);
-    lv_obj_set_style_bg_color(container_, current_wxt185_theme_.background, 0);
-    lv_obj_set_style_border_color(container_, current_wxt185_theme_.border, 0);
 
     /* Status bar */
-    status_bar_ = lv_obj_create(page_container_);
+    status_bar_ = lv_obj_create(chat_page_);
     // 设置状态栏宽度为屏幕宽度的 20%
-    lv_obj_set_size(status_bar_, LV_HOR_RES * 0.5f, fonts_.text_font->line_height);
+    lv_obj_set_size(status_bar_, LV_HOR_RES * 0.4f, fonts_.text_font->line_height);
     // 设置文本居中
     lv_obj_set_style_text_align(status_bar_, LV_TEXT_ALIGN_CENTER, 0);
     // 设置背景
@@ -781,13 +780,13 @@ void WXT185Display::CreateChatPage() {
     lv_obj_clear_flag(status_bar_, LV_OBJ_FLAG_SCROLLABLE);
 
     /* Content */
-    content_ = lv_obj_create(page_container_);
+    content_ = lv_obj_create(chat_page_);
     lv_obj_align(content_, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_scrollbar_mode(content_, LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_style_radius(content_, 0, 0);
     lv_obj_set_width(content_, LV_HOR_RES);
     lv_obj_set_flex_grow(content_, 1);
-    lv_obj_set_style_pad_all(content_, 5, 0);
+    lv_obj_set_style_pad_all(content_, 0, 0);
     lv_obj_set_style_bg_color(content_, current_wxt185_theme_.chat_background, 0);
     lv_obj_set_style_border_color(content_, current_wxt185_theme_.border, 0); // Border color for content
 
@@ -806,7 +805,7 @@ void WXT185Display::CreateChatPage() {
 
     chat_message_label_ = lv_label_create(content_);
     lv_label_set_text(chat_message_label_, "");
-    lv_obj_set_width(chat_message_label_, LV_HOR_RES * 0.9); // 限制宽度为屏幕宽度的 90%
+    lv_obj_set_width(chat_message_label_, LV_HOR_RES);
     lv_label_set_long_mode(chat_message_label_, LV_LABEL_LONG_WRAP); // 设置为自动换行模式
     lv_obj_set_style_text_align(chat_message_label_, LV_TEXT_ALIGN_CENTER, 0); // 设置文本居中对齐
     lv_obj_set_style_text_color(chat_message_label_, current_wxt185_theme_.text, 0);
@@ -866,21 +865,30 @@ void WXT185Display::CreateCryptoPage() {
     ESP_LOGI(TAG, "Creating crypto page");
     
     // 1. 创建背景
-    crypto_page_ = lv_obj_create(page_container_);
+    crypto_page_ = lv_obj_create(main_screen_);
+    lv_obj_set_size(crypto_page_, width_, height_);
+    lv_obj_set_style_radius(crypto_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(crypto_page_, current_wxt185_theme_.crypto_background, 0);
-    lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(crypto_page_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(crypto_page_, 0, 0);
+    lv_obj_set_style_border_width(crypto_page_, 0, 0);
+    lv_obj_set_style_bg_opa(crypto_page_, LV_OPA_TRANSP, 0);
 
     // 水平对齐，排在第二个页面
-    lv_obj_align(crypto_page_, LV_ALIGN_TOP_LEFT, PAGE_CRYPTO * width_, 0);
+    lv_obj_set_x(crypto_page_, PAGE_CRYPTO * width_);
     
+    // 2. 创建虚拟币roller，支持水平滚动
+    crypto_roller = lv_label_create(crypto_page_);
+
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+    ESP_LOGI(TAG, "Added touch event handlers to crypto page begin");
+    // 添加页面滚动回调
+    lv_obj_add_event_cb(crypto_page_, PageEventHandler, LV_EVENT_SCROLL_END, this);
     // 添加触摸事件处理（仅在有触摸屏时添加）
     lv_obj_add_event_cb(crypto_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(crypto_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
-    ESP_LOGV(TAG, "Added touch event handlers to crypto page");
+    ESP_LOGV(TAG, "Added touch event handlers to crypto page end");
 #endif
-    // 2. 创建虚拟币roller，支持水平滚动
-    crypto_roller = lv_label_create(crypto_page_);
 
     
     ESP_LOGI(TAG, "Crypto page creation completed");
@@ -890,20 +898,26 @@ void WXT185Display::CreateSettingsPage() {
     ESP_LOGI(TAG, "Creating settings page");
     
     // 1. 初始化背景
-    settings_page_ = lv_obj_create(page_container_);
+    settings_page_ = lv_obj_create(main_screen_);
     ESP_LOGI(TAG, "Settings page background created");
+    lv_obj_set_size(settings_page_, width_, height_);
     lv_obj_set_style_radius(settings_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(settings_page_, current_wxt185_theme_.background, 0);
-    lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_pad_all(settings_page_, 0, 0);
+    lv_obj_set_style_border_width(settings_page_, 0, 0);
+    lv_obj_set_style_bg_opa(settings_page_, LV_OPA_TRANSP, 0);
 
-    // 水平对齐，排在第三个页面
-    lv_obj_align(crypto_page_, LV_ALIGN_TOP_LEFT, PAGE_SETTINGS * width_, 0);
+    // 水平对齐，排在第三个页面 (修复错误：原来是crypto_page_)
+    lv_obj_set_x(settings_page_, PAGE_SETTINGS * width_);
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+    ESP_LOGI(TAG, "Added touch event handlers to settings page begin");
+    // 添加页面滚动回调
+    lv_obj_add_event_cb(settings_page_, PageEventHandler, LV_EVENT_SCROLL_END, this);
     // 添加触摸事件处理（仅在有触摸屏时添加）
     lv_obj_add_event_cb(settings_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(settings_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
-    ESP_LOGV(TAG, "Added touch event handlers to settings page");
+    ESP_LOGV(TAG, "Added touch event handlers to settings page end");
 #endif
     
     // 2. 创建设置标题
@@ -1101,30 +1115,35 @@ void WXT185Display::CreateScreensaverPage() {
     lv_obj_set_size(screensaver_page_, width_, height_);
     lv_obj_set_style_radius(screensaver_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(screensaver_page_, current_wxt185_theme_.background, 0);
-    lv_obj_clear_flag(screensaver_page_, LV_OBJ_FLAG_SCROLLABLE);
+    // 设置可滚动（用于退出屏保）
+    lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_SCROLLABLE);
+    // 隐藏滚动条
+    lv_obj_set_scrollbar_mode(screensaver_page_, LV_SCROLLBAR_MODE_OFF);
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+    ESP_LOGI(TAG, "Added touch event handlers to screensaver page start");
     // 为屏保页面添加触摸事件处理程序
     lv_obj_add_event_cb(screensaver_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(screensaver_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
-    ESP_LOGI(TAG, "Added touch event handlers to screensaver page");
+    ESP_LOGI(TAG, "Added touch event handlers to screensaver page end");
 #endif
     
     // 2. 创建外圆环（刻度环）
     screensaver_outer_ring_ = lv_obj_create(screensaver_page_);
-    lv_obj_set_size(screensaver_outer_ring_, width_ - 20, width_ - 20);
+    lv_obj_set_size(screensaver_outer_ring_, width_ - 20 , width_ - 20);
     lv_obj_center(screensaver_outer_ring_);
     lv_obj_set_style_radius(screensaver_outer_ring_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(screensaver_outer_ring_, current_wxt185_theme_.outer_ring_background, 0);
     lv_obj_set_style_border_width(screensaver_outer_ring_, 2, 0);
     lv_obj_set_style_border_color(screensaver_outer_ring_, current_wxt185_theme_.border, 0);
-    lv_obj_clear_flag(screensaver_outer_ring_, LV_OBJ_FLAG_SCROLLABLE);
 
+    /*
     // 3. 计算基础比例参数（基于屏幕直径）
     uint16_t screen_diameter = lv_obj_get_width(screensaver_outer_ring_);
     float scale = screen_diameter / 360.0f; // 缩放比例（以360为基准）
 
     // 4. 内圆环（进度环，直径为屏幕的89%）
+    
     uint16_t progress_ring_size = screen_diameter * 0.89;
     screensaver_progress_ring_ = lv_arc_create(screensaver_page_);
     lv_obj_set_size(screensaver_progress_ring_, progress_ring_size, progress_ring_size);
@@ -1137,6 +1156,7 @@ void WXT185Display::CreateScreensaverPage() {
     //lv_obj_set_style_arc_width(screensaver_progress_ring_, scale * 4, 0);
     lv_arc_set_mode(screensaver_progress_ring_, LV_ARC_MODE_SYMMETRICAL);
     lv_obj_clear_flag(screensaver_progress_ring_, LV_OBJ_FLAG_CLICKABLE);
+    */
 
     // 5. 创建币名显示
     screensaver_crypto_name_ = lv_label_create(screensaver_page_);
@@ -1589,7 +1609,7 @@ void WXT185Display::HandleTouchEnd(lv_point_t point) {
 void WXT185Display::SwitchToPage(int page_index) {
     ESP_LOGI(TAG, "Switching to page %d", page_index);
     DisplayLockGuard lock(this);
-    if (page_container_ == nullptr || page_index < 0 || page_index > 2) return;
+    if (main_screen_ == nullptr || page_index < 0 || page_index > 2) return;
     
     current_page_index_ = page_index;
     
@@ -1618,28 +1638,23 @@ void WXT185Display::SwitchToPage(int page_index) {
 }
 
 void WXT185Display::PageEventHandler(lv_event_t* e) {
-    ESP_LOGI(TAG, "Page event handler called");
-    // 页面事件处理
-    lv_obj_t* obj = (lv_obj_t* )lv_event_get_target(e);
     lv_event_code_t code = lv_event_get_code(e);
+    WXT185Display* self = static_cast<WXT185Display*>(lv_event_get_user_data(e));
      
     if (code == LV_EVENT_SCROLL_END) {
         lv_point_t scroll_end;
-        lv_obj_get_scroll_end(obj, &scroll_end);
+        lv_obj_get_scroll_end(self->main_screen_, &scroll_end);
         ESP_LOGI(TAG, "Scroll end: (%d, %d)", scroll_end.x, scroll_end.y);
 
-        int32_t width = lv_obj_get_content_width(obj);
-        if (width <= 0) return;
-
-        /* 计算当前页面 */
-        uint32_t page = (scroll_end.x + width / 2) / width;
+        // 使用屏幕宽度而不是content_width来计算页面
+        uint32_t page = (scroll_end.x + self->width_ / 2) / self->width_;
 
         /* 确保页面索引有效 */
-        if (page >= MAX_PAGE_INDEX) page = PAGE_SETTINGS;
-        if (page <= PAGE_CHAT) page = PAGE_CHAT;
+        if (page >= 3) page = 2;  // 最多3个页面(0,1,2)
 
         /* 更新当前页面索引 */
-        current_page_index_ = page;
+        WXT185Display::current_page_index_ = page;
+        ESP_LOGI(TAG, "Current page index: %d", WXT185Display::current_page_index_);
     }
 }
 
