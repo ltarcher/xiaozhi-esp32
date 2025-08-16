@@ -385,7 +385,7 @@ private:
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH
     void InitializeI2cTouch() {
         esp_err_t ret;
-        const int max_retries = 5;  // 最大重试次数
+        const int max_retries = 10;  // 最大重试次数
         int retry_count = 0;
 
         // Create a separate I2C bus for touch controller
@@ -405,8 +405,7 @@ private:
             ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &tp_i2c_bus));
             ESP_LOGI(TAG, "I2C bus created successfully (attempt %d)", retry_count + 1);
 
-            // 等待触摸控制器初始化完成
-            vTaskDelay(pdMS_TO_TICKS(500));
+            //这里创建后就不能暂停
 
             // 先进行探测，确保触摸控制器存在
             ret = i2c_master_probe(tp_i2c_bus, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, 2000);
