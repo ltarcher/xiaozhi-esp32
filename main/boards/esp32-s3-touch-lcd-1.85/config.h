@@ -1,3 +1,11 @@
+/*
+ * @Author: ltarcher 59073821@qq.com
+ * @Date: 2025-07-12 09:10:07
+ * @LastEditors: ltarcher 59073821@qq.com
+ * @LastEditTime: 2025-08-16 21:31:36
+ * @FilePath: \xiaozhi-esp32\main\boards\esp32-s3-touch-lcd-1.85\config.h
+ * @Description: 这是默认设置,请设置`customMade`, 打开koroFileHeader查看配置 进行设置: https://github.com/OBKoro1/koro1FileHeader/wiki/%E9%85%8D%E7%BD%AE
+ */
 #ifndef _BOARD_CONFIG_H_
 #define _BOARD_CONFIG_H_
 
@@ -49,7 +57,7 @@
 #define TP_PORT          (I2C_NUM_1)
 #define TP_PIN_NUM_SDA   (GPIO_NUM_1)
 #define TP_PIN_NUM_SCL   (GPIO_NUM_3)
-#define TP_PIN_NUM_RST   (GPIO_NUM_NC)
+#define TP_PIN_NUM_RST   -1//(GPIO_NUM_NC)
 #define TP_PIN_NUM_INT   (GPIO_NUM_4)
 
 #define DISPLAY_BACKLIGHT_PIN           QSPI_PIN_NUM_LCD_BL
