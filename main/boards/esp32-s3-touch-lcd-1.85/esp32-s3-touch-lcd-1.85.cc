@@ -7,9 +7,9 @@
 #include "button.h"
 #include "config.h"
 #include "device_state_event.h"  // 添加设备状态事件头文件
-
+#include <esp_err.h>
+#include "esp_check.h"
 #include <esp_log.h>
-#include "i2c_device.h"
 #include <driver/i2c_master.h>
 #include <driver/ledc.h>
 #include <wifi_station.h>
@@ -18,9 +18,12 @@
 #include <esp_lcd_st77916.h>
 #include <esp_timer.h>
 #include "esp_io_expander_tca9554.h"
-#include <esp_lcd_touch.h>
-#include <esp_lcd_touch_cst816s.h>
 #include <esp_lvgl_port.h>
+#include "esp_lcd_touch.h"
+#include "driver/gpio.h"
+#include "driver/i2c.h"
+#include "esp_lcd_touch_cst816s.h"
+#include "mcp_server.h"
 
 #define TAG "waveshare_lcd_1_85"
 
@@ -218,10 +221,314 @@ static const st77916_lcd_init_cmd_t vendor_specific_init_new[] = {
     {0x11, (uint8_t []){0x00}, 1, 120},
     {0x29, (uint8_t []){0x00}, 1, 0},  
 };
+
+/**
+CST816.h
+*/
+/**
+ * @brief Create a new CST816S touch driver
+ *
+ * @note  The I2C communication should be initialized before use this function.
+ *
+ * @param io LCD panel IO handle, it should be created by `esp_lcd_new_panel_io_i2c()`
+ * @param config Touch panel configuration
+ * @param tp Touch panel handle
+ * @return
+ *      - ESP_OK: on success
+ */
+esp_err_t esp_lcd_touch_new_i2c_cst816s(const esp_lcd_panel_io_handle_t io, const esp_lcd_touch_config_t *config, esp_lcd_touch_handle_t *tp);
+
+/**
+ * @brief I2C address of the CST816S controller
+ *
+ */
+#define ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS    (0x15)
+
+/**
+ * @brief Touch IO configuration structure
+ *
+ */
+#define ESP_LCD_TOUCH_IO_I2C_CST816_CONFIG()             \
+    {                                                    \
+        .dev_addr = ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, \
+        .control_phase_bytes = 1,                        \
+        .dc_bit_offset = 0,                              \
+        .lcd_cmd_bits = 8,                              \
+        .flags =                                         \
+        {                                                \
+            .disable_control_phase = 1,                  \
+        }                                                \
+    }
+    
+
+// I2C settings
+#define I2C_Touch_SDA_IO            1               /*!< GPIO number used for I2C master data  */
+#define I2C_Touch_SCL_IO            3               /*!< GPIO number used for I2C master clock */
+#define I2C_Touch_INT_IO            4               /*!< GPIO number used for I2C master data  */
+#define I2C_Touch_RST_IO            -1              /*!< GPIO number used for I2C master clock */
+#define I2C_Touch_MASTER_NUM        1               /*!< I2C master i2c port number, the number of i2c peripheral interfaces available will depend on the chip */
+#define I2C_Touch_MASTER_FREQ_HZ    400000          /*!< I2C master clock frequency */
+
+esp_io_expander_handle_t io_expander = NULL;
+
+void InitCST816Touch(void);
+
+///////////////////////////////////////////////////////////////////////////////////////
+/**
+ * CST816实现
+ */
+#define POINT_NUM_MAX       (1)
+
+#define DATA_START_REG      (0x02)
+#define CHIP_ID_REG         (0xA7)
+#define AutoSleep_REG       (0xFE)
+
+esp_lcd_touch_handle_t tp = NULL;
+
+static esp_err_t read_data(esp_lcd_touch_handle_t tp);
+static bool get_xy(esp_lcd_touch_handle_t tp, uint16_t *x, uint16_t *y, uint16_t *strength, uint8_t *point_num, uint8_t max_point_num);
+static esp_err_t del(esp_lcd_touch_handle_t tp);
+
+static esp_err_t i2c_read_bytes(esp_lcd_touch_handle_t tp, uint16_t reg, uint8_t *data, uint8_t len);
+static esp_err_t i2c_write_bytes(esp_lcd_touch_handle_t tp, uint16_t reg, uint8_t* data, uint8_t len);
+
+static esp_err_t reset(esp_lcd_touch_handle_t tp);
+static esp_err_t read_id(esp_lcd_touch_handle_t tp);
+static void AutoSleep(bool Sleep_State);
+
+esp_err_t esp_lcd_touch_new_i2c_cst816(const esp_lcd_panel_io_handle_t io, const esp_lcd_touch_config_t *config, esp_lcd_touch_handle_t *tp)
+{
+    ESP_RETURN_ON_FALSE(io, ESP_ERR_INVALID_ARG, TAG, "Invalid io");
+    ESP_RETURN_ON_FALSE(config, ESP_ERR_INVALID_ARG, TAG, "Invalid config");
+    ESP_RETURN_ON_FALSE(tp, ESP_ERR_INVALID_ARG, TAG, "Invalid touch handle");
+
+    /* Prepare main structure */
+    esp_err_t ret = ESP_OK;
+    esp_lcd_touch_handle_t cst816s = (esp_lcd_touch_handle_t)calloc(1, sizeof(esp_lcd_touch_t));
+    ESP_GOTO_ON_FALSE(cst816s, ESP_ERR_NO_MEM, err, TAG, "Touch handle malloc failed");
+
+    /* Communication interface */
+    cst816s->io = io;
+    /* Only supported callbacks are set */
+    cst816s->read_data = read_data;
+    cst816s->get_xy = get_xy;
+    cst816s->del = del;
+    /* Mutex */
+    cst816s->data.lock.owner = portMUX_FREE_VAL;
+    /* Save config */
+    memcpy(&cst816s->config, config, sizeof(esp_lcd_touch_config_t));
+
+    /* Prepare pin for touch interrupt */
+    if (cst816s->config.int_gpio_num != GPIO_NUM_NC) {
+        const gpio_config_t int_gpio_config = {
+            .pin_bit_mask = BIT64(cst816s->config.int_gpio_num),
+            .mode = GPIO_MODE_INPUT,
+            .intr_type = (cst816s->config.levels.interrupt ? GPIO_INTR_POSEDGE : GPIO_INTR_NEGEDGE),
+        };
+        ESP_GOTO_ON_ERROR(gpio_config(&int_gpio_config), err, TAG, "GPIO intr config failed");
+
+        /* Register interrupt callback */
+        if (cst816s->config.interrupt_callback) {
+            esp_lcd_touch_register_interrupt_callback(cst816s, cst816s->config.interrupt_callback);
+        }
+    }
+    /* Prepare pin for touch controller reset */
+    if (cst816s->config.rst_gpio_num != GPIO_NUM_NC) {
+        const gpio_config_t rst_gpio_config = {
+            .pin_bit_mask = BIT64(cst816s->config.rst_gpio_num),
+            .mode = GPIO_MODE_OUTPUT,
+        };
+        ESP_GOTO_ON_ERROR(gpio_config(&rst_gpio_config), err, TAG, "GPIO reset config failed");
+    }
+    /* Reset controller */
+    ESP_GOTO_ON_ERROR(reset(cst816s), err, TAG, "Reset failed");
+
+    /* Read product id */
+    ESP_GOTO_ON_ERROR(read_id(cst816s), err, TAG, "Read version failed");
+    *tp = cst816s;
+    AutoSleep(false);
+    return ESP_OK;
+err:
+    if (cst816s) {
+        del(cst816s);
+    }
+    ESP_LOGE(TAG, "Initialization failed!");
+    return ret;
+}
+
+static esp_err_t read_data(esp_lcd_touch_handle_t tp)
+{
+    typedef struct {
+        uint8_t num;
+        uint8_t x_h : 4;
+        uint8_t : 4;
+        uint8_t x_l;
+        uint8_t y_h : 4;
+        uint8_t : 4;
+        uint8_t y_l;
+    } data_t;
+
+    data_t point;
+    ESP_RETURN_ON_ERROR(i2c_read_bytes(tp, DATA_START_REG, (uint8_t *)&point, sizeof(data_t)), TAG, "I2C read failed");
+
+    portENTER_CRITICAL(&tp->data.lock);
+    point.num = (point.num > POINT_NUM_MAX ? POINT_NUM_MAX : point.num);
+    tp->data.points = point.num;
+    /* Fill all coordinates */
+    for (int i = 0; i < point.num; i++) {
+        tp->data.coords[i].x = point.x_h << 8 | point.x_l;
+        tp->data.coords[i].y = point.y_h << 8 | point.y_l;
+    }
+    portEXIT_CRITICAL(&tp->data.lock);
+
+    return ESP_OK;
+}
+
+static bool get_xy(esp_lcd_touch_handle_t tp, uint16_t *x, uint16_t *y, uint16_t *strength, uint8_t *point_num, uint8_t max_point_num)
+{
+    portENTER_CRITICAL(&tp->data.lock);
+    /* Count of points */
+    *point_num = (tp->data.points > max_point_num ? max_point_num : tp->data.points);
+    for (size_t i = 0; i < *point_num; i++) {
+        x[i] = tp->data.coords[i].x;
+        y[i] = tp->data.coords[i].y;
+
+        if (strength) {
+            strength[i] = tp->data.coords[i].strength;
+        }
+    }
+    /* Invalidate */
+    tp->data.points = 0;
+    portEXIT_CRITICAL(&tp->data.lock);
+
+    return (*point_num > 0);
+}
+
+static esp_err_t del(esp_lcd_touch_handle_t tp)
+{
+    /* Reset GPIO pin settings */
+    if (tp->config.int_gpio_num != GPIO_NUM_NC) {
+        gpio_reset_pin(tp->config.int_gpio_num);
+        if (tp->config.interrupt_callback) {
+            gpio_isr_handler_remove(tp->config.int_gpio_num);
+        }
+    }
+    if (tp->config.rst_gpio_num != GPIO_NUM_NC) {
+        gpio_reset_pin(tp->config.rst_gpio_num);
+    }
+    /* Release memory */
+    free(tp);
+
+    return ESP_OK;
+}
+
+static esp_err_t reset(esp_lcd_touch_handle_t tp)
+{
+    esp_err_t ret;
+    ret = esp_io_expander_set_dir(io_expander, IO_EXPANDER_PIN_NUM_1 , IO_EXPANDER_OUTPUT);                 // 设置引脚 EXIO0 和 EXIO1 模式为输出
+    ESP_ERROR_CHECK(ret);
+    ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1 , 0);                                // 复位 LCD 
+    ESP_ERROR_CHECK(ret);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1 , 1);                                // 复位 LCD 
+    ESP_ERROR_CHECK(ret);
+    vTaskDelay(pdMS_TO_TICKS(50));
+
+    return ESP_OK;
+}
+
+static esp_err_t read_id(esp_lcd_touch_handle_t tp)
+{
+    uint8_t id;
+    ESP_RETURN_ON_ERROR(i2c_read_bytes(tp, CHIP_ID_REG, &id, 1), TAG, "I2C read failed");
+    ESP_LOGI(TAG, "IC id: %d", id);
+    return ESP_OK;
+}
+/*!
+    @brief  Fall asleep automatically
+*/
+static void AutoSleep(bool Sleep_State) {
+    uint8_t Sleep_State_Set = (uint8_t)(!Sleep_State);
+    i2c_write_bytes(tp, AutoSleep_REG, &Sleep_State_Set, 1);
+}
+
+static esp_err_t i2c_read_bytes(esp_lcd_touch_handle_t tp, uint16_t reg, uint8_t *data, uint8_t len)
+{
+    ESP_RETURN_ON_FALSE(data, ESP_ERR_INVALID_ARG, TAG, "Invalid data");
+
+    return esp_lcd_panel_io_rx_param(tp->io, reg, data, len);
+}
+
+static esp_err_t i2c_write_bytes(esp_lcd_touch_handle_t tp, uint16_t reg, uint8_t* data, uint8_t len)
+{
+    assert(tp != NULL);
+
+    // *INDENT-OFF*
+    /* Write data */
+    return esp_lcd_panel_io_tx_param(tp->io, reg, data, len);
+    // *INDENT-ON*
+}
+
+#if 0
+/**
+ * @brief i2c master initialization
+ */
+esp_err_t Touch_I2C_Init(void)
+{
+    int i2c_master_port = I2C_Touch_MASTER_NUM;
+
+    i2c_config_t conf = {
+        .mode = I2C_MODE_MASTER,
+        .sda_io_num = I2C_Touch_SDA_IO,
+        .scl_io_num = I2C_Touch_SCL_IO,
+        .sda_pullup_en = GPIO_PULLUP_ENABLE,
+        .scl_pullup_en = GPIO_PULLUP_ENABLE,
+        .master.clk_speed = I2C_Touch_MASTER_FREQ_HZ,
+    };
+
+    i2c_param_config((i2c_port_t)i2c_master_port, &conf);
+
+    return i2c_driver_install(i2c_master_port, conf.mode, I2C_MASTER_RX_BUF_DISABLE, I2C_MASTER_TX_BUF_DISABLE, 0);
+}
+#endif
+#if 0
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void InitCST816Touch(void)
+{
+    
+    ESP_ERROR_CHECK(Touch_I2C_Init());
+    ESP_LOGI(TAG, "I2C initialized successfully");
+/********************* Touch *********************/
+
+    esp_lcd_panel_io_handle_t tp_io_handle = NULL;
+    esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816_CONFIG();
+    ESP_LOGI(TAG, "Initialize touch IO (I2C)");
+    /* Touch IO handle */
+    ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c((esp_lcd_i2c_bus_handle_t)I2C_Touch_MASTER_NUM, &tp_io_config, &tp_io_handle));
+    esp_lcd_touch_config_t tp_cfg = {
+        .x_max = DISPLAY_WIDTH,
+        .y_max = DISPLAY_HEIGHT,
+        .rst_gpio_num = (gpio_num_t)I2C_Touch_RST_IO,
+        .int_gpio_num = (gpio_num_t)I2C_Touch_INT_IO,
+        .flags = {
+            .swap_xy = 0,
+            .mirror_x = 0,
+            .mirror_y = 0,
+        },
+    };
+    /* Initialize touch */
+    ESP_LOGI(TAG, "Initialize touch controller CST816");
+    ESP_ERROR_CHECK(esp_lcd_touch_new_i2c_cst816(tp_io_handle, &tp_cfg, &tp));
+}
+#endif
+
+
 class CustomBoard : public WifiBoard {
 private:
     i2c_master_bus_handle_t i2c_bus_;
-    esp_io_expander_handle_t io_expander = NULL;
+    i2c_master_bus_handle_t tp_i2c_bus;
+    esp_io_expander_handle_t io_expander;
     WXT185Display* display_;  // 修改为使用新的显示类
     button_handle_t boot_btn, pwr_btn;
     button_driver_t* boot_btn_driver_ = nullptr;
@@ -257,15 +564,15 @@ private:
         // ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_2 | IO_EXPANDER_PIN_NUM_3, 1);                             // 将引脚电平设置为 1
         // ret = esp_io_expander_print_state(io_expander);                                                                             // 打印引脚状态
 
-        ret = esp_io_expander_set_dir(io_expander, IO_EXPANDER_PIN_NUM_0 , IO_EXPANDER_OUTPUT);                 // 设置引脚 EXIO0 和 EXIO1 模式为输出
+        ret = esp_io_expander_set_dir(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1 , IO_EXPANDER_OUTPUT);                 // 设置引脚 EXIO0 和 EXIO1 模式为输出
         ESP_ERROR_CHECK(ret);
-        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 , 1);                                // 复位 LCD 
-        ESP_ERROR_CHECK(ret);
-        vTaskDelay(pdMS_TO_TICKS(300));
-        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 , 0);                                // 复位 LCD 
+        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1 , 1);                                // 复位 LCD 
         ESP_ERROR_CHECK(ret);
         vTaskDelay(pdMS_TO_TICKS(300));
-        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 , 1);                                // 复位 LCD
+        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1 , 0);                                // 复位 LCD 
+        ESP_ERROR_CHECK(ret);
+        vTaskDelay(pdMS_TO_TICKS(300));
+        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1 , 1);                                // 复位 LCD
         ESP_ERROR_CHECK(ret);
     }
 
@@ -377,31 +684,32 @@ private:
     }
  
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH
-    // 在I2C探测前添加总线复位
-    esp_err_t i2c_reset_bus(i2c_master_bus_handle_t bus) {
-        // 强制SDA和SCL为输出并拉高，释放总线
-        gpio_set_direction(TP_PIN_NUM_SDA, GPIO_MODE_OUTPUT);
-        gpio_set_direction(TP_PIN_NUM_SCL, GPIO_MODE_OUTPUT);
-        gpio_set_level(TP_PIN_NUM_SDA, 1);
-        gpio_set_level(TP_PIN_NUM_SCL, 1);
-        vTaskDelay(pdMS_TO_TICKS(10));
-        // 恢复为I2C功能
-        gpio_set_direction(TP_PIN_NUM_SDA, GPIO_MODE_INPUT_OUTPUT);
-        gpio_set_direction(TP_PIN_NUM_SCL, GPIO_MODE_INPUT_OUTPUT);
-        return ESP_OK;
+    void InitializeI2cTouch() {
+        // Create a separate I2C bus for touch controller
+        i2c_master_bus_config_t i2c_bus_cfg = {
+            .i2c_port = TP_PORT,
+            .sda_io_num = TP_PIN_NUM_SDA,
+            .scl_io_num = TP_PIN_NUM_SCL,
+            .clk_source = I2C_CLK_SRC_DEFAULT,
+            .glitch_ignore_cnt = 7,
+            .flags = {
+                .enable_internal_pullup = 1,
+            },
+        };
+        ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &tp_i2c_bus));
     }
 
     void InitializeTouch()
     {
-        esp_lcd_touch_handle_t tp = NULL;
-        esp_err_t ret;
-        // Reset touch controller using IO expander (EXIO1)
-
-        // Touch controller configuration
+        ESP_LOGI(TAG, "Initializing touch controller...");
+        ESP_LOGI(TAG, "Touch I2C config - SDA: %d, SCL: %d, Port: %d, Address: 0x%02X", 
+                 TP_PIN_NUM_SDA, TP_PIN_NUM_SCL, TP_PORT, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS);
+        
+        esp_lcd_touch_handle_t tp;
         esp_lcd_touch_config_t tp_cfg = {
             .x_max = DISPLAY_WIDTH,
             .y_max = DISPLAY_HEIGHT,
-            .rst_gpio_num = TP_PIN_NUM_RST,  // Using IO expander for reset, not a dedicated GPIO
+            .rst_gpio_num = TP_PIN_NUM_RST,
             .int_gpio_num = TP_PIN_NUM_INT,
             .levels = {
                 .reset = 0,
@@ -414,72 +722,76 @@ private:
             },
         };
         
-        // Create a separate I2C bus for touch controller
-        i2c_master_bus_handle_t tp_i2c_bus;
-        i2c_master_bus_config_t i2c_bus_cfg = {
-            .i2c_port = TP_PORT,
-            .sda_io_num = TP_PIN_NUM_SDA,
-            .scl_io_num = TP_PIN_NUM_SCL,
-            .clk_source = I2C_CLK_SRC_DEFAULT,
-            .glitch_ignore_cnt = 7,
-            .flags = {
-                .enable_internal_pullup = 1,
-            },
-        };
-        ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &tp_i2c_bus));
-        
         esp_lcd_panel_io_handle_t tp_io_handle = NULL;
         esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
-        tp_io_config.scl_speed_hz = 400 * 1000;
-
-        // 在触摸复位前增加上电等待
-        vTaskDelay(pdMS_TO_TICKS(300));  // 等待300ms，确保芯片供电稳定
-        // This follows the official example where EXIO1 controls the touch reset
-        // 关键修改：将EXIO_PIN1（IO_EXPANDER_PIN_NUM_1）配置为输出模式
-        ret = esp_io_expander_set_dir(io_expander, IO_EXPANDER_PIN_NUM_1, IO_EXPANDER_OUTPUT);
-        if(ret != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to set EXIO_PIN1 as output: %s", esp_err_to_name(ret));
-        }
-
-        esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 0);  // Reset low
-        vTaskDelay(pdMS_TO_TICKS(10));
-        esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 1);  // Reset high
-        vTaskDelay(pdMS_TO_TICKS(100));
+        // 降低I2C速度以提高稳定性
+        tp_io_config.scl_speed_hz = 100 * 1000;
         
-        //i2c_reset_bus(tp_i2c_bus);
+        ESP_LOGI(TAG, "Probing for CST816S touch controller at address 0x%02X with 100kHz I2C speed", 
+                 ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS);
+        
         // 添加I2C设备探测，确保触摸控制器存在
-        // 增加多次探测机制
-        int retry_count = 3;
-        while (retry_count-- > 0) {
-            ret = i2c_master_probe(tp_i2c_bus, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, 1000);
-            if (ret == ESP_OK) {
-                ESP_LOGI(TAG, "Touch controller found at address 0x%02x", ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS);
-                break;
-            }
-            ESP_LOGI(TAG, "Touch controller not found, retrying...");
-            vTaskDelay(pdMS_TO_TICKS(100)); // 等待100ms后重试
-        }
-
+        esp_err_t ret = i2c_master_probe(tp_i2c_bus, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, 2000);
         if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to probe touch controller: %s", esp_err_to_name(ret));
-            return;
+            ESP_LOGW(TAG, "CST816S touch controller not found on I2C bus at address 0x%02X, error: %s", 
+                     ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, esp_err_to_name(ret));
+            
+            // 尝试使用400kHz再探测一次
+            ESP_LOGI(TAG, "Retrying with 400kHz I2C speed");
+            tp_io_config.scl_speed_hz = 400 * 1000;
+            ret = i2c_master_probe(tp_i2c_bus, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, 2000);
+            if (ret != ESP_OK) {
+                ESP_LOGW(TAG, "Retry with 400kHz I2C speed also failed, error: %s", esp_err_to_name(ret));
+                
+                // 尝试使用主显示屏I2C总线
+                ESP_LOGI(TAG, "Trying main I2C bus for touch controller");
+                ESP_LOGI(TAG, "Main I2C config - SDA: %d, SCL: %d", I2C_SDA_IO, I2C_SCL_IO);
+                
+                // 先释放之前创建的I2C总线
+                i2c_del_master_bus(tp_i2c_bus);
+                
+                // 使用主I2C总线重新探测
+                tp_io_config.scl_speed_hz = 100 * 1000;
+                ret = i2c_master_probe(i2c_bus_, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, 2000);
+                if (ret != ESP_OK) {
+                    ESP_LOGW(TAG, "CST816S touch controller not found on main I2C bus at address 0x%02X with 100kHz, error: %s", 
+                             ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, esp_err_to_name(ret));
+                    
+                    tp_io_config.scl_speed_hz = 400 * 1000;
+                    ret = i2c_master_probe(i2c_bus_, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, 2000);
+                    if (ret != ESP_OK) {
+                        ESP_LOGW(TAG, "CST816S touch controller not found on main I2C bus at address 0x%02X with 400kHz, error: %s", 
+                                 ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, esp_err_to_name(ret));
+                        ESP_LOGW(TAG, "Touch controller initialization failed, skipping touch functionality");
+                        return;
+                    } else {
+                        ESP_LOGI(TAG, "Successfully detected touch controller on main I2C bus with 400kHz");
+                        // 使用主I2C总线
+                        ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(i2c_bus_, &tp_io_config, &tp_io_handle));
+                    }
+                } else {
+                    ESP_LOGI(TAG, "Successfully detected touch controller on main I2C bus with 100kHz");
+                    // 使用主I2C总线
+                    ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(i2c_bus_, &tp_io_config, &tp_io_handle));
+                }
+            } else {
+                ESP_LOGI(TAG, "Successfully detected touch controller with 400kHz I2C speed on separate bus");
+                ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(tp_i2c_bus, &tp_io_config, &tp_io_handle));
+            }
+        } else {
+            ESP_LOGI(TAG, "Successfully detected touch controller with 100kHz I2C speed on separate bus");
+            ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(tp_i2c_bus, &tp_io_config, &tp_io_handle));
         }
         
-        ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(tp_i2c_bus, &tp_io_config, &tp_io_handle));
         ESP_LOGI(TAG, "Initialize touch controller CST816S");
         
         // 添加错误检查，避免系统崩溃
         ret = esp_lcd_touch_new_i2c_cst816s(tp_io_handle, &tp_cfg, &tp);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to initialize CST816S touch controller: %s", esp_err_to_name(ret));
-            // 释放资源
-            i2c_del_master_bus(tp_i2c_bus);
             return;
         }
-
-        ESP_LOGI(TAG, "Touch controller initialized successfully");
         
-        // Add touch to LVGL
         const lvgl_port_touch_cfg_t touch_cfg = {
             .disp = lv_display_get_default(), 
             .handle = tp,
@@ -547,9 +859,28 @@ private:
         }, this);
     }
 
+    void InitializeTools() {
+        // 初始化工具
+        auto& mcp_server = McpServer::GetInstance();
+        // 定义设备的属性
+        mcp_server.AddTool("self.ui.uppage", "上一页", PropertyList(), [this](const PropertyList& properties) -> ReturnValue {
+            ESP_LOGI(TAG, "self.ui.uppage");
+            display_->SwitchToPage(display_->current_page_index_ - 1 > PAGE_CHAT ? display_->current_page_index_ - 1 : 0);
+            return true;
+        });
+
+        mcp_server.AddTool("self.ui.downpage", "下一页", PropertyList(), [this](const PropertyList& properties) -> ReturnValue {
+            ESP_LOGI(TAG, "self.ui.downpage");
+            display_->SwitchToPage(display_->current_page_index_ + 1 < MAX_PAGE_INDEX ? display_->current_page_index_ + 1 : MAX_PAGE_INDEX - 1);
+            return true;
+        });
+
+    }
+
 public:
     CustomBoard() {   
         InitializeI2c();
+        InitializeI2cTouch();
         InitializeTca9554();
         InitializeSpi();
         Initializest77916Display();
@@ -559,7 +890,7 @@ public:
         // Only initialize touch panel if the board has touch capability
         InitializeTouch();
 #endif
-        
+        InitializeTools();
         GetBacklight()->RestoreBrightness();
         
         // 注册设备状态改变事件监听器
