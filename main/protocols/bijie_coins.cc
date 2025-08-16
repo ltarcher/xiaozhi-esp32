@@ -174,6 +174,21 @@ private:
 
         // 解析行情数据
         auto market_data = std::make_shared<CoinMarketData>();
+        
+        // 如果已经有市场数据，保留已有的K线数据
+        if (market_data_) {
+            market_data->kline_data_1m = std::move(market_data_->kline_data_1m);
+            market_data->kline_data_5m = std::move(market_data_->kline_data_5m);
+            market_data->kline_data_15m = std::move(market_data_->kline_data_15m);
+            market_data->kline_data_1h = std::move(market_data_->kline_data_1h);
+            market_data->kline_data_2h = std::move(market_data_->kline_data_2h);
+            market_data->kline_data_4h = std::move(market_data_->kline_data_4h);
+            market_data->kline_data_1d = std::move(market_data_->kline_data_1d);
+            market_data->kline_data_1w = std::move(market_data_->kline_data_1w);
+            market_data->kline_data_1mo = std::move(market_data_->kline_data_1mo);
+            market_data->kline_data_3mo = std::move(market_data_->kline_data_3mo);
+        }
+        
         market_data->currency_id = currency_id_;
         
         cJSON* timestamp = cJSON_GetObjectItem(root, "timestamp");
@@ -736,44 +751,84 @@ private:
                 if (connection) {
                     auto market_data = connection->GetMarketData();
                     if (market_data) {
+                        // 创建锁确保线程安全
+                        std::lock_guard<std::mutex> lock(kline_requests_mutex_);
+                                                        
                         // 根据kline_type更新对应的K线数据
                         switch (task_data->kline_type) {
                             case 13: // 1分钟
+                                // 清除旧数据并复制新数据
+                                market_data->kline_data_1m.clear();
                                 market_data->kline_data_1m = kline_data;
+                                ESP_LOGI(TAG, "Stored %d 1m K-line points for currency %d", 
+                                        (int)kline_data.size(), task_data->currency_id);
                                 break;
                             case 14: // 5分钟
+                                market_data->kline_data_5m.clear();
                                 market_data->kline_data_5m = kline_data;
+                                ESP_LOGI(TAG, "Stored %d 5m K-line points for currency %d", 
+                                        (int)kline_data.size(), task_data->currency_id);
                                 break;
                             case 1: // 15分钟
+                                market_data->kline_data_15m.clear();
                                 market_data->kline_data_15m = kline_data;
+                                ESP_LOGI(TAG, "Stored %d 15m K-line points for currency %d", 
+                                        (int)kline_data.size(), task_data->currency_id);
                                 break;
                             case 2: // 1小时
+                                market_data->kline_data_1h.clear();
                                 market_data->kline_data_1h = kline_data;
+                                ESP_LOGI(TAG, "Stored %d 1h K-line points for currency %d", 
+                                        (int)kline_data.size(), task_data->currency_id);
                                 break;
                             case 10: // 2小时
+                                market_data->kline_data_2h.clear();
                                 market_data->kline_data_2h = kline_data;
+                                ESP_LOGI(TAG, "Stored %d 2h K-line points for currency %d", 
+                                        (int)kline_data.size(), task_data->currency_id);
                                 break;
                             case 11: // 4小时
+                                market_data->kline_data_4h.clear();
                                 market_data->kline_data_4h = kline_data;
+                                ESP_LOGI(TAG, "Stored %d 4h K-line points for currency %d", 
+                                        (int)kline_data.size(), task_data->currency_id);
                                 break;
                             case 3: // 1天
+                                market_data->kline_data_1d.clear();
                                 market_data->kline_data_1d = kline_data;
+                                ESP_LOGI(TAG, "Stored %d 1d K-line points for currency %d", 
+                                        (int)kline_data.size(), task_data->currency_id);
                                 break;
                             case 4: // 1周
+                                market_data->kline_data_1w.clear();
                                 market_data->kline_data_1w = kline_data;
+                                ESP_LOGI(TAG, "Stored %d 1w K-line points for currency %d", 
+                                        (int)kline_data.size(), task_data->currency_id);
                                 break;
                             case 5: // 1月
+                                market_data->kline_data_1mo.clear();
                                 market_data->kline_data_1mo = kline_data;
+                                ESP_LOGI(TAG, "Stored %d 1mo K-line points for currency %d", 
+                                        (int)kline_data.size(), task_data->currency_id);
                                 break;
                             case 12: // 3月
+                                market_data->kline_data_3mo.clear();
                                 market_data->kline_data_3mo = kline_data;
+                                ESP_LOGI(TAG, "Stored %d 3mo K-line points for currency %d", 
+                                        (int)kline_data.size(), task_data->currency_id);
                                 break;
                             default:
                                 ESP_LOGW(TAG, "Unsupported kline type: %d", task_data->kline_type);
                                 break;
                         }
-                        ESP_LOGI(TAG, "Updated K-line data for currency %d, type %d with %d points", 
-                                task_data->currency_id, task_data->kline_type, (int)kline_data.size());
+                                                        
+                        // 验证数据完整性
+                        ESP_LOGI(TAG, "Verified storage: currency %d type %d has %d points", 
+                                task_data->currency_id, task_data->kline_type, 
+                                (int)kline_data.size());
+                    } else {
+                        ESP_LOGE(TAG, "Failed to get market data for currency %d", 
+                                task_data->currency_id);
                     }
                 }
             }
@@ -783,8 +838,7 @@ private:
         {
             std::lock_guard<std::mutex> lock(kline_requests_mutex_);
             pending_kline_requests_.erase(task_data->currency_id);
-        }
-        
+        }        
         // 清理任务数据
         delete task_data;
         
