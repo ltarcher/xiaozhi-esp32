@@ -923,7 +923,7 @@ void WXT185Display::CreateCryptoPage() {
 
     // 创建K线频率按钮容器
     lv_obj_t* kline_btn_container = lv_obj_create(crypto_page_);
-    lv_obj_set_size(kline_btn_container, 180, 80); // 增加高度以容纳两行按钮
+    lv_obj_set_size(kline_btn_container, 210, 80); // 增加高度以容纳两行按钮
     lv_obj_align(kline_btn_container, LV_ALIGN_TOP_MID, 0, 60);
     lv_obj_set_flex_flow(kline_btn_container, LV_FLEX_FLOW_ROW_WRAP); // 改为换行布局
     lv_obj_set_flex_align(kline_btn_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START); // 调整对齐方式
