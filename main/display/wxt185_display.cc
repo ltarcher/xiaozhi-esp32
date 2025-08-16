@@ -892,7 +892,7 @@ void WXT185Display::CreateCryptoPage() {
     crypto_roller = lv_roller_create(crypto_page_);
     lv_obj_set_size(crypto_roller, 100, 100);
     // 在上面中间对齐
-    lv_obj_align(crypto_roller, LV_ALIGN_TOP_MID, 0, 20);
+    lv_obj_align(crypto_roller, LV_ALIGN_TOP_MID, 0, 10);
 
     // 添加虚拟币选项到roller
     // 获取虚拟币列表
@@ -923,9 +923,9 @@ void WXT185Display::CreateCryptoPage() {
 
     // 创建K线频率按钮容器
     lv_obj_t* kline_btn_container = lv_obj_create(crypto_page_);
-    lv_obj_set_size(kline_btn_container, 300, 80); // 增加高度以容纳两行按钮
-    lv_obj_align(kline_btn_container, LV_ALIGN_TOP_MID, 0, 80);
-    lv_obj_set_flex_flow(kline_btn_container, LV_FLEX_FLOW_ROW); // 改为换行布局
+    lv_obj_set_size(kline_btn_container, 240, 80); // 增加高度以容纳两行按钮
+    lv_obj_align(kline_btn_container, LV_ALIGN_TOP_MID, 0, 60);
+    lv_obj_set_flex_flow(kline_btn_container, LV_FLEX_FLOW_ROW_WRAP); // 改为换行布局
     lv_obj_set_flex_align(kline_btn_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START); // 调整对齐方式
     lv_obj_set_style_pad_all(kline_btn_container, 5, 0); // 添加一些内边距
     lv_obj_set_style_border_width(kline_btn_container, 0, 0);
@@ -946,7 +946,7 @@ void WXT185Display::CreateCryptoPage() {
     for (int i = 0; i < 10; i++) {
         lv_obj_t* btn = lv_button_create(kline_btn_container);
         kline_frequency_buttons_[i] = btn; // 保存按钮引用
-        lv_obj_set_size(btn, 30, 30);
+        lv_obj_set_size(btn, 20, 20);
         lv_obj_set_style_radius(btn, 5, 0);
         lv_obj_set_style_bg_color(btn, current_wxt185_theme_.selector, 0);
         
@@ -966,8 +966,8 @@ void WXT185Display::CreateCryptoPage() {
 
     // 创建价格图表，只显示收盘价
     crypto_chart_ = lv_chart_create(crypto_page_);
-    lv_obj_set_size(crypto_chart_, 300, 140);
-    lv_obj_align(crypto_chart_, LV_ALIGN_BOTTOM_MID, 0, -60);
+    lv_obj_set_size(crypto_chart_, 300, 120);
+    lv_obj_align(crypto_chart_, LV_ALIGN_BOTTOM_MID, 0, -80);
     lv_chart_set_type(crypto_chart_, LV_CHART_TYPE_LINE);
 
     // 创建更新时间标签
@@ -1222,27 +1222,6 @@ void WXT185Display::CreateScreensaverPage() {
     lv_obj_set_style_bg_color(screensaver_outer_ring_, current_wxt185_theme_.outer_ring_background, 0);
     lv_obj_set_style_border_width(screensaver_outer_ring_, 2, 0);
     lv_obj_set_style_border_color(screensaver_outer_ring_, current_wxt185_theme_.border, 0);
-
-    /*
-    // 3. 计算基础比例参数（基于屏幕直径）
-    uint16_t screen_diameter = lv_obj_get_width(screensaver_outer_ring_);
-    float scale = screen_diameter / 360.0f; // 缩放比例（以360为基准）
-
-    // 4. 内圆环（进度环，直径为屏幕的89%）
-    
-    uint16_t progress_ring_size = screen_diameter * 0.89;
-    screensaver_progress_ring_ = lv_arc_create(screensaver_page_);
-    lv_obj_set_size(screensaver_progress_ring_, progress_ring_size, progress_ring_size);
-    lv_obj_center(screensaver_progress_ring_);
-    lv_arc_set_angles(screensaver_progress_ring_, 0, 270);
-    lv_obj_set_style_arc_color(screensaver_progress_ring_,
-        screensaver_crypto_.change_24h >= 0 ? current_wxt185_theme_.crypto_up_color : current_wxt185_theme_.crypto_down_color, 0);
-    lv_obj_set_style_arc_color(screensaver_progress_ring_, current_wxt185_theme_.crypto_progress_bg_color, LV_PART_INDICATOR);
-    lv_obj_set_style_arc_width(screensaver_progress_ring_, scale * 4, LV_PART_INDICATOR);
-    //lv_obj_set_style_arc_width(screensaver_progress_ring_, scale * 4, 0);
-    lv_arc_set_mode(screensaver_progress_ring_, LV_ARC_MODE_SYMMETRICAL);
-    lv_obj_clear_flag(screensaver_progress_ring_, LV_OBJ_FLAG_CLICKABLE);
-    */
 
     // 5. 创建币名显示
     screensaver_crypto_name_ = lv_label_create(screensaver_page_);
@@ -1766,6 +1745,12 @@ void WXT185Display::SwitchToPage(int page_index) {
     DisplayLockGuard lock(this);
     if (main_screen_ == nullptr || page_index < 0 || page_index > 2) return;
     
+    // 如果当前在屏保状态，不执行页面切换
+    if (screensaver_active_) {
+        ESP_LOGI(TAG, "Currently in screensaver mode, ignoring page switch");
+        return;
+    }
+    
     current_page_index_ = page_index;
     
     // 滚动到指定页面
@@ -1797,6 +1782,12 @@ void WXT185Display::PageEventHandler(lv_event_t* e) {
     WXT185Display* self = static_cast<WXT185Display*>(lv_event_get_user_data(e));
      
     if (code == LV_EVENT_SCROLL_END) {
+        // 如果当前在屏保状态，不处理页面滚动事件
+        if (self->screensaver_active_) {
+            ESP_LOGI(TAG, "Currently in screensaver mode, ignoring scroll event");
+            return;
+        }
+        
         lv_point_t scroll_end;
         lv_obj_get_scroll_end(self->main_screen_, &scroll_end);
         ESP_LOGI(TAG, "Scroll end: (%d, %d)", scroll_end.x, scroll_end.y);
@@ -2119,10 +2110,12 @@ void WXT185Display::EnterScreensaver() {
         if (settings_page_) lv_obj_add_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
         
         // 显示屏保页面
-        if (screensaver_page_) lv_obj_clear_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
-        
-        // 更新屏保内容
-        UpdateScreensaverContent();
+        if (screensaver_page_) {
+            lv_obj_clear_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
+            // 强制刷新屏保页面内容
+            UpdateScreensaverContent();
+            UpdateScreensaverTime();
+        }
         
         ESP_LOGI(TAG, "Entered screensaver mode end");
     } catch (const std::exception& e) {
@@ -2151,13 +2144,22 @@ void WXT185Display::ExitScreensaver() {
         // 显示当前页面
         switch (current_page_index_) {
             case PAGE_CHAT:
-                if (chat_page_) lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
+                if (chat_page_) {
+                    lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_scroll_to_view_recursive(chat_page_, LV_ANIM_OFF);
+                }
                 break;
             case PAGE_CRYPTO:
-                if (crypto_page_) lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
+                if (crypto_page_) {
+                    lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_scroll_to_view_recursive(crypto_page_, LV_ANIM_OFF);
+                }
                 break;
             case PAGE_SETTINGS:
-                if (settings_page_) lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
+                if (settings_page_) {
+                    lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_scroll_to_view_recursive(settings_page_, LV_ANIM_OFF);
+                }
                 break;
         }
         
