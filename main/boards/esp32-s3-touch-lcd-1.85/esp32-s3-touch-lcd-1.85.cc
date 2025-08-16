@@ -10,7 +10,6 @@
 #include <esp_err.h>
 #include "esp_check.h"
 #include <esp_log.h>
-#include <driver/i2c_master.h>
 #include <driver/ledc.h>
 #include <wifi_station.h>
 #include <esp_lcd_panel_io.h>
@@ -20,8 +19,6 @@
 #include "esp_io_expander_tca9554.h"
 #include <esp_lvgl_port.h>
 #include "esp_lcd_touch.h"
-#include "driver/gpio.h"
-#include "driver/i2c.h"
 #include "esp_lcd_touch_cst816s.h"
 #include "mcp_server.h"
 
@@ -386,35 +383,6 @@ private:
     }
  
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH
-    // 复位CST816触摸芯片
-    void cst816_reset(void) {
-        // 使用EXIO引脚1进行复位（根据厂商示例，EXIO1连接到TP_RST）
-        ESP_LOGI(TAG, "Resetting CST816 touch controller");
-        // 设置EXIO1为输出模式
-        esp_err_t ret = esp_io_expander_set_dir(io_expander, IO_EXPANDER_PIN_NUM_1, IO_EXPANDER_OUTPUT);
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to set EXIO1 as output for touch reset");
-            return;
-        }
-        
-        // 执行复位序列：拉低10ms，然后拉高并等待50ms
-        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 0);
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to set EXIO1 low for touch reset");
-            return;
-        }
-        vTaskDelay(pdMS_TO_TICKS(20));
-        
-        ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 1);
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to set EXIO1 high for touch reset");
-            return;
-        }
-        vTaskDelay(pdMS_TO_TICKS(100));
-        
-        ESP_LOGI(TAG, "CST816 reset completed via EXIO1");
-    }
-    
     void InitializeI2cTouch() {
         esp_err_t ret;
         const int max_retries = 5;  // 最大重试次数
@@ -437,6 +405,9 @@ private:
             ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &tp_i2c_bus));
             ESP_LOGI(TAG, "I2C bus created successfully (attempt %d)", retry_count + 1);
 
+            // 等待触摸控制器初始化完成
+            vTaskDelay(pdMS_TO_TICKS(500));
+
             // 先进行探测，确保触摸控制器存在
             ret = i2c_master_probe(tp_i2c_bus, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, 2000);
             if (ret != ESP_OK) {
@@ -452,6 +423,8 @@ private:
                     ESP_LOGI(TAG, "Retrying I2C initialization (attempt %d of %d)", retry_count + 1, max_retries);
                     continue;
                 } else {
+                    // 重试次数过多则删除总线并重新创建
+                    ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &tp_i2c_bus));
                     ESP_LOGE(TAG, "Failed to detect CST816S touch controller after %d attempts", max_retries);
                     return;
                 }
@@ -461,54 +434,18 @@ private:
             break;
         } while (retry_count < max_retries);
         
-        ESP_LOGI(TAG, "CST816S touch controller found on I2C bus at address 0x%02X", ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS);
-
-        // 触摸屏复位
-        
-        //cst816_reset();
-        //vTaskDelay(pdMS_TO_TICKS(100));
-        
-        // 复位后再探测确保设备响应正常
-        /*
-        ret = i2c_master_probe(tp_i2c_bus, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, 2000);
-        if (ret != ESP_OK) {
-            ESP_LOGW(TAG, "CST816S touch controller not responding after reset, error: %s", 
-                     esp_err_to_name(ret));
-            // 即使复位后探测失败，我们仍然尝试继续初始化
-        } else {
-            ESP_LOGI(TAG, "CST816S touch controller responding after reset");
-        }
-        */
-        /*
-        // 配置I2C设备
-        i2c_device_config_t dev_cfg = {
-            .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-            .device_address = ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS,
-            .scl_speed_hz = 100000,
-        };
-
-        // 添加I2C设备
-        ret = i2c_master_bus_add_device(tp_i2c_bus, &dev_cfg, &i2c_tp_dev);
-        if (ret != ESP_OK) {
-            i2c_del_master_bus(tp_i2c_bus);
-            ESP_LOGE(TAG, "Failed to add I2C device: %s", esp_err_to_name(ret));
-            return;
-        }
-        vTaskDelay(pdMS_TO_TICKS(100));
-        
-        ESP_LOGI(TAG, "I2C device added successfully");
-        */
-        
+        ESP_LOGI(TAG, "CST816S touch controller found on I2C bus at address 0x%02X", ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS);    
     }
 
-    void InitializeTouch()
+    esp_lcd_touch_handle_t InitializeTouch()
     {
+        InitializeI2cTouch();
         esp_err_t ret;
         ESP_LOGI(TAG, "Initializing touch controller...");
         ESP_LOGI(TAG, "Touch I2C config - SDA: %d, SCL: %d, Port: %d, Address: 0x%02X", 
                  TP_PIN_NUM_SDA, TP_PIN_NUM_SCL, TP_PORT, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS);
         
-        esp_lcd_touch_handle_t tp;
+        esp_lcd_touch_handle_t tp = nullptr;
         esp_lcd_touch_config_t tp_cfg = {
             .x_max = DISPLAY_WIDTH,
             .y_max = DISPLAY_HEIGHT,
@@ -536,7 +473,7 @@ private:
         if (ret != ESP_OK) {
             ESP_LOGW(TAG, "CST816S touch controller not found on I2C bus at address 0x%02X, error: %s", 
                      ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, esp_err_to_name(ret));
-            return;
+            return tp;
         } else {
             ESP_LOGI(TAG, "Successfully detected touch controller with 100kHz I2C speed on separate bus");
             ESP_ERROR_CHECK(esp_lcd_new_panel_io_i2c(tp_i2c_bus, &tp_io_config, &tp_io_handle));
@@ -548,42 +485,21 @@ private:
         ret = esp_lcd_touch_new_i2c_cst816s(tp_io_handle, &tp_cfg, &tp);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to initialize CST816S touch controller: %s", esp_err_to_name(ret));
-            return;
+            return tp;
         }
-
-        /*
-        // 添加重试机制，最多尝试3次初始化触摸控制器
-        const int max_touch_retries = 3;
-        int touch_retry_count = 0;
-        ret = ESP_FAIL;
         
-        do {
-            // 添加错误检查，避免系统崩溃
-            ret = esp_lcd_touch_new_i2c_cst816s(tp_io_handle, &tp_cfg, &tp);
-            if (ret != ESP_OK) {
-                ESP_LOGW(TAG, "Failed to initialize CST816S touch controller: %s (attempt %d of %d)", 
-                         esp_err_to_name(ret), touch_retry_count + 1, max_touch_retries);
-                touch_retry_count++;
-                
-                if (touch_retry_count < max_touch_retries) {
-                    // 在重试前稍作延时
-                    vTaskDelay(pdMS_TO_TICKS(100));
-                    ESP_LOGI(TAG, "Retrying touch controller initialization (attempt %d)", touch_retry_count + 1);
-                }
-            }
-        } while (ret != ESP_OK && touch_retry_count < max_touch_retries);
-        
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to initialize CST816S touch controller after %d attempts", max_touch_retries);
-            return;
-        }
-        */
-        const lvgl_port_touch_cfg_t touch_cfg = {
-            .disp = lv_display_get_default(), 
-            .handle = tp,
-        };
-        lvgl_port_add_touch(&touch_cfg);
         ESP_LOGI(TAG, "Touch panel initialized successfully");
+        return tp;
+    }
+
+    void InitTouchToDisplay(esp_lcd_touch_handle_t tp) {
+        if (tp != NULL) {
+            const lvgl_port_touch_cfg_t touch_cfg = {
+                .disp = lv_display_get_default(), 
+                .handle = tp,
+            };
+            lvgl_port_add_touch(&touch_cfg);
+        }
     }
 #endif
 
@@ -676,16 +592,17 @@ public:
     CustomBoard() {   
         InitializeI2c();
         InitializeTca9554();
+#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH
+        // 先初始化触摸控制器
+        esp_lcd_touch_handle_t tp = InitializeTouch();
+#endif
         InitializeSpi();
         Initializest77916Display();
         InitializeButtons();
-#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH
-        // 初始化触摸控制器，要再初始化显示之后
-        InitializeI2cTouch();
-#endif
 
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH
-        InitializeTouch();
+        // 等显示控制器初始化完成后再设置触摸屏句柄给lvgl，这样避免再初始化显示屏后再初始化触摸屏容易卡死的问题
+        InitTouchToDisplay(tp);
 #endif
 
         InitializeTools();
