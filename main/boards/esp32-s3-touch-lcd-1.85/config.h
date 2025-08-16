@@ -57,7 +57,7 @@
 #define TP_PORT          (I2C_NUM_1)
 #define TP_PIN_NUM_SDA   (GPIO_NUM_1)
 #define TP_PIN_NUM_SCL   (GPIO_NUM_3)
-#define TP_PIN_NUM_RST   -1//(GPIO_NUM_NC)
+#define TP_PIN_NUM_RST   (GPIO_NUM_NC)
 #define TP_PIN_NUM_INT   (GPIO_NUM_4)
 
 #define DISPLAY_BACKLIGHT_PIN           QSPI_PIN_NUM_LCD_BL
