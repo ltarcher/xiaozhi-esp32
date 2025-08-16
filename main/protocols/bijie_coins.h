@@ -41,6 +41,9 @@ struct CoinMarketData {
     std::vector<std::pair<float, float>> kline_data_1w;  // 1周K线
     std::vector<std::pair<float, float>> kline_data_1mo; // 1月K线
     std::vector<std::pair<float, float>> kline_data_3mo; // 3月K线
+    
+    // toString函数，将所有变量转为一个字符串返回
+    std::string toString() const;
 };
 
 // K线数据结构

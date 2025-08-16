@@ -13,6 +13,8 @@
 #include "universal_http_client.h"  // 使用 UniversalHttpClient
 #include <set>
 #include <mutex>
+#include <sstream>
+#include <iomanip>
 
 static const char* TAG = "BiJieCoins";
 
@@ -745,4 +747,38 @@ std::vector<int> BiJieCoins::GetSupportedCurrencyIds() const {
 
 void BiJieCoins::GetKLineData(int currency_id, int kline_type, int limit, OnKLineDataCallback callback) {
     impl_->GetKLineData(currency_id, kline_type, limit, std::move(callback));
+}
+
+std::string CoinMarketData::toString() const {
+    std::ostringstream oss;
+    
+    oss << "CoinMarketData{"
+        << "timestamp=" << timestamp
+        << ",open=" << std::fixed << std::setprecision(6) << open
+        << ",high=" << std::fixed << std::setprecision(6) << high
+        << ",low=" << std::fixed << std::setprecision(6) << low
+        << ",close=" << std::fixed << std::setprecision(6) << close
+        << ",turnover=" << std::fixed << std::setprecision(6) << turnover
+        << ",change=" << std::fixed << std::setprecision(6) << change
+        << ",change_24h=" << std::fixed << std::setprecision(6) << change_24h
+        << ",change_7d=" << std::fixed << std::setprecision(6) << change_7d
+        << ",change_30d=" << std::fixed << std::setprecision(6) << change_30d
+        << ",change_1h=" << std::fixed << std::setprecision(6) << change_1h
+        << ",change_year=" << std::fixed << std::setprecision(6) << change_year
+        << ",change_now=" << std::fixed << std::setprecision(6) << change_now
+        << ",currency_id=" << currency_id
+        << ",circulation_market=" << std::fixed << std::setprecision(6) << circulation_market
+        << ",kline_data_1m_size=" << kline_data_1m.size()
+        << ",kline_data_5m_size=" << kline_data_5m.size()
+        << ",kline_data_15m_size=" << kline_data_15m.size()
+        << ",kline_data_1h_size=" << kline_data_1h.size()
+        << ",kline_data_2h_size=" << kline_data_2h.size()
+        << ",kline_data_4h_size=" << kline_data_4h.size()
+        << ",kline_data_1d_size=" << kline_data_1d.size()
+        << ",kline_data_1w_size=" << kline_data_1w.size()
+        << ",kline_data_1mo_size=" << kline_data_1mo.size()
+        << ",kline_data_3mo_size=" << kline_data_3mo.size()
+        << "}";
+    
+    return oss.str();
 }

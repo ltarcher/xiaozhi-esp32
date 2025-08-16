@@ -1555,6 +1555,9 @@ void WXT185Display::DrawKLineChart() {
             ESP_LOGW(TAG, "No market data available for currency ID: %d", current_crypto_data_.currency_id);
             return;
         }
+
+        // 输出当前最新的数据
+        ESP_LOGI(TAG, "Latest market data: %s", market_data->toString().c_str());
         
         // 根据选择的K线频率获取相应的数据
         const std::vector<std::pair<float, float>>* kline_data = nullptr;
