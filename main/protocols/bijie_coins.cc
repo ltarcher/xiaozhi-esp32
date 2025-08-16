@@ -435,7 +435,7 @@ public:
         }
         
         // 创建一个新的任务来处理HTTP请求
-        auto task_data = new KLineTaskData{currency_id, kline_type, limit, callback, proxy_config_};
+        auto task_data = new KLineTaskData{currency_id, kline_type, limit, callback, proxy_config_, this};
         
         // 创建任务处理K线数据获取
         xTaskCreatePinnedToCore(
@@ -456,6 +456,7 @@ private:
         int limit;
         OnKLineDataCallback callback;
         ProxyConfig proxy_config;
+        Impl* impl;  // 添加Impl指针
     };
     
     static void KLineDataTask(void* pvParameters) {
@@ -670,6 +671,88 @@ private:
             task_data->callback(kline_data);
         }
         
+        // 更新对应Connection的K线数据，以便UI查询时能获取到正确的数据
+        if (!kline_data.empty() && task_data->impl) {
+            // 获取对应的Connection
+            auto connection_it = task_data->impl->connections_.find(task_data->currency_id);
+            if (connection_it != task_data->impl->connections_.end()) {
+                auto connection = connection_it->second;
+                if (connection) {
+                    auto market_data = connection->GetMarketData();
+                    if (market_data) {
+                        // 根据kline_type更新对应的K线数据
+                        switch (task_data->kline_type) {
+                            case 13: // 1分钟
+                                market_data->kline_data_1m.clear();
+                                for (const auto& kline : kline_data) {
+                                    market_data->kline_data_1m.emplace_back(kline.open, kline.close);
+                                }
+                                break;
+                            case 14: // 5分钟
+                                market_data->kline_data_5m.clear();
+                                for (const auto& kline : kline_data) {
+                                    market_data->kline_data_5m.emplace_back(kline.open, kline.close);
+                                }
+                                break;
+                            case 1: // 15分钟
+                                market_data->kline_data_15m.clear();
+                                for (const auto& kline : kline_data) {
+                                    market_data->kline_data_15m.emplace_back(kline.open, kline.close);
+                                }
+                                break;
+                            case 2: // 1小时
+                                market_data->kline_data_1h.clear();
+                                for (const auto& kline : kline_data) {
+                                    market_data->kline_data_1h.emplace_back(kline.open, kline.close);
+                                }
+                                break;
+                            case 10: // 2小时
+                                market_data->kline_data_2h.clear();
+                                for (const auto& kline : kline_data) {
+                                    market_data->kline_data_2h.emplace_back(kline.open, kline.close);
+                                }
+                                break;
+                            case 11: // 4小时
+                                market_data->kline_data_4h.clear();
+                                for (const auto& kline : kline_data) {
+                                    market_data->kline_data_4h.emplace_back(kline.open, kline.close);
+                                }
+                                break;
+                            case 3: // 1天
+                                market_data->kline_data_1d.clear();
+                                for (const auto& kline : kline_data) {
+                                    market_data->kline_data_1d.emplace_back(kline.open, kline.close);
+                                }
+                                break;
+                            case 4: // 1周
+                                market_data->kline_data_1w.clear();
+                                for (const auto& kline : kline_data) {
+                                    market_data->kline_data_1w.emplace_back(kline.open, kline.close);
+                                }
+                                break;
+                            case 5: // 1月
+                                market_data->kline_data_1mo.clear();
+                                for (const auto& kline : kline_data) {
+                                    market_data->kline_data_1mo.emplace_back(kline.open, kline.close);
+                                }
+                                break;
+                            case 12: // 3月
+                                market_data->kline_data_3mo.clear();
+                                for (const auto& kline : kline_data) {
+                                    market_data->kline_data_3mo.emplace_back(kline.open, kline.close);
+                                }
+                                break;
+                            default:
+                                ESP_LOGW(TAG, "Unsupported kline type: %d", task_data->kline_type);
+                                break;
+                        }
+                        ESP_LOGI(TAG, "Updated K-line data for currency %d, type %d with %d points", 
+                                task_data->currency_id, task_data->kline_type, (int)kline_data.size());
+                    }
+                }
+            }
+        }
+        
         // 从正在进行的请求集合中移除currency_id
         {
             std::lock_guard<std::mutex> lock(kline_requests_mutex_);
@@ -683,7 +766,6 @@ private:
         ESP_LOGI(TAG, "KLineDataTask completed, deleting task");
         vTaskDelete(nullptr);
     }
-
 private:
     BiJieCoins* parent_;
     std::map<int, std::shared_ptr<BiJieCoinConnection>> connections_;
