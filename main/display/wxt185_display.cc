@@ -1567,7 +1567,7 @@ void WXT185Display::DrawKLineChart() {
         ESP_LOGI(TAG, "Latest market data: %s", market_data->toString().c_str());
         
         // 根据选择的K线频率获取相应的数据
-        const std::vector<std::pair<float, float>>* kline_data = nullptr;
+        const std::vector<KLineData>* kline_data = nullptr;
         const char* frequency_names[] = {"1m", "5m", "15m", "1h", "2h", "4h", "1d", "1w", "1mo", "3mo"};
         
         switch (selected_kline_frequency_) {
@@ -1647,7 +1647,7 @@ void WXT185Display::DrawKLineChart() {
         int point_count = 0;
         for (size_t i = 0; i < kline_data->size() && point_count < 30; i++) { // 限制显示30个点
             // 只添加收盘价到图表
-            lv_chart_set_next_value(chart, close_ser, static_cast<int32_t>((*kline_data)[i].second * 100)); // 收盘价
+            lv_chart_set_next_value(chart, close_ser, static_cast<int32_t>((*kline_data)[i].close * 100)); // 收盘价
             point_count++;
         }
         
@@ -2515,7 +2515,7 @@ void WXT185Display::ConnectToBiJieCoins() {
             if (self->enable_kline_crypto_data_) {
                 ESP_LOGI(TAG, "Getting K-line data for currency %d", self->current_crypto_data_.currency_id);
                 // 获取K线数据用于图表显示
-                self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, GetKLineTypeByIndex(selected_kline_frequency_), 30, [self](const std::vector<KLineData>& kline_data) {
+                self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, self->GetKLineTypeByIndex(self->selected_kline_frequency_), 30, [self](const std::vector<KLineData>& kline_data) {
                     // 检查参数有效性
                     if (!self) {
                         ESP_LOGE(TAG, "K-line data callback: self is null");

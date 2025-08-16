@@ -18,15 +18,15 @@ struct CryptocurrencyData {
     int currency_id; // 货币ID
     
     // K线数据（历史数据）
-    std::vector<std::pair<float, float>> kline_data_1m;  // 1分钟K线
-    std::vector<std::pair<float, float>> kline_data_5m;  // 5分钟K线
-    std::vector<std::pair<float, float>> kline_data_15m; // 15分钟K线
-    std::vector<std::pair<float, float>> kline_data_1h;  // 1小时K线
-    std::vector<std::pair<float, float>> kline_data_4h;  // 4小时K线
-    std::vector<std::pair<float, float>> kline_data_1d;  // 1天K线
-    std::vector<std::pair<float, float>> kline_data_1w;  // 1周K线
-    std::vector<std::pair<float, float>> kline_data_1mo; // 1月K线
-    std::vector<std::pair<float, float>> kline_data_3mo; // 3月K线
+    std::vector<KLineData> kline_data_1m;  // 1分钟K线
+    std::vector<KLineData> kline_data_5m;  // 5分钟K线
+    std::vector<KLineData> kline_data_15m; // 15分钟K线
+    std::vector<KLineData> kline_data_1h;  // 1小时K线
+    std::vector<KLineData> kline_data_4h;  // 4小时K线
+    std::vector<KLineData> kline_data_1d;  // 1天K线
+    std::vector<KLineData> kline_data_1w;  // 1周K线
+    std::vector<KLineData> kline_data_1mo; // 1月K线
+    std::vector<KLineData> kline_data_3mo; // 3月K线
 };
 
 // WXT185主题颜色定义
