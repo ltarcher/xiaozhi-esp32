@@ -2019,9 +2019,9 @@ void WXT185Display::CryptoUpdateTimerCallback(void* arg) {
         ESP_LOGE(TAG, "Unknown exception occurred in CryptoUpdateTimerCallback");
     }
     
-    // 重新启动定时器，每10秒更新一次行情
+    // 重新启动定时器，每5秒更新一次行情
     if (self->crypto_update_timer_) {
-        esp_timer_start_once(self->crypto_update_timer_, 10 * 1000 * 1000); // 10秒
+        esp_timer_start_once(self->crypto_update_timer_, 5 * 1000 * 1000); // 5秒
     }
 }
 
