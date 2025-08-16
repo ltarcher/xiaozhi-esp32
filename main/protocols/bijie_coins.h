@@ -9,7 +9,7 @@
 #include <memory>
 
 #define MAX_COIN_NAME_LEN 16
-#define MAX_KLINE_FREQUENCIES_LEN 9
+#define MAX_KLINE_FREQUENCIES_LEN 10
 
 // 虚拟币行情数据结构
 struct CoinMarketData {
@@ -35,6 +35,7 @@ struct CoinMarketData {
     std::vector<std::pair<float, float>> kline_data_5m;  // 5分钟K线
     std::vector<std::pair<float, float>> kline_data_15m; // 15分钟K线
     std::vector<std::pair<float, float>> kline_data_1h;  // 1小时K线
+    std::vector<std::pair<float, float>> kline_data_2h;  // 2小时K线
     std::vector<std::pair<float, float>> kline_data_4h;  // 4小时K线
     std::vector<std::pair<float, float>> kline_data_1d;  // 1天K线
     std::vector<std::pair<float, float>> kline_data_1w;  // 1周K线
@@ -154,7 +155,17 @@ public:
     /**
      * @brief 获取指定货币的历史K线数据
      * @param currency_id 货币ID
-     * @param kline_type K线类型
+     * @param kline_type K线类型, 默认为2（1小时K线），
+     *                  可选值：13（1分钟），
+     *                          14（5分钟），
+     *                          1（15分钟），
+     *                          2（1小时），
+     *                          10（2小时），
+     *                          11（4小时），
+     *                          3（1天），
+     *                          4（1周）， 
+     *                          5（1月），
+     *                          12（三个月）
      * @param limit 数据条数限制
      * @param callback 回调函数
      */
@@ -166,7 +177,7 @@ public:
      */
     const char** GetKLineTimeFrequencies() {
         static const char* klinefreq_[] = {
-            "1m", "5m", "15m", "30m", "1h", "4h", "1d", "1w", "1mo", "3mo"
+            "1m", "5m", "15m", "1h", "2h", "4h", "1d", "1w", "1mo", "3mo"
         };
         return klinefreq_;
     };

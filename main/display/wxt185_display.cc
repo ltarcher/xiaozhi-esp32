@@ -876,9 +876,6 @@ void WXT185Display::CreateCryptoPage() {
 
     // 水平对齐，排在第二个页面
     lv_obj_set_x(crypto_page_, PAGE_CRYPTO * width_);
-    
-    // 2. 创建虚拟币roller，支持水平滚动
-    crypto_roller = lv_label_create(crypto_page_);
 
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
     ESP_LOGI(TAG, "Added touch event handlers to crypto page begin");
@@ -890,6 +887,93 @@ void WXT185Display::CreateCryptoPage() {
     ESP_LOGV(TAG, "Added touch event handlers to crypto page end");
 #endif
 
+    // 2. 创建虚拟币roller，支持水平滚动
+    crypto_roller = lv_roller_create(crypto_page_);
+    lv_obj_set_size(crypto_roller, 100, 100);
+    // 在上面中间对齐
+    lv_obj_align(crypto_roller, LV_ALIGN_TOP_MID, 0, 0);
+
+    // 添加虚拟币选项到roller
+    // 获取虚拟币列表
+    int crypto_count = 0;
+    if (bijie_coins_ != nullptr) {
+        std::vector<CoinInfo> v = bijie_coins_->GetCoinList();
+        crypto_count = v.size();
+        char crypto_options[MAX_COIN_NAME_LEN * v.size()] = {0};
+        for (int i = 0; i < crypto_count; i++) {
+            strcat(crypto_options, v[i].name.c_str());
+            if (i < crypto_count - 1) {
+                strcat(crypto_options, "\n");
+            }
+        }
+        lv_roller_set_options(crypto_roller, crypto_options, LV_ROLLER_MODE_NORMAL);
+    }
+    else {
+        lv_roller_set_options(crypto_roller, "", LV_ROLLER_MODE_NORMAL);
+    }
+
+    lv_roller_set_visible_row_count(crypto_roller, 1);
+    lv_obj_set_style_text_font(crypto_roller, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(crypto_roller, current_wxt185_theme_.text, 0);
+    lv_obj_set_style_bg_color(crypto_roller, current_wxt185_theme_.crypto_background, 0);
+    lv_obj_set_style_radius(crypto_roller, 0, 0);
+    lv_obj_set_style_border_width(crypto_roller, 0, 0);
+    lv_obj_set_style_pad_all(crypto_roller, 0, 0);
+
+    // 创建K线频率按钮容器
+    lv_obj_t* kline_btn_container = lv_obj_create(crypto_page_);
+    lv_obj_set_size(kline_btn_container, 300, 40);
+    lv_obj_align(kline_btn_container, LV_ALIGN_TOP_MID, 0, 110);
+    lv_obj_set_flex_flow(kline_btn_container, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(kline_btn_container, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_all(kline_btn_container, 0, 0);
+    lv_obj_set_style_border_width(kline_btn_container, 0, 0);
+    lv_obj_set_style_radius(kline_btn_container, 0, 0);
+    lv_obj_set_style_bg_opa(kline_btn_container, LV_OPA_TRANSP, 0);
+
+    // 添加K线频率按钮
+    const char** klinefreq = nullptr;
+    if (bijie_coins_ != nullptr) {
+        klinefreq = bijie_coins_->GetKLineTimeFrequencies();
+    } else {
+        static const char* default_freqs[] = {"1m", "5m", "15m", "1h", "2h", "4h", "1d", "1w", "1mo", "3mo", nullptr};
+        klinefreq = default_freqs;
+    }
+
+    // 创建9个按钮，对应9种K线频率
+    for (int i = 0; i < 9; i++) {
+        lv_obj_t* btn = lv_button_create(kline_btn_container);
+        kline_frequency_buttons_[i] = btn; // 保存按钮引用
+        lv_obj_set_size(btn, 30, 30);
+        lv_obj_set_style_radius(btn, 5, 0);
+        lv_obj_set_style_bg_color(btn, current_wxt185_theme_.selector, 0);
+        
+        // 为选中的按钮设置不同的样式
+        if (i == selected_kline_frequency_) {
+            lv_obj_set_style_bg_color(btn, lv_color_hex(0x1a6c37), 0); // 绿色表示选中
+        }
+        
+        lv_obj_t* label = lv_label_create(btn);
+        lv_label_set_text(label, klinefreq[i]);
+        lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
+        lv_obj_center(label);
+        
+        // 添加按钮事件处理
+        lv_obj_add_event_cb(btn, KLineFrequencyButtonEventHandler, LV_EVENT_CLICKED, this);
+    }
+
+    // 创建价格图表，只显示收盘价
+    crypto_chart_ = lv_chart_create(crypto_page_);
+    lv_obj_set_size(crypto_chart_, 300, 140);
+    lv_obj_align(crypto_chart_, LV_ALIGN_BOTTOM_MID, 0, -40);
+    lv_chart_set_type(crypto_chart_, LV_CHART_TYPE_LINE);
+
+    // 创建更新时间标签
+    lv_obj_t* update_time_label = lv_label_create(crypto_page_);
+    lv_label_set_text(update_time_label, "Updated: --:--:--");
+    lv_obj_set_style_text_font(update_time_label, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_color(update_time_label, current_wxt185_theme_.text, 0);
+    lv_obj_align(update_time_label, LV_ALIGN_BOTTOM_MID, 0, -10);
     
     ESP_LOGI(TAG, "Crypto page creation completed");
 }
@@ -907,7 +991,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_set_style_border_width(settings_page_, 0, 0);
     lv_obj_set_style_bg_opa(settings_page_, LV_OPA_TRANSP, 0);
 
-    // 水平对齐，排在第三个页面 (修复错误：原来是crypto_page_)
+    // 水平对齐，排在第三个页面
     lv_obj_set_x(settings_page_, PAGE_SETTINGS * width_);
     
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
@@ -1265,6 +1349,19 @@ void WXT185Display::ApplyCryptoPageTheme() {
         lv_obj_set_style_bg_color(crypto_time_selector_, current_wxt185_theme_.selector, 0);
         lv_obj_set_style_border_color(crypto_time_selector_, current_wxt185_theme_.border, 0);
     }
+    
+    // 更新K线频率按钮的主题
+    for (int i = 0; i < 10; i++) {
+        if (kline_frequency_buttons_[i]) {
+            if (i == selected_kline_frequency_) {
+                // 选中的按钮使用特殊颜色
+                lv_obj_set_style_bg_color(kline_frequency_buttons_[i], lv_color_hex(0x1a6c37), 0);
+            } else {
+                // 未选中的按钮使用默认选择器颜色
+                lv_obj_set_style_bg_color(kline_frequency_buttons_[i], current_wxt185_theme_.selector, 0);
+            }
+        }
+    }
 }
 
 void WXT185Display::ApplySettingsPageTheme() {
@@ -1281,7 +1378,7 @@ void WXT185Display::ApplySettingsPageTheme() {
     // 应用主题选择区域主题
     lv_obj_set_style_bg_color(settings_theme_roller_, current_wxt185_theme_.selector, 0);
     lv_obj_set_style_border_color(settings_theme_roller_, current_wxt185_theme_.border, 0);
-    
+
     // 应用虚拟币选择区域主题
     lv_obj_set_style_bg_color(settings_default_crypto_roller_, current_wxt185_theme_.selector, 0);
     lv_obj_set_style_border_color(settings_default_crypto_roller_, current_wxt185_theme_.border, 0);
@@ -1474,9 +1571,50 @@ void WXT185Display::DrawKLineChart() {
             return;
         }
         
+        // 根据选择的K线频率获取相应的数据
+        const std::vector<std::pair<float, float>>* kline_data = nullptr;
+        const char* frequency_names[] = {"1m", "5m", "15m", "1h", "2h", "4h", "1d", "1w", "1mo", "3mo"};
+        
+        switch (selected_kline_frequency_) {
+            case 0: // 1分钟
+                kline_data = &market_data->kline_data_1m;
+                break;
+            case 1: // 5分钟
+                kline_data = &market_data->kline_data_5m;
+                break;
+            case 2: // 15分钟
+                kline_data = &market_data->kline_data_15m;
+                break;
+            case 3: // 1小时
+                kline_data = &market_data->kline_data_1h;
+                break;
+            case 4: // 2小时
+                kline_data = &market_data->kline_data_2h;
+                break;
+            case 5: // 4小时
+                kline_data = &market_data->kline_data_4h;
+                break;
+            case 6: // 1天
+                kline_data = &market_data->kline_data_1d;
+                break;
+            case 7: // 1周
+                kline_data = &market_data->kline_data_1w;
+                break;
+            case 8: // 1月
+                kline_data = &market_data->kline_data_1mo;
+                break;
+            case 9: // 3月
+                kline_data = &market_data->kline_data_3mo;
+                break;
+            default:
+                kline_data = &market_data->kline_data_1h; // 默认使用1小时
+                break;
+        }
+        
         // 检查是否有K线数据
-        if (market_data->kline_data_1h.empty()) {
-            ESP_LOGW(TAG, "No K-line data available for currency ID: %d", current_crypto_data_.currency_id);
+        if (kline_data->empty()) {
+            ESP_LOGW(TAG, "No K-line data available for currency ID: %d, frequency: %s", 
+                     current_crypto_data_.currency_id, frequency_names[selected_kline_frequency_]);
             return;
         }
         
@@ -1506,25 +1644,40 @@ void WXT185Display::DrawKLineChart() {
             return;
         }
         
-        // 获取K线数据（使用1小时K线作为示例）
-        const auto& kline_data = market_data->kline_data_1h;
-        
         // 添加点到图表
         int point_count = 0;
-        for (size_t i = 0; i < kline_data.size() && point_count < 30; i++) { // 限制显示30个点
+        for (size_t i = 0; i < kline_data->size() && point_count < 30; i++) { // 限制显示30个点
             // 只添加收盘价到图表
-            lv_chart_set_next_value(chart, close_ser, static_cast<int32_t>(kline_data[i].second * 100)); // 收盘价
+            lv_chart_set_next_value(chart, close_ser, static_cast<int32_t>((*kline_data)[i].second * 100)); // 收盘价
             point_count++;
         }
         
-        ESP_LOGI(TAG, "Added %d points to K-line chart", point_count);
+        ESP_LOGI(TAG, "Added %d points to K-line chart for frequency %s", 
+                 point_count, frequency_names[selected_kline_frequency_]);
         
         // 添加标题
         lv_obj_t* chart_title = lv_label_create(crypto_chart_);
         if (chart_title) {
-            lv_label_set_text(chart_title, "Price Trend (Close Prices)");
+            char title_text[64];
+            snprintf(title_text, sizeof(title_text), "Price Trend (%s Close Prices)", 
+                     frequency_names[selected_kline_frequency_]);
+            lv_label_set_text(chart_title, title_text);
             lv_obj_set_style_text_color(chart_title, current_wxt185_theme_.text, 0);
             lv_obj_align_to(chart_title, chart, LV_ALIGN_OUT_TOP_MID, 0, -5);
+        }
+        
+        // 更新时间显示
+        lv_obj_t* update_time_label = lv_obj_get_child(crypto_page_, -1); // 获取最后一个子对象，即更新时间标签
+        if (update_time_label) {
+            // 获取当前时间
+            time_t now;
+            time(&now);
+            struct tm timeinfo;
+            localtime_r(&now, &timeinfo);
+            
+            char time_str[64];
+            strftime(time_str, sizeof(time_str), "Updated: %H:%M:%S", &timeinfo);
+            lv_label_set_text(update_time_label, time_str);
         }
     } catch (const std::exception& e) {
         ESP_LOGE(TAG, "Exception occurred while drawing K-line chart: %s", e.what());
@@ -1655,6 +1808,41 @@ void WXT185Display::PageEventHandler(lv_event_t* e) {
         /* 更新当前页面索引 */
         WXT185Display::current_page_index_ = page;
         ESP_LOGI(TAG, "Current page index: %d", WXT185Display::current_page_index_);
+    }
+}
+
+void WXT185Display::KLineFrequencyButtonEventHandler(lv_event_t* e) {
+    ESP_LOGI(TAG, "KLine frequency button event handler called");
+    lv_event_code_t code = lv_event_get_code(e);
+    WXT185Display* self = static_cast<WXT185Display*>(lv_event_get_user_data(e));
+    
+    if (code == LV_EVENT_CLICKED) {
+        lv_obj_t* btn = (lv_obj_t* )lv_event_get_target(e);
+        
+        // 查找被点击的按钮是哪一个
+        for (int i = 0; i < 9; i++) {
+            if (self->kline_frequency_buttons_[i] == btn) {
+                ESP_LOGI(TAG, "KLine frequency button %d clicked", i);
+                
+                // 更新选中状态
+                self->selected_kline_frequency_ = i;
+                
+                // 更新所有按钮的样式
+                for (int j = 0; j < 9; j++) {
+                    if (j == i) {
+                        // 选中的按钮设置为绿色
+                        lv_obj_set_style_bg_color(self->kline_frequency_buttons_[j], lv_color_hex(0x1a6c37), 0);
+                    } else {
+                        // 未选中的按钮设置为默认颜色
+                        lv_obj_set_style_bg_color(self->kline_frequency_buttons_[j], self->current_wxt185_theme_.selector, 0);
+                    }
+                }
+                
+                // 重新绘制K线图表
+                self->DrawKLineChart();
+                break;
+            }
+        }
     }
 }
 
@@ -2454,9 +2642,9 @@ void WXT185Display::SetScreensaverCrypto(int currency_id) {
                 }
             }
         }
-        
+        /* 屏保状态不显示K线数据 */
         // 请求K线数据用于屏保显示
-        bijie_coins_->GetKLineData(screensaver_crypto_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
+        bijie_coins_->GetKLineData(screensaver_crypto_.currency_id, selected_kline_frequency_, 30, [this](const std::vector<KLineData>& kline_data) {
             try {
                 ESP_LOGI(TAG, "Received K-line data for screensaver with %d points", (int)kline_data.size());
 
@@ -2476,7 +2664,7 @@ void WXT185Display::SetScreensaverCrypto(int currency_id) {
                 ESP_LOGE(TAG, "Unknown exception occurred while processing K-line data in SetScreensaverCrypto");
             }
         });
-
+        
         // 如果屏保处于激活状态，更新屏保内容
         if (screensaver_active_) {
             UpdateScreensaverContent();
@@ -2486,4 +2674,44 @@ void WXT185Display::SetScreensaverCrypto(int currency_id) {
     } catch (...) {
         ESP_LOGE(TAG, "Unknown exception occurred while setting screensaver crypto");
     }
+}
+
+uint32_t WXT185Display::GetKLineTypeByIndex(uint8_t index) {
+    /*
+    默认K线类型：2（1小时）
+    可选值：13（1分钟），
+     *                          14（5分钟），
+     *                          1（15分钟），
+     *                          2（1小时），
+     *                          10（2小时），
+     *                          11（4小时），
+     *                          3（1天），
+     *                          4（1周）， 
+     *                          5（1月），
+     *                          12（三个月）
+    */
+   switch (index) {
+    case 0:
+        return 13;
+    case 1:
+        return 14;
+    case 2:
+        return 1;
+    case 3:
+        return 2;
+    case 4:
+        return 10;
+    case 5:
+        return 11;
+    case 6:
+        return 3;
+    case 7:
+        return 4;
+    case 8:
+        return 5;
+    case 9:
+        return 12;
+    default:
+        return 2;
+   }
 }

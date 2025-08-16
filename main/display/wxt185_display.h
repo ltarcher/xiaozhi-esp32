@@ -99,6 +99,8 @@ protected:
     lv_obj_t* crypto_list_ = nullptr;
     lv_obj_t* crypto_time_selector_ = nullptr;
     lv_obj_t* crypto_roller = nullptr;
+    lv_obj_t* kline_frequency_buttons_[10];  // K线频率按钮数组
+    int selected_kline_frequency_ = 4; // 默认选择1小时K线 (对应索引4)
     
     // 设置页面组件
     lv_obj_t* settings_title_ = nullptr;
@@ -182,6 +184,7 @@ protected:
     // 虚拟币数据处理函数
     void UpdateCryptoData();
     void DrawKLineChart();
+    uint32_t GetKLineTypeByIndex(uint8_t index);
     
     // 事件处理函数
     static void PageEventHandler(lv_event_t* e);
@@ -190,6 +193,7 @@ protected:
     static void TimeframeSelectorEventHandler(lv_event_t* e);
     static void ScreensaverCryptoSelectorEventHandler(lv_event_t* e); // 屏保虚拟币选择事件处理
     static void SettingsSaveButtonEventHandler(lv_event_t* e); // 保存按钮事件处理
+    static void KLineFrequencyButtonEventHandler(lv_event_t* e); // K线频率按钮事件处理
     
     // 触摸事件处理
     static void TouchEventHandler(lv_event_t* e);
