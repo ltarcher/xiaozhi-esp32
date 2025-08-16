@@ -976,14 +976,12 @@ void WXT185Display::CreateCryptoPage() {
 
     crypto_price_label_ = lv_label_create(crypto_content_);
     lv_label_set_text(crypto_price_label_, "0.00");
-    lv_label_set_long_mode(crypto_price_label_, LV_LABEL_LONG_BREAK); 
     lv_obj_align(crypto_price_label_, LV_ALIGN_LEFT_MID, 10, 0);
     lv_obj_set_style_text_font(crypto_price_label_, fonts_.text_font, 0);
     lv_obj_set_style_text_color(crypto_price_label_, current_wxt185_theme_.text, 0);
 
     crypto_change_label_ = lv_label_create(crypto_content_);
     lv_label_set_text(crypto_change_label_, "0.00%");
-    lv_label_set_long_mode(crypto_change_label_, LV_LABEL_LONG_BREAK); 
     lv_obj_align(crypto_change_label_, LV_ALIGN_RIGHT_MID, -10, 0);
     lv_obj_set_style_text_font(crypto_change_label_, fonts_.text_font, 0);
     lv_obj_set_style_text_color(crypto_change_label_, current_wxt185_theme_.text, 0);
