@@ -698,6 +698,7 @@ void WXT185Display::SetupUI() {
         ESP_LOGI(TAG, "Connected to BiJie coins");
     }
     
+    SwitchToPage(Page::PAGE_CRYPTO);
     ESP_LOGI(TAG, "WXT185 UI setup completed");
 }
 
@@ -891,7 +892,7 @@ void WXT185Display::CreateCryptoPage() {
     crypto_roller = lv_roller_create(crypto_page_);
     lv_obj_set_size(crypto_roller, 100, 100);
     // 在上面中间对齐
-    lv_obj_align(crypto_roller, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_align(crypto_roller, LV_ALIGN_TOP_MID, 0, 20);
 
     // 添加虚拟币选项到roller
     // 获取虚拟币列表
@@ -922,26 +923,27 @@ void WXT185Display::CreateCryptoPage() {
 
     // 创建K线频率按钮容器
     lv_obj_t* kline_btn_container = lv_obj_create(crypto_page_);
-    lv_obj_set_size(kline_btn_container, 300, 40);
-    lv_obj_align(kline_btn_container, LV_ALIGN_TOP_MID, 0, 110);
-    lv_obj_set_flex_flow(kline_btn_container, LV_FLEX_FLOW_ROW);
-    lv_obj_set_flex_align(kline_btn_container, LV_FLEX_ALIGN_SPACE_EVENLY, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
-    lv_obj_set_style_pad_all(kline_btn_container, 0, 0);
+    lv_obj_set_size(kline_btn_container, 300, 80); // 增加高度以容纳两行按钮
+    lv_obj_align(kline_btn_container, LV_ALIGN_TOP_MID, 0, 80);
+    lv_obj_set_flex_flow(kline_btn_container, LV_FLEX_FLOW_ROW); // 改为换行布局
+    lv_obj_set_flex_align(kline_btn_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START); // 调整对齐方式
+    lv_obj_set_style_pad_all(kline_btn_container, 5, 0); // 添加一些内边距
     lv_obj_set_style_border_width(kline_btn_container, 0, 0);
     lv_obj_set_style_radius(kline_btn_container, 0, 0);
     lv_obj_set_style_bg_opa(kline_btn_container, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_flex_track_place(kline_btn_container, LV_FLEX_ALIGN_SPACE_EVENLY, 0); // 设置子元素均匀分布
 
     // 添加K线频率按钮
+    static const char* default_freqs[] = {"1m", "5m", "15m", "1h", "2h", "4h", "1d", "1w", "1mo", "3mo", nullptr};
     const char** klinefreq = nullptr;
     if (bijie_coins_ != nullptr) {
         klinefreq = bijie_coins_->GetKLineTimeFrequencies();
     } else {
-        static const char* default_freqs[] = {"1m", "5m", "15m", "1h", "2h", "4h", "1d", "1w", "1mo", "3mo", nullptr};
         klinefreq = default_freqs;
     }
 
-    // 创建9个按钮，对应9种K线频率
-    for (int i = 0; i < 9; i++) {
+    // 创建10个按钮，对应10种K线频率
+    for (int i = 0; i < 10; i++) {
         lv_obj_t* btn = lv_button_create(kline_btn_container);
         kline_frequency_buttons_[i] = btn; // 保存按钮引用
         lv_obj_set_size(btn, 30, 30);
@@ -965,7 +967,7 @@ void WXT185Display::CreateCryptoPage() {
     // 创建价格图表，只显示收盘价
     crypto_chart_ = lv_chart_create(crypto_page_);
     lv_obj_set_size(crypto_chart_, 300, 140);
-    lv_obj_align(crypto_chart_, LV_ALIGN_BOTTOM_MID, 0, -40);
+    lv_obj_align(crypto_chart_, LV_ALIGN_BOTTOM_MID, 0, -60);
     lv_chart_set_type(crypto_chart_, LV_CHART_TYPE_LINE);
 
     // 创建更新时间标签
