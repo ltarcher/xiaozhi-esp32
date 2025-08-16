@@ -923,7 +923,7 @@ void WXT185Display::CreateCryptoPage() {
 
     // 创建K线频率按钮容器
     lv_obj_t* kline_btn_container = lv_obj_create(crypto_page_);
-    lv_obj_set_size(kline_btn_container, 240, 80); // 增加高度以容纳两行按钮
+    lv_obj_set_size(kline_btn_container, 210, 80); // 增加高度以容纳两行按钮
     lv_obj_align(kline_btn_container, LV_ALIGN_TOP_MID, 0, 60);
     lv_obj_set_flex_flow(kline_btn_container, LV_FLEX_FLOW_ROW_WRAP); // 改为换行布局
     lv_obj_set_flex_align(kline_btn_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START); // 调整对齐方式
@@ -946,18 +946,19 @@ void WXT185Display::CreateCryptoPage() {
     for (int i = 0; i < 10; i++) {
         lv_obj_t* btn = lv_button_create(kline_btn_container);
         kline_frequency_buttons_[i] = btn; // 保存按钮引用
-        lv_obj_set_size(btn, 20, 20);
+        lv_obj_set_size(btn, 30, 30);
         lv_obj_set_style_radius(btn, 5, 0);
         lv_obj_set_style_bg_color(btn, current_wxt185_theme_.selector, 0);
         
         // 为选中的按钮设置不同的样式
         if (i == selected_kline_frequency_) {
-            lv_obj_set_style_bg_color(btn, lv_color_hex(0x1a6c37), 0); // 绿色表示选中
+            lv_obj_set_style_bg_color(btn, current_wxt185_theme_.crypto_progress_bg_color, 0); // 绿色表示选中
         }
         
         lv_obj_t* label = lv_label_create(btn);
         lv_label_set_text(label, klinefreq[i]);
         lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
+        lv_obj_set_style_text_color(label, current_wxt185_theme_.text, 0);
         lv_obj_center(label);
         
         // 添加按钮事件处理
@@ -966,16 +967,18 @@ void WXT185Display::CreateCryptoPage() {
 
     // 创建价格图表，只显示收盘价
     crypto_chart_ = lv_chart_create(crypto_page_);
-    lv_obj_set_size(crypto_chart_, 300, 120);
+    lv_obj_set_size(crypto_chart_, 300, 130);
     lv_obj_align(crypto_chart_, LV_ALIGN_BOTTOM_MID, 0, -80);
     lv_chart_set_type(crypto_chart_, LV_CHART_TYPE_LINE);
+
+    // TODO:在这里调用绘制K线图表
 
     // 创建更新时间标签
     lv_obj_t* update_time_label = lv_label_create(crypto_page_);
     lv_label_set_text(update_time_label, "Updated: --:--:--");
-    lv_obj_set_style_text_font(update_time_label, &lv_font_montserrat_12, 0);
+    lv_obj_set_style_text_font(update_time_label, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(update_time_label, current_wxt185_theme_.text, 0);
-    lv_obj_align(update_time_label, LV_ALIGN_BOTTOM_MID, 0, -10);
+    lv_obj_align(update_time_label, LV_ALIGN_BOTTOM_MID, 0, -30);
     
     ESP_LOGI(TAG, "Crypto page creation completed");
 }
@@ -1197,7 +1200,7 @@ void WXT185Display::CreateScreensaverPage() {
     ESP_LOGI(TAG, "Creating screensaver page");
     
     // 1. 创建背景
-    screensaver_page_ = lv_obj_create(lv_scr_act());
+    screensaver_page_ = lv_obj_create(main_screen_);
     lv_obj_set_size(screensaver_page_, width_, height_);
     lv_obj_set_style_radius(screensaver_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(screensaver_page_, current_wxt185_theme_.background, 0);
@@ -2112,6 +2115,8 @@ void WXT185Display::EnterScreensaver() {
         // 显示屏保页面
         if (screensaver_page_) {
             lv_obj_clear_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
+            // 确保屏保页面在最前
+            lv_obj_move_foreground(screensaver_page_);
             // 强制刷新屏保页面内容
             UpdateScreensaverContent();
             UpdateScreensaverTime();
@@ -2146,19 +2151,19 @@ void WXT185Display::ExitScreensaver() {
             case PAGE_CHAT:
                 if (chat_page_) {
                     lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
-                    lv_obj_scroll_to_view_recursive(chat_page_, LV_ANIM_OFF);
+                    lv_obj_move_foreground(chat_page_);
                 }
                 break;
             case PAGE_CRYPTO:
                 if (crypto_page_) {
                     lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
-                    lv_obj_scroll_to_view_recursive(crypto_page_, LV_ANIM_OFF);
+                    lv_obj_move_foreground(crypto_page_);
                 }
                 break;
             case PAGE_SETTINGS:
                 if (settings_page_) {
                     lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
-                    lv_obj_scroll_to_view_recursive(settings_page_, LV_ANIM_OFF);
+                    lv_obj_move_foreground(settings_page_);
                 }
                 break;
         }
@@ -2203,36 +2208,73 @@ void WXT185Display::UpdateScreensaverContent() {
             
             if (!market_data) {
                 ESP_LOGW(TAG, "No market data available for currency ID: %d", screensaver_crypto_.currency_id);
-                return;
-            }
-            
-            // 更新价格
-            if (screensaver_crypto_price_) {
-                char price_text[32];
-                snprintf(price_text, sizeof(price_text), "$%.2f", market_data->close);
-                lv_label_set_text(screensaver_crypto_price_, price_text);
-            }
-            
-            // 更新涨跌幅
-            if (screensaver_crypto_change_) {
-                char change_text[32];
-                snprintf(change_text, sizeof(change_text), "%.2f%%", market_data->change_24h);
-                lv_label_set_text(screensaver_crypto_change_, change_text);
+                // 即使没有市场数据，也要更新价格和涨跌幅为默认值
+                if (screensaver_crypto_price_) {
+                    char price_text[32];
+                    snprintf(price_text, sizeof(price_text), "$%.2f", screensaver_crypto_.price);
+                    lv_label_set_text(screensaver_crypto_price_, price_text);
+                }
                 
-                // 根据涨跌设置颜色
-                if (market_data->change_24h >= 0) {
-                    lv_obj_set_style_text_color(screensaver_crypto_change_, lv_color_hex(0x00FF00), 0); // 绿色
-                } else {
-                    lv_obj_set_style_text_color(screensaver_crypto_change_, lv_color_hex(0xFF0000), 0); // 红色
+                if (screensaver_crypto_change_) {
+                    char change_text[32];
+                    snprintf(change_text, sizeof(change_text), "%.2f%%", screensaver_crypto_.change_24h);
+                    lv_label_set_text(screensaver_crypto_change_, change_text);
+                    
+                    // 根据涨跌设置颜色
+                    if (screensaver_crypto_.change_24h >= 0) {
+                        lv_obj_set_style_text_color(screensaver_crypto_change_, current_wxt185_theme_.crypto_up_color, 0);
+                    } else {
+                        lv_obj_set_style_text_color(screensaver_crypto_change_, current_wxt185_theme_.crypto_down_color, 0);
+                    }
+                }
+            } else {
+                // 更新价格
+                if (screensaver_crypto_price_) {
+                    char price_text[32];
+                    snprintf(price_text, sizeof(price_text), "$%.2f", market_data->close);
+                    lv_label_set_text(screensaver_crypto_price_, price_text);
+                }
+                
+                // 更新涨跌幅
+                if (screensaver_crypto_change_) {
+                    char change_text[32];
+                    snprintf(change_text, sizeof(change_text), "%.2f%%", market_data->change_24h);
+                    lv_label_set_text(screensaver_crypto_change_, change_text);
+                    
+                    // 根据涨跌设置颜色
+                    if (market_data->change_24h >= 0) {
+                        lv_obj_set_style_text_color(screensaver_crypto_change_, lv_color_hex(0x00FF00), 0); // 绿色
+                    } else {
+                        lv_obj_set_style_text_color(screensaver_crypto_change_, lv_color_hex(0xFF0000), 0); // 红色
+                    }
                 }
             }
-                    } catch (const std::exception& e) {
+        } catch (const std::exception& e) {
             ESP_LOGE(TAG, "Exception occurred while updating screensaver market data: %s", e.what());
         } catch (...) {
             ESP_LOGE(TAG, "Unknown exception occurred while updating screensaver market data");
         }
     } else {
         ESP_LOGW(TAG, "BiJie coins service not initialized");
+        // 即使币界服务未初始化，也要显示默认的虚拟币信息
+        if (screensaver_crypto_price_) {
+            char price_text[32];
+            snprintf(price_text, sizeof(price_text), "$%.2f", screensaver_crypto_.price);
+            lv_label_set_text(screensaver_crypto_price_, price_text);
+        }
+        
+        if (screensaver_crypto_change_) {
+            char change_text[32];
+            snprintf(change_text, sizeof(change_text), "%.2f%%", screensaver_crypto_.change_24h);
+            lv_label_set_text(screensaver_crypto_change_, change_text);
+            
+            // 根据涨跌设置颜色
+            if (screensaver_crypto_.change_24h >= 0) {
+                lv_obj_set_style_text_color(screensaver_crypto_change_, current_wxt185_theme_.crypto_up_color, 0);
+            } else {
+                lv_obj_set_style_text_color(screensaver_crypto_change_, current_wxt185_theme_.crypto_down_color, 0);
+            }
+        }
     }
 
     ESP_LOGI(TAG, "Screensaver content updated, getting KLine data...");
@@ -2257,6 +2299,7 @@ void WXT185Display::UpdateScreensaverContent() {
 void WXT185Display::OnActivity() {
     ESP_LOGI(TAG, "User activity detected, updating last activity time");
     // 更新最后活动时间
+
     last_activity_time_ = esp_timer_get_time() / 1000; // 转换为毫秒
 
     // 如果当前处于屏保状态，则退出屏保
