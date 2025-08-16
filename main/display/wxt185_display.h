@@ -95,10 +95,14 @@ protected:
     
     // 虚拟币页面组件
     lv_obj_t* crypto_header_ = nullptr;
+    lv_obj_t* crypto_roller_ = nullptr;
+    lv_obj_t* crypto_kline_btn_container_ = nullptr;
+    lv_obj_t* crypto_content_ = nullptr;
+    lv_obj_t* crypto_price_label_ = nullptr;
+    lv_obj_t* crypto_change_label_ = nullptr;
     lv_obj_t* crypto_chart_ = nullptr;
     lv_obj_t* crypto_list_ = nullptr;
-    lv_obj_t* crypto_time_selector_ = nullptr;
-    lv_obj_t* crypto_roller = nullptr;
+    
     lv_obj_t* kline_frequency_buttons_[10];  // K线频率按钮数组
     int selected_kline_frequency_ = 3; // 默认选择1小时K线 (对应索引3)
     

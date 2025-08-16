@@ -889,10 +889,10 @@ void WXT185Display::CreateCryptoPage() {
 #endif
 
     // 2. 创建虚拟币roller，支持水平滚动
-    crypto_roller = lv_roller_create(crypto_page_);
-    lv_obj_set_size(crypto_roller, 100, 100);
+    crypto_roller_ = lv_roller_create(crypto_page_);
+    lv_obj_set_size(crypto_roller_, 100, 100);
     // 在上面中间对齐
-    lv_obj_align(crypto_roller, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_align(crypto_roller_, LV_ALIGN_TOP_MID, 0, 10);
 
     // 添加虚拟币选项到roller
     // 获取虚拟币列表
@@ -907,31 +907,31 @@ void WXT185Display::CreateCryptoPage() {
                 strcat(crypto_options, "\n");
             }
         }
-        lv_roller_set_options(crypto_roller, crypto_options, LV_ROLLER_MODE_NORMAL);
+        lv_roller_set_options(crypto_roller_, crypto_options, LV_ROLLER_MODE_NORMAL);
     }
     else {
-        lv_roller_set_options(crypto_roller, "", LV_ROLLER_MODE_NORMAL);
+        lv_roller_set_options(crypto_roller_, "", LV_ROLLER_MODE_NORMAL);
     }
 
-    lv_roller_set_visible_row_count(crypto_roller, 1);
-    lv_obj_set_style_text_font(crypto_roller, &lv_font_montserrat_24, 0);
-    lv_obj_set_style_text_color(crypto_roller, current_wxt185_theme_.text, 0);
-    lv_obj_set_style_bg_color(crypto_roller, current_wxt185_theme_.crypto_background, 0);
-    lv_obj_set_style_radius(crypto_roller, 0, 0);
-    lv_obj_set_style_border_width(crypto_roller, 0, 0);
-    lv_obj_set_style_pad_all(crypto_roller, 0, 0);
+    lv_roller_set_visible_row_count(crypto_roller_, 1);
+    lv_obj_set_style_text_font(crypto_roller_, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(crypto_roller_, current_wxt185_theme_.text, 0);
+    lv_obj_set_style_bg_color(crypto_roller_, current_wxt185_theme_.crypto_background, 0);
+    lv_obj_set_style_radius(crypto_roller_, 0, 0);
+    lv_obj_set_style_border_width(crypto_roller_, 0, 0);
+    lv_obj_set_style_pad_all(crypto_roller_, 0, 0);
 
     // 创建K线频率按钮容器
-    lv_obj_t* kline_btn_container = lv_obj_create(crypto_page_);
-    lv_obj_set_size(kline_btn_container, 210, 80); // 增加高度以容纳两行按钮
-    lv_obj_align(kline_btn_container, LV_ALIGN_TOP_MID, 0, 60);
-    lv_obj_set_flex_flow(kline_btn_container, LV_FLEX_FLOW_ROW_WRAP); // 改为换行布局
-    lv_obj_set_flex_align(kline_btn_container, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START); // 调整对齐方式
-    lv_obj_set_style_pad_all(kline_btn_container, 5, 0); // 添加一些内边距
-    lv_obj_set_style_border_width(kline_btn_container, 0, 0);
-    lv_obj_set_style_radius(kline_btn_container, 0, 0);
-    lv_obj_set_style_bg_opa(kline_btn_container, LV_OPA_TRANSP, 0);
-    lv_obj_set_style_flex_track_place(kline_btn_container, LV_FLEX_ALIGN_SPACE_EVENLY, 0); // 设置子元素均匀分布
+    crypto_kline_btn_container_ = lv_obj_create(crypto_page_);
+    lv_obj_set_size(crypto_kline_btn_container_, 210, 60); // 增加高度以容纳两行按钮
+    lv_obj_align(crypto_kline_btn_container_, LV_ALIGN_TOP_MID, 0, 50);
+    lv_obj_set_style_flex_flow(crypto_kline_btn_container_, LV_FLEX_FLOW_ROW_WRAP, 0); // 改为换行布局
+    lv_obj_set_flex_align(crypto_kline_btn_container_, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START); // 调整对齐方式
+    lv_obj_set_style_pad_all(crypto_kline_btn_container_, 5, 0); // 添加一些内边距
+    lv_obj_set_style_border_width(crypto_kline_btn_container_, 0, 0);
+    lv_obj_set_style_radius(crypto_kline_btn_container_, 0, 0);
+    lv_obj_set_style_bg_opa(crypto_kline_btn_container_, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_flex_track_place(crypto_kline_btn_container_, LV_FLEX_ALIGN_SPACE_EVENLY, 0); // 设置子元素均匀分布
 
     // 添加K线频率按钮
     static const char* default_freqs[] = {"1m", "5m", "15m", "1h", "2h", "4h", "1d", "1w", "1mo", "3mo", nullptr};
@@ -944,9 +944,9 @@ void WXT185Display::CreateCryptoPage() {
 
     // 创建10个按钮，对应10种K线频率
     for (int i = 0; i < 10; i++) {
-        lv_obj_t* btn = lv_button_create(kline_btn_container);
+        lv_obj_t* btn = lv_button_create(crypto_kline_btn_container_);
         kline_frequency_buttons_[i] = btn; // 保存按钮引用
-        lv_obj_set_size(btn, 30, 30);
+        lv_obj_set_size(btn, 30, 20);
         lv_obj_set_style_radius(btn, 5, 0);
         lv_obj_set_style_bg_color(btn, current_wxt185_theme_.selector, 0);
         
@@ -964,6 +964,29 @@ void WXT185Display::CreateCryptoPage() {
         // 添加按钮事件处理
         lv_obj_add_event_cb(btn, KLineFrequencyButtonEventHandler, LV_EVENT_CLICKED, this);
     }
+
+    // 显示实时行情
+    crypto_content_ = lv_obj_create(crypto_page_);
+    lv_obj_set_size(crypto_content_, 300, 50);
+    lv_obj_set_scrollbar_mode(crypto_content_, LV_SCROLLBAR_MODE_OFF);
+    lv_obj_align_to(crypto_content_, crypto_kline_btn_container_, LV_ALIGN_OUT_BOTTOM_MID, 0, 0);
+    lv_obj_set_style_radius(crypto_content_, 10, 0);
+    lv_obj_set_style_bg_color(crypto_content_, current_wxt185_theme_.crypto_background, 0);
+    lv_obj_set_style_border_width(crypto_content_, 0, 0);
+
+    crypto_price_label_ = lv_label_create(crypto_content_);
+    lv_label_set_text(crypto_price_label_, "0.00");
+    lv_label_set_long_mode(crypto_price_label_, LV_LABEL_LONG_BREAK); 
+    lv_obj_align(crypto_price_label_, LV_ALIGN_LEFT_MID, 10, 0);
+    lv_obj_set_style_text_font(crypto_price_label_, fonts_.text_font, 0);
+    lv_obj_set_style_text_color(crypto_price_label_, current_wxt185_theme_.text, 0);
+
+    crypto_change_label_ = lv_label_create(crypto_content_);
+    lv_label_set_text(crypto_change_label_, "0.00%");
+    lv_label_set_long_mode(crypto_change_label_, LV_LABEL_LONG_BREAK); 
+    lv_obj_align(crypto_change_label_, LV_ALIGN_RIGHT_MID, -10, 0);
+    lv_obj_set_style_text_font(crypto_change_label_, fonts_.text_font, 0);
+    lv_obj_set_style_text_color(crypto_change_label_, current_wxt185_theme_.text, 0);
 
     // 创建价格图表，只显示收盘价
     crypto_chart_ = lv_chart_create(crypto_page_);
@@ -1311,29 +1334,15 @@ void WXT185Display::ApplyChatPageTheme() {
 }
 
 void WXT185Display::ApplyCryptoPageTheme() {
-    if (!crypto_page_ || !crypto_header_ || !crypto_chart_ || !crypto_list_) return;
+    if (!crypto_page_ || !crypto_chart_) return;
     ESP_LOGI(TAG, "Applying crypto page theme");
     
     // 应用虚拟币页面主题
     lv_obj_set_style_bg_color(crypto_page_, current_wxt185_theme_.background, 0);
     
-    // 应用头部区域主题
-    lv_obj_set_style_bg_color(crypto_header_, current_wxt185_theme_.header, 0);
-    lv_obj_set_style_text_color(crypto_header_, current_wxt185_theme_.text, 0);
-    
     // 应用图表区域主题
     lv_obj_set_style_bg_color(crypto_chart_, current_wxt185_theme_.selector, 0);
     lv_obj_set_style_border_color(crypto_chart_, current_wxt185_theme_.border, 0);
-    
-    // 应用列表区域主题
-    lv_obj_set_style_bg_color(crypto_list_, current_wxt185_theme_.selector, 0);
-    lv_obj_set_style_border_color(crypto_list_, current_wxt185_theme_.border, 0);
-    
-    // 应用时间选择器主题
-    if (crypto_time_selector_) {
-        lv_obj_set_style_bg_color(crypto_time_selector_, current_wxt185_theme_.selector, 0);
-        lv_obj_set_style_border_color(crypto_time_selector_, current_wxt185_theme_.border, 0);
-    }
     
     // 更新K线频率按钮的主题
     for (int i = 0; i < 10; i++) {
@@ -1683,17 +1692,7 @@ void WXT185Display::DrawKLineChart() {
         
         ESP_LOGI(TAG, "Added %d points to K-line chart for frequency %s", 
                  point_count, frequency_names[selected_kline_frequency_]);
-        
-        // 添加标题
-        lv_obj_t* chart_title = lv_label_create(crypto_chart_);
-        if (chart_title) {
-            char title_text[64];
-            snprintf(title_text, sizeof(title_text), "Price Trend (%s Close Prices)", 
-                     frequency_names[selected_kline_frequency_]);
-            lv_label_set_text(chart_title, title_text);
-            lv_obj_set_style_text_color(chart_title, current_wxt185_theme_.text, 0);
-            lv_obj_align_to(chart_title, chart, LV_ALIGN_OUT_TOP_MID, 0, -5);
-        }
+    
         
         // 更新时间显示
         lv_obj_t* update_time_label = lv_obj_get_child(crypto_page_, -1); // 获取最后一个子对象，即更新时间标签
@@ -2595,6 +2594,62 @@ void WXT185Display::UpdateCryptoDataFromBiJie() {
         ESP_LOGW(TAG, "BiJie coins service not connected");
         return;
     }
+    
+    // 设置币界行情数据回调函数，用于实时更新当前显示的虚拟币数据
+    bijie_coins_->SetMarketDataCallback([this](const CoinMarketData& market_data) {
+        ESP_LOGI(TAG, "Received market data callback for currency ID: %d", market_data.currency_id);
+        
+        // 查找对应的虚拟币数据
+        for (auto& crypto : crypto_data_) {
+            if (crypto.currency_id == market_data.currency_id) {
+                // 更新价格和24小时变化数据
+                crypto.price = market_data.close;
+                crypto.change_24h = market_data.change_24h;
+                
+                ESP_LOGI(TAG, "Updated %s: price=%.2f, change=%.2f%%", 
+                         crypto.symbol.c_str(), crypto.price, crypto.change_24h);
+                
+                // 如果当前在虚拟币页面，更新显示
+                if (current_page_index_ == PAGE_CRYPTO) {
+                    UpdateCryptoData();
+                    
+                    // 如果是当前显示的货币，也更新顶部的价格和涨跌幅标签
+                    if (market_data.currency_id == current_crypto_data_.currency_id) {
+                        // 更新价格标签
+                        if (crypto_price_label_) {
+                            char price_text[32];
+                            snprintf(price_text, sizeof(price_text), "%s $%.2f", 
+                                     crypto.symbol.c_str(), market_data.close);
+                            lv_label_set_text(crypto_price_label_, price_text);
+                        }
+                        
+                        // 更新涨跌幅标签
+                        if (crypto_change_label_) {
+                            char change_text[32];
+                            snprintf(change_text, sizeof(change_text), "%.2f%%", market_data.change_24h);
+                            lv_label_set_text(crypto_change_label_, change_text);
+                            
+                            // 根据涨跌设置颜色
+                            if (market_data.change_24h >= 0) {
+                                lv_obj_set_style_text_color(crypto_change_label_, lv_color_hex(0x00FF00), 0);
+                            } else {
+                                lv_obj_set_style_text_color(crypto_change_label_, lv_color_hex(0xFF0000), 0);
+                            }
+                        }
+                        
+                        // 更新图表
+                        DrawKLineChart();
+                    }
+                }
+                break;
+            }
+        }
+        
+        // 如果屏保激活，也更新屏保显示内容
+        if (screensaver_active_) {
+            UpdateScreensaverContent();
+        }
+    });
     
     try {
         // 获取币界虚拟币列表
