@@ -971,9 +971,8 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_align(crypto_chart_, LV_ALIGN_BOTTOM_MID, 0, -80);
     lv_chart_set_type(crypto_chart_, LV_CHART_TYPE_LINE);
 
-    // 调用绘制K线图表
-    DrawKLineChart();
-
+    // 不再在页面创建时立即调用绘制K线图表，而是在连接到币界服务后获取数据并绘制
+    
     // 创建更新时间标签
     lv_obj_t* update_time_label = lv_label_create(crypto_page_);
     lv_label_set_text(update_time_label, "Updated: --:--:--");
@@ -1546,6 +1545,10 @@ void WXT185Display::DrawKLineChart() {
         // 检查币界服务是否已初始化
         if (!bijie_coins_) {
             ESP_LOGW(TAG, "BiJie coins service not initialized");
+            // 显示提示信息
+            lv_obj_t* no_data_label = lv_label_create(crypto_chart_);
+            lv_label_set_text(no_data_label, "Service not available");
+            lv_obj_center(no_data_label);
             return;
         }
         
@@ -1553,6 +1556,10 @@ void WXT185Display::DrawKLineChart() {
         auto market_data = bijie_coins_->GetMarketData(current_crypto_data_.currency_id);
         if (!market_data) {
             ESP_LOGW(TAG, "No market data available for currency ID: %d", current_crypto_data_.currency_id);
+            // 显示提示信息
+            lv_obj_t* no_data_label = lv_label_create(crypto_chart_);
+            lv_label_set_text(no_data_label, "No data available");
+            lv_obj_center(no_data_label);
             return;
         }
 
@@ -1573,7 +1580,7 @@ void WXT185Display::DrawKLineChart() {
             case 2: // 15分钟
                 kline_data = &market_data->kline_data_15m;
                 break;
-            case 3: // 1小时
+            case 3: // 1小时 (默认)
                 kline_data = &market_data->kline_data_1h;
                 break;
             case 4: // 2小时
@@ -1603,6 +1610,10 @@ void WXT185Display::DrawKLineChart() {
         if (kline_data->empty()) {
             ESP_LOGW(TAG, "No K-line data available for currency ID: %d, frequency: %s", 
                      current_crypto_data_.currency_id, frequency_names[selected_kline_frequency_]);
+            // 显示提示信息
+            lv_obj_t* no_data_label = lv_label_create(crypto_chart_);
+            lv_label_set_text(no_data_label, "Loading data...");
+            lv_obj_center(no_data_label);
             return;
         }
         
@@ -1669,8 +1680,16 @@ void WXT185Display::DrawKLineChart() {
         }
     } catch (const std::exception& e) {
         ESP_LOGE(TAG, "Exception occurred while drawing K-line chart: %s", e.what());
+        // 显示错误信息
+        lv_obj_t* error_label = lv_label_create(crypto_chart_);
+        lv_label_set_text(error_label, "Error loading chart");
+        lv_obj_center(error_label);
     } catch (...) {
         ESP_LOGE(TAG, "Unknown exception occurred while drawing K-line chart");
+        // 显示错误信息
+        lv_obj_t* error_label = lv_label_create(crypto_chart_);
+        lv_label_set_text(error_label, "Unknown error");
+        lv_obj_center(error_label);
     }
 }
 
@@ -1848,6 +1867,7 @@ void WXT185Display::KLineFrequencyButtonEventHandler(lv_event_t* e) {
 
 void WXT185Display::CryptoSelectorEventHandler(lv_event_t* e) {
     ESP_LOGI(TAG, "Crypto selector event handler called");
+
     // 虚拟币选择事件处理
 }
 
@@ -2281,22 +2301,6 @@ void WXT185Display::UpdateScreensaverContent() {
         }
     }
 
-    ESP_LOGI(TAG, "Screensaver content updated, getting KLine data...");
-    
-    // 根据控制变量决定是否获取K线数据用于屏保显示
-    if (enable_kline_crypto_data_ && bijie_coins_) {
-        try {
-            bijie_coins_->GetKLineData(screensaver_crypto_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
-                ESP_LOGI(TAG, "Received K-line data for screensaver with %d points", (int)kline_data.size());
-                // 这里可以更新屏保的K线图表，但由于屏保页面结构限制，暂不实现
-                // 在完整实现中，可以在这里更新屏保的K线图表显示
-            });
-        } catch (const std::exception& e) {
-            ESP_LOGE(TAG, "Exception occurred while getting K-line data: %s", e.what());
-        } catch (...) {
-            ESP_LOGE(TAG, "Unknown exception occurred while getting K-line data");
-        }
-    }
     ESP_LOGI(TAG, "Screensaver content updated");
 }
 
@@ -2427,18 +2431,7 @@ static void process_kline_data_async(void* user_data) {
     ESP_LOGI(TAG, "process_kline_data_async Received K-line data with %d points", (int)kline_data->size());
     
     try {
-        // 更新当前货币的K线数据
-        for (auto& crypto : self->crypto_data_) {
-            if (crypto.currency_id == self->current_crypto_data_.currency_id) {
-                // 转换K线数据格式并存储
-                crypto.kline_data_1h.clear();
-                for (const auto& kline : *kline_data) {
-                    crypto.kline_data_1h.emplace_back(kline.open, kline.close);
-                }
-                break;
-            }
-        }
-        
+        // 注意：不再将K线数据存储到crypto_data_中，而是直接使用bijie_coins_服务中的数据
         // 更新图表显示
         self->DrawKLineChart();
     } catch (const std::exception& e) {
@@ -2531,22 +2524,30 @@ void WXT185Display::ConnectToBiJieCoins() {
                     }
                     
                     try {
-                        // 使用LVGL异步调用更新UI，确保在LVGL线程中执行
-                        auto kline_data_ptr = new std::pair<WXT185Display*, std::vector<KLineData>*>(
-                            self, new std::vector<KLineData>(kline_data));
-                        lv_async_call(process_kline_data_async, kline_data_ptr);
+                        // 直接在LVGL线程中更新UI，确保线程安全
+                        self->DrawKLineChart();
                     } catch (const std::exception& e) {
                         ESP_LOGE(TAG, "Exception occurred in K-line data callback: %s", e.what());
-                        // 清理可能分配的内存
                     } catch (...) {
                         ESP_LOGE(TAG, "Unknown exception occurred in K-line data callback");
-                        // 清理可能分配的内存
                     }
                 });
             }
             
             self->bijie_coins_connected_ = true;
-            ESP_LOGI(TAG, "Connected to BiJie coins WebSocket for currency %d", self->current_crypto_data_.currency_id);
+            
+            // 获取K线数据用于图表显示
+            if (self->enable_kline_crypto_data_ && self->crypto_page_ && !lv_obj_has_flag(self->crypto_page_, LV_OBJ_FLAG_HIDDEN)) {
+                ESP_LOGI(TAG, "Getting initial K-line data for currency %d", self->current_crypto_data_.currency_id);
+                self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, 
+                                                self->GetKLineTypeByIndex(self->selected_kline_frequency_), 
+                                                30, 
+                                                [self](const std::vector<KLineData>& kline_data) {
+                    ESP_LOGI(TAG, "Received initial K-line data with %d points", kline_data.size());
+                    // 更新图表显示
+                    self->DrawKLineChart();
+                });
+            }
         } catch (const std::exception& e) {
             ESP_LOGE(TAG, "Exception occurred while connecting to BiJie coins: %s", e.what());
         } catch (...) {
@@ -2625,23 +2626,11 @@ void WXT185Display::SwitchCrypto(int currency_id) {
         screensaver_crypto_ = current_crypto_data_;
         
         // 获取K线数据用于图表显示
-        bijie_coins_->GetKLineData(current_crypto_data_.currency_id, 2, 30, [this](const std::vector<KLineData>& kline_data) {
+        bijie_coins_->GetKLineData(current_crypto_data_.currency_id, GetKLineTypeByIndex(selected_kline_frequency_), 30, [this](const std::vector<KLineData>& kline_data) {
             try {
                 ESP_LOGI(TAG, "Received K-line data with %d points", (int)kline_data.size());
                 
-                // 更新当前货币的K线数据
-                for (auto& crypto : crypto_data_) {
-                    if (crypto.currency_id == current_crypto_data_.currency_id) {
-                        // 转换K线数据格式并存储
-                        crypto.kline_data_1h.clear();
-                        for (const auto& kline : kline_data) {
-                            crypto.kline_data_1h.emplace_back(kline.open, kline.close);
-                        }
-                        break;
-                    }
-                }
-                
-                // 更新图表显示
+                // 直接更新图表显示，不再存储到crypto_data_
                 DrawKLineChart();
             } catch (const std::exception& e) {
                 ESP_LOGE(TAG, "Exception occurred while processing K-line data in SwitchCrypto: %s", e.what());
@@ -2693,28 +2682,6 @@ void WXT185Display::SetScreensaverCrypto(int currency_id) {
                 }
             }
         }
-        /* 屏保状态不显示K线数据 */
-        // 请求K线数据用于屏保显示
-        bijie_coins_->GetKLineData(screensaver_crypto_.currency_id, selected_kline_frequency_, 30, [this](const std::vector<KLineData>& kline_data) {
-            try {
-                ESP_LOGI(TAG, "Received K-line data for screensaver with %d points", (int)kline_data.size());
-
-                // 更新屏保关联的K线数据
-                screensaver_kline_data_.clear();
-                for (const auto& kline : kline_data) {
-                    screensaver_kline_data_.emplace_back(kline.open, kline.close);
-                }
-
-                // 如果屏保处于激活状态，更新内容
-                if (screensaver_active_) {
-                    UpdateScreensaverContent();
-                }
-            } catch (const std::exception& e) {
-                ESP_LOGE(TAG, "Exception occurred while processing K-line data in SetScreensaverCrypto: %s", e.what());
-            } catch (...) {
-                ESP_LOGE(TAG, "Unknown exception occurred while processing K-line data in SetScreensaverCrypto");
-            }
-        });
         
         // 如果屏保处于激活状态，更新屏保内容
         if (screensaver_active_) {
@@ -2726,43 +2693,31 @@ void WXT185Display::SetScreensaverCrypto(int currency_id) {
         ESP_LOGE(TAG, "Unknown exception occurred while setting screensaver crypto");
     }
 }
-
 uint32_t WXT185Display::GetKLineTypeByIndex(uint8_t index) {
     /*
-    默认K线类型：2（1小时）
-    可选值：13（1分钟），
-     *                          14（5分钟），
-     *                          1（15分钟），
-     *                          2（1小时），
-     *                          10（2小时），
-     *                          11（4小时），
-     *                          3（1天），
-     *                          4（1周）， 
-     *                          5（1月），
-     *                          12（三个月）
+    K线类型映射，与DrawKLineChart函数中的switch语句保持一致:
+    case 0: // 1分钟 -> 13
+    case 1: // 5分钟 -> 14
+    case 2: // 15分钟 -> 1
+    case 3: // 1小时 -> 2 (默认)
+    case 4: // 2小时 -> 10
+    case 5: // 4小时 -> 11
+    case 6: // 1天 -> 3
+    case 7: // 1周 -> 4
+    case 8: // 1月 -> 5
+    case 9: // 3月 -> 12
     */
-   switch (index) {
-    case 0:
-        return 13;
-    case 1:
-        return 14;
-    case 2:
-        return 1;
-    case 3:
-        return 2;
-    case 4:
-        return 10;
-    case 5:
-        return 11;
-    case 6:
-        return 3;
-    case 7:
-        return 4;
-    case 8:
-        return 5;
-    case 9:
-        return 12;
-    default:
-        return 2;
-   }
+    switch (index) {
+        case 0: return 13; // 1分钟
+        case 1: return 14; // 5分钟
+        case 2: return 1;  // 15分钟
+        case 3: return 2;  // 1小时
+        case 4: return 10; // 2小时
+        case 5: return 11; // 4小时
+        case 6: return 3;  // 1天
+        case 7: return 4;  // 1周
+        case 8: return 5;  // 1月
+        case 9: return 12; // 3月
+        default: return 2; // 默认使用1小时
+    }
 }
