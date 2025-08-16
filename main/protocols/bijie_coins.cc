@@ -439,7 +439,7 @@ public:
         xTaskCreatePinnedToCore(
             KLineDataTask, 
             "kline_task", 
-            4096, 
+            8192, 
             task_data, 
             5, 
             nullptr, 
