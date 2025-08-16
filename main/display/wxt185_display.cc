@@ -566,6 +566,10 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
 
     // 初始化UI
     SetupUI();
+    
+    // 启动虚拟币更新定时器
+    StartCryptoUpdateTimer();
+    
     ESP_LOGI(TAG, "WXT185Display constructor completed");
 }
 
@@ -1496,47 +1500,30 @@ void WXT185Display::UpdateCryptocurrencyPrice(const std::string& symbol, float p
 
 void WXT185Display::UpdateCryptoData() {
     DisplayLockGuard lock(this);
-    if (crypto_list_ == nullptr) return;
     
-    // 清除现有列表项
-    lv_obj_clean(crypto_list_);
-    
-    // 添加虚拟币列表项
-    for (const auto& crypto : crypto_data_) {
-        lv_obj_t* item = lv_obj_create(crypto_list_);
-        lv_obj_set_size(item, width_ - 40, 35);
-        lv_obj_set_style_pad_all(item, 5, 0);
-        lv_obj_set_style_radius(item, 5, 0);
-        lv_obj_set_style_bg_color(item, current_wxt185_theme_.background, 0);
-        lv_obj_set_style_border_width(item, 1, 0);
-        lv_obj_set_style_border_color(item, current_wxt185_theme_.border, 0);
-        
-        // 名称
-        lv_obj_t* symbol_label = lv_label_create(item);
-        lv_label_set_text(symbol_label, crypto.symbol.c_str());
-        lv_obj_align(symbol_label, LV_ALIGN_LEFT_MID, 0, 0);
-        lv_obj_set_style_text_color(symbol_label, current_wxt185_theme_.text, 0);
-        
-        // 价格
-        lv_obj_t* price_label = lv_label_create(item);
-        char price_text[32];
-        snprintf(price_text, sizeof(price_text), "$%.2f", crypto.price);
-        lv_label_set_text(price_label, price_text);
-        lv_obj_align(price_label, LV_ALIGN_RIGHT_MID, -50, 0);
-        lv_obj_set_style_text_color(price_label, current_wxt185_theme_.text, 0);
-        
-        // 变化率
-        lv_obj_t* change_label = lv_label_create(item);
-        char change_text[32];
-        snprintf(change_text, sizeof(change_text), "%.2f%%", crypto.change_24h);
-        lv_label_set_text(change_label, change_text);
-        lv_obj_align(change_label, LV_ALIGN_RIGHT_MID, 0, 0);
-        lv_obj_set_style_text_color(change_label, current_wxt185_theme_.text, 0);
-        
-        if (crypto.change_24h >= 0) {
-            lv_obj_set_style_text_color(change_label, lv_color_hex(0x00FF00), 0);
-        } else {
-            lv_obj_set_style_text_color(change_label, lv_color_hex(0xFF0000), 0);
+    // 更新当前选中的虚拟币信息（页面顶部的详细信息）
+    if (crypto_price_label_ && crypto_change_label_ && !crypto_data_.empty()) {
+        // 获取当前选中的虚拟币（根据roller的选项）
+        int selected_index = lv_roller_get_selected(crypto_roller_);
+        if (selected_index >= 0 && selected_index < (int)crypto_data_.size()) {
+            const CryptocurrencyData& selected_crypto = crypto_data_[selected_index];
+            
+            // 更新价格标签
+            char price_text[32];
+            snprintf(price_text, sizeof(price_text), "$%.2f", selected_crypto.price);
+            lv_label_set_text(crypto_price_label_, price_text);
+            
+            // 更新变化率标签
+            char change_text[32];
+            snprintf(change_text, sizeof(change_text), "%.2f%%", selected_crypto.change_24h);
+            lv_label_set_text(crypto_change_label_, change_text);
+            
+            // 根据变化率设置颜色
+            if (selected_crypto.change_24h >= 0) {
+                lv_obj_set_style_text_color(crypto_change_label_, current_wxt185_theme_.crypto_up_color, 0);
+            } else {
+                lv_obj_set_style_text_color(crypto_change_label_, current_wxt185_theme_.crypto_down_color, 0);
+            }
         }
     }
 }
@@ -1828,6 +1815,11 @@ void WXT185Display::SwitchToPage(int page_index) {
     if (target_page) {
         lv_obj_scroll_to_view_recursive(target_page, LV_ANIM_ON);
     }
+    
+    // 如果切换到虚拟币页面，更新显示
+    if (page_index == PAGE_CRYPTO) {
+        UpdateCryptoData();
+    }
 }
 
 void WXT185Display::PageEventHandler(lv_event_t* e) {
@@ -1854,9 +1846,13 @@ void WXT185Display::PageEventHandler(lv_event_t* e) {
         /* 更新当前页面索引 */
         WXT185Display::current_page_index_ = page;
         ESP_LOGI(TAG, "Current page index: %d", WXT185Display::current_page_index_);
+        
+        // 如果切换到虚拟币页面，更新显示
+        if (WXT185Display::current_page_index_ == PAGE_CRYPTO) {
+            self->UpdateCryptoData();
+        }
     }
 }
-
 void WXT185Display::KLineFrequencyButtonEventHandler(lv_event_t* e) {
     ESP_LOGI(TAG, "KLine frequency button event handler called");
     lv_event_code_t code = lv_event_get_code(e);
@@ -1881,6 +1877,7 @@ void WXT185Display::KLineFrequencyButtonEventHandler(lv_event_t* e) {
                     } else {
                         // 未选中的按钮设置为默认颜色
                         lv_obj_set_style_bg_color(self->kline_frequency_buttons_[j], self->current_wxt185_theme_.selector, 0);
+                    
                     }
                 }
                 
