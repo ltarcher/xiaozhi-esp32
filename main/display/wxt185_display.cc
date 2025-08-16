@@ -971,7 +971,8 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_align(crypto_chart_, LV_ALIGN_BOTTOM_MID, 0, -80);
     lv_chart_set_type(crypto_chart_, LV_CHART_TYPE_LINE);
 
-    // TODO:在这里调用绘制K线图表
+    // 调用绘制K线图表
+    DrawKLineChart();
 
     // 创建更新时间标签
     lv_obj_t* update_time_label = lv_label_create(crypto_page_);
@@ -1815,8 +1816,8 @@ void WXT185Display::KLineFrequencyButtonEventHandler(lv_event_t* e) {
     if (code == LV_EVENT_CLICKED) {
         lv_obj_t* btn = (lv_obj_t* )lv_event_get_target(e);
         
-        // 查找被点击的按钮是哪一个
-        for (int i = 0; i < 9; i++) {
+        // 查找被点击的按钮是哪一个 (修复循环次数，确保所有10个按钮都能被处理)
+        for (int i = 0; i < 10; i++) {
             if (self->kline_frequency_buttons_[i] == btn) {
                 ESP_LOGI(TAG, "KLine frequency button %d clicked", i);
                 
@@ -1824,7 +1825,7 @@ void WXT185Display::KLineFrequencyButtonEventHandler(lv_event_t* e) {
                 self->selected_kline_frequency_ = i;
                 
                 // 更新所有按钮的样式
-                for (int j = 0; j < 9; j++) {
+                for (int j = 0; j < 10; j++) {
                     if (j == i) {
                         // 选中的按钮设置为绿色
                         lv_obj_set_style_bg_color(self->kline_frequency_buttons_[j], lv_color_hex(0x1a6c37), 0);
@@ -2018,9 +2019,9 @@ void WXT185Display::CryptoUpdateTimerCallback(void* arg) {
         ESP_LOGE(TAG, "Unknown exception occurred in CryptoUpdateTimerCallback");
     }
     
-    // 重新启动定时器，每30秒更新一次行情
+    // 重新启动定时器，每10秒更新一次行情
     if (self->crypto_update_timer_) {
-        esp_timer_start_once(self->crypto_update_timer_, 30 * 1000 * 1000); // 30秒
+        esp_timer_start_once(self->crypto_update_timer_, 10 * 1000 * 1000); // 10秒
     }
 }
 
