@@ -22,6 +22,8 @@
 #include <esp_lcd_touch_cst816s.h>
 #include <esp_lvgl_port.h>
 
+#include "mcp_server.h"
+
 #define TAG "waveshare_lcd_1_85c"
 
 #define LCD_OPCODE_WRITE_CMD        (0x02ULL)
@@ -223,6 +225,7 @@ class CustomBoard : public WifiBoard {
 private:
     Button boot_button_;
     i2c_master_bus_handle_t i2c_bus_;
+    i2c_master_bus_handle_t tp_i2c_bus;
     esp_io_expander_handle_t io_expander = NULL;
     WXT185Display* display_;  // 修改为使用新的显示类
     button_handle_t boot_btn, pwr_btn;
@@ -238,15 +241,23 @@ private:
             .sda_io_num = I2C_SDA_IO,
             .scl_io_num = I2C_SCL_IO,
             .clk_source = I2C_CLK_SRC_DEFAULT,
+            .glitch_ignore_cnt = 7,
+            .flags = {
+                .enable_internal_pullup = 1,
+            },
         };
         ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &i2c_bus_));
+        ESP_LOGI(TAG, "I2C bus created successfully");
     }
     
     void InitializeTca9554(void)
     {
         esp_err_t ret = esp_io_expander_new_i2c_tca9554(i2c_bus_, I2C_ADDRESS, &io_expander);
-        if(ret != ESP_OK)
-            ESP_LOGE(TAG, "TCA9554 create returned error");        
+        if(ret != ESP_OK) {
+            ESP_LOGE(TAG, "TCA9554 create returned error: %s", esp_err_to_name(ret));
+            io_expander = NULL;
+            return;
+        }
 
         // uint32_t input_level_mask = 0;
         // ret = esp_io_expander_set_dir(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, IO_EXPANDER_INPUT);               // 设置引脚 EXIO0 和 EXIO1 模式为输入 
@@ -257,15 +268,32 @@ private:
         // ret = esp_io_expander_print_state(io_expander);                                                                             // 打印引脚状态
 
         ret = esp_io_expander_set_dir(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, IO_EXPANDER_OUTPUT);                 // 设置引脚 EXIO0 和 EXIO1 模式为输出
-        ESP_ERROR_CHECK(ret);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to set TCA9554 pin direction: %s", esp_err_to_name(ret));
+            return;
+        }
+        
         ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, 1);                                // 复位 LCD 与 TouchPad
-        ESP_ERROR_CHECK(ret);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to set TCA9554 pin level: %s", esp_err_to_name(ret));
+            return;
+        }
+        
         vTaskDelay(pdMS_TO_TICKS(300));
         ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, 0);                                // 复位 LCD 与 TouchPad
-        ESP_ERROR_CHECK(ret);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to set TCA9554 pin level: %s", esp_err_to_name(ret));
+            return;
+        }
+        
         vTaskDelay(pdMS_TO_TICKS(300));
         ret = esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_0 | IO_EXPANDER_PIN_NUM_1, 1);                                // 复位 LCD 与 TouchPad
-        ESP_ERROR_CHECK(ret);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to set TCA9554 pin level: %s", esp_err_to_name(ret));
+            return;
+        }
+
+        ESP_LOGI(TAG, "TCA9554 initialized successfully");
     }
 
     void InitializeSpi() {
@@ -374,8 +402,33 @@ private:
                                     });
     }
 #if CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+    void InitializeI2cTouch() {
+        // 185c针脚定义touch可以直接复用I2C_NUM_0,不用重新创建,直接使用I2C_NUM_0,否则会导致Tca9554初始化失败
+        tp_i2c_bus = i2c_bus_;
+        // Create a separate I2C bus for touch controller
+        /*
+        i2c_master_bus_config_t i2c_bus_cfg = {
+            .i2c_port = TP_PORT,
+            .sda_io_num = TP_PIN_NUM_SDA,
+            .scl_io_num = TP_PIN_NUM_SCL,
+            .clk_source = I2C_CLK_SRC_DEFAULT,
+            .glitch_ignore_cnt = 7,
+            .flags = {
+                .enable_internal_pullup = 1,
+            },
+        };
+        ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &tp_i2c_bus));
+        */
+        ESP_LOGI(TAG, "I2C touch controller initialized successfully");
+    }
     void InitializeTouch()
     {
+        // Check if io_expander is available and if not, skip touch initialization
+        if (io_expander == NULL) {
+            ESP_LOGW(TAG, "IO expander not available, skipping touch initialization");
+            return;
+        }
+
         esp_lcd_touch_handle_t tp;
         esp_lcd_touch_config_t tp_cfg = {
             .x_max = DISPLAY_WIDTH,
@@ -392,20 +445,6 @@ private:
                 .mirror_y = 0,
             },
         };
-        
-        // Create a separate I2C bus for touch controller
-        i2c_master_bus_handle_t tp_i2c_bus;
-        i2c_master_bus_config_t i2c_bus_cfg = {
-            .i2c_port = TP_PORT,
-            .sda_io_num = TP_PIN_NUM_SDA,
-            .scl_io_num = TP_PIN_NUM_SCL,
-            .clk_source = I2C_CLK_SRC_DEFAULT,
-            .glitch_ignore_cnt = 7,
-            .flags = {
-                .enable_internal_pullup = 1,
-            },
-        };
-        ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &tp_i2c_bus));
 
         // Probe for touch controller before initializing
         esp_err_t ret = i2c_master_probe(tp_i2c_bus, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, 1000);
@@ -435,6 +474,29 @@ private:
         lvgl_port_add_touch(&touch_cfg);
         ESP_LOGI(TAG, "Touch panel initialized successfully");
     }
+
+    void InitializeTools() {
+        // 初始化工具
+        auto& mcp_server = McpServer::GetInstance();
+        // 定义设备的属性
+        mcp_server.AddTool("self.ui.uppage", "上一页", PropertyList(), [this](const PropertyList& properties) -> ReturnValue {
+            ESP_LOGI(TAG, "self.ui.uppage");
+            if (display_) {
+                display_->SwitchToPage(display_->current_page_index_ - 1 > PAGE_CHAT ? display_->current_page_index_ - 1 : 0);
+            }
+            return true;
+        });
+
+        mcp_server.AddTool("self.ui.downpage", "下一页", PropertyList(), [this](const PropertyList& properties) -> ReturnValue {
+            ESP_LOGI(TAG, "self.ui.downpage");
+            if (display_) {
+                display_->SwitchToPage(display_->current_page_index_ + 1 < MAX_PAGE_INDEX ? display_->current_page_index_ + 1 : MAX_PAGE_INDEX - 1);
+            }
+            return true;
+        });
+
+    }
+
 #endif
 
     void InitializeButtons() {
@@ -451,6 +513,7 @@ public:
     CustomBoard() :
         boot_button_(BOOT_BUTTON_GPIO) {
         InitializeI2c();
+        InitializeI2cTouch();
         InitializeTca9554();
         InitializeSpi();
         Initializest77916Display();
@@ -460,6 +523,7 @@ public:
         // Only initialize touch panel if the board has touch capability
         InitializeTouch();
 #endif
+        InitializeTools();
         
         GetBacklight()->RestoreBrightness();
         
