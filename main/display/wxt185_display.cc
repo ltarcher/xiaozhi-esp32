@@ -2515,7 +2515,7 @@ void WXT185Display::ConnectToBiJieCoins() {
             if (self->enable_kline_crypto_data_) {
                 ESP_LOGI(TAG, "Getting K-line data for currency %d", self->current_crypto_data_.currency_id);
                 // 获取K线数据用于图表显示
-                self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, 2, 30, [self](const std::vector<KLineData>& kline_data) {
+                self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, GetKLineTypeByIndex(selected_kline_frequency_), 30, [self](const std::vector<KLineData>& kline_data) {
                     // 检查参数有效性
                     if (!self) {
                         ESP_LOGE(TAG, "K-line data callback: self is null");

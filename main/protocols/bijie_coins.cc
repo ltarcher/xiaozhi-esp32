@@ -422,10 +422,66 @@ public:
         {
             std::lock_guard<std::mutex> lock(kline_requests_mutex_);
             if (pending_kline_requests_.find(currency_id) != pending_kline_requests_.end()) {
-                ESP_LOGW(TAG, "K-line data request for currency %d is already in progress, skipping duplicate request", currency_id);
-                // 如果已经有请求在进行，直接调用回调函数返回空数据
+                ESP_LOGW(TAG, "K-line data request for currency %d is already in progress, returning existing data", currency_id);
+                // 如果已经有请求在进行，直接调用回调函数返回现有数据
                 if (callback) {
-                    callback(std::vector<KLineData>());
+                    // 获取现有数据
+                    std::vector<KLineData> existing_data;
+                    
+                    // 从对应连接中获取已有的K线数据
+                    auto connection_it = connections_.find(currency_id);
+                    if (connection_it != connections_.end()) {
+                        auto connection = connection_it->second;
+                        if (connection) {
+                            auto market_data = connection->GetMarketData();
+                            if (market_data) {
+                                // 根据kline_type获取对应的K线数据
+                                const std::vector<KLineData>* kline_data_ptr = nullptr;
+                                switch (kline_type) {
+                                    case 13: // 1分钟
+                                        kline_data_ptr = &market_data->kline_data_1m;
+                                        break;
+                                    case 14: // 5分钟
+                                        kline_data_ptr = &market_data->kline_data_5m;
+                                        break;
+                                    case 1: // 15分钟
+                                        kline_data_ptr = &market_data->kline_data_15m;
+                                        break;
+                                    case 2: // 1小时
+                                        kline_data_ptr = &market_data->kline_data_1h;
+                                        break;
+                                    case 10: // 2小时
+                                        kline_data_ptr = &market_data->kline_data_2h;
+                                        break;
+                                    case 11: // 4小时
+                                        kline_data_ptr = &market_data->kline_data_4h;
+                                        break;
+                                    case 3: // 1天
+                                        kline_data_ptr = &market_data->kline_data_1d;
+                                        break;
+                                    case 4: // 1周
+                                        kline_data_ptr = &market_data->kline_data_1w;
+                                        break;
+                                    case 5: // 1月
+                                        kline_data_ptr = &market_data->kline_data_1mo;
+                                        break;
+                                    case 12: // 3月
+                                        kline_data_ptr = &market_data->kline_data_3mo;
+                                        break;
+                                    default:
+                                        ESP_LOGW(TAG, "Unsupported kline type: %d", kline_type);
+                                        break;
+                                }
+                                
+                                // 使用已有的K线数据
+                                if (kline_data_ptr) {
+                                    existing_data = *kline_data_ptr;
+                                }
+                            }
+                        }
+                    }
+                    
+                    callback(existing_data);
                 }
                 return;
             }
@@ -683,64 +739,34 @@ private:
                         // 根据kline_type更新对应的K线数据
                         switch (task_data->kline_type) {
                             case 13: // 1分钟
-                                market_data->kline_data_1m.clear();
-                                for (const auto& kline : kline_data) {
-                                    market_data->kline_data_1m.emplace_back(kline.open, kline.close);
-                                }
+                                market_data->kline_data_1m = kline_data;
                                 break;
                             case 14: // 5分钟
-                                market_data->kline_data_5m.clear();
-                                for (const auto& kline : kline_data) {
-                                    market_data->kline_data_5m.emplace_back(kline.open, kline.close);
-                                }
+                                market_data->kline_data_5m = kline_data;
                                 break;
                             case 1: // 15分钟
-                                market_data->kline_data_15m.clear();
-                                for (const auto& kline : kline_data) {
-                                    market_data->kline_data_15m.emplace_back(kline.open, kline.close);
-                                }
+                                market_data->kline_data_15m = kline_data;
                                 break;
                             case 2: // 1小时
-                                market_data->kline_data_1h.clear();
-                                for (const auto& kline : kline_data) {
-                                    market_data->kline_data_1h.emplace_back(kline.open, kline.close);
-                                }
+                                market_data->kline_data_1h = kline_data;
                                 break;
                             case 10: // 2小时
-                                market_data->kline_data_2h.clear();
-                                for (const auto& kline : kline_data) {
-                                    market_data->kline_data_2h.emplace_back(kline.open, kline.close);
-                                }
+                                market_data->kline_data_2h = kline_data;
                                 break;
                             case 11: // 4小时
-                                market_data->kline_data_4h.clear();
-                                for (const auto& kline : kline_data) {
-                                    market_data->kline_data_4h.emplace_back(kline.open, kline.close);
-                                }
+                                market_data->kline_data_4h = kline_data;
                                 break;
                             case 3: // 1天
-                                market_data->kline_data_1d.clear();
-                                for (const auto& kline : kline_data) {
-                                    market_data->kline_data_1d.emplace_back(kline.open, kline.close);
-                                }
+                                market_data->kline_data_1d = kline_data;
                                 break;
                             case 4: // 1周
-                                market_data->kline_data_1w.clear();
-                                for (const auto& kline : kline_data) {
-                                    market_data->kline_data_1w.emplace_back(kline.open, kline.close);
-                                }
+                                market_data->kline_data_1w = kline_data;
                                 break;
                             case 5: // 1月
-                                market_data->kline_data_1mo.clear();
-                                for (const auto& kline : kline_data) {
-                                    market_data->kline_data_1mo.emplace_back(kline.open, kline.close);
-                                }
+                                market_data->kline_data_1mo = kline_data;
                                 break;
                             case 12: // 3月
-                                market_data->kline_data_3mo.clear();
-                                for (const auto& kline : kline_data) {
-                                    market_data->kline_data_3mo.emplace_back(kline.open, kline.close);
-                                }
+                                market_data->kline_data_3mo = kline_data;
                                 break;
                             default:
                                 ESP_LOGW(TAG, "Unsupported kline type: %d", task_data->kline_type);

@@ -11,6 +11,16 @@
 #define MAX_COIN_NAME_LEN 16
 #define MAX_KLINE_FREQUENCIES_LEN 10
 
+// K线数据结构
+struct KLineData {
+    long long timestamp;  // 时间戳
+    float open;           // 开盘价
+    float high;           // 最高价
+    float low;            // 最低价
+    float close;          // 收盘价
+    float volume;         // 成交量
+};
+
 // 虚拟币行情数据结构
 struct CoinMarketData {
     // 实时行情数据
@@ -31,29 +41,19 @@ struct CoinMarketData {
     double circulation_market; // 流通市值
     
     // K线数据（历史数据）
-    std::vector<std::pair<float, float>> kline_data_1m;  // 1分钟K线
-    std::vector<std::pair<float, float>> kline_data_5m;  // 5分钟K线
-    std::vector<std::pair<float, float>> kline_data_15m; // 15分钟K线
-    std::vector<std::pair<float, float>> kline_data_1h;  // 1小时K线
-    std::vector<std::pair<float, float>> kline_data_2h;  // 2小时K线
-    std::vector<std::pair<float, float>> kline_data_4h;  // 4小时K线
-    std::vector<std::pair<float, float>> kline_data_1d;  // 1天K线
-    std::vector<std::pair<float, float>> kline_data_1w;  // 1周K线
-    std::vector<std::pair<float, float>> kline_data_1mo; // 1月K线
-    std::vector<std::pair<float, float>> kline_data_3mo; // 3月K线
+    std::vector<KLineData> kline_data_1m;  // 1分钟K线
+    std::vector<KLineData> kline_data_5m;  // 5分钟K线
+    std::vector<KLineData> kline_data_15m; // 15分钟K线
+    std::vector<KLineData> kline_data_1h;  // 1小时K线
+    std::vector<KLineData> kline_data_2h;  // 2小时K线
+    std::vector<KLineData> kline_data_4h;  // 4小时K线
+    std::vector<KLineData> kline_data_1d;  // 1天K线
+    std::vector<KLineData> kline_data_1w;  // 1周K线
+    std::vector<KLineData> kline_data_1mo; // 1月K线
+    std::vector<KLineData> kline_data_3mo; // 3月K线
     
     // toString函数，将所有变量转为一个字符串返回
     std::string toString() const;
-};
-
-// K线数据结构
-struct KLineData {
-    long long timestamp;  // 时间戳
-    float open;           // 开盘价
-    float high;           // 最高价
-    float low;            // 最低价
-    float close;          // 收盘价
-    float volume;         // 成交量
 };
 
 // 币种信息结构
