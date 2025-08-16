@@ -971,7 +971,8 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_align(crypto_chart_, LV_ALIGN_BOTTOM_MID, 0, -80);
     lv_chart_set_type(crypto_chart_, LV_CHART_TYPE_LINE);
 
-    // 不再在页面创建时立即调用绘制K线图表，而是在连接到币界服务后获取数据并绘制
+    // 不在页面创建时立即调用绘制K线图表，而是在连接到币界服务后获取数据并绘制
+    // DrawKLineChart();  // 移除这行，避免在没有数据时尝试绘制
     
     // 创建更新时间标签
     lv_obj_t* update_time_label = lv_label_create(crypto_page_);
@@ -1636,7 +1637,35 @@ void WXT185Display::DrawKLineChart() {
         lv_obj_set_style_border_color(chart, current_wxt185_theme_.border, 0);
         lv_obj_set_style_text_color(chart, current_wxt185_theme_.text, 0);
         
-        // 添加数据系列 - 只显示收盘价
+        // 计算Y轴范围以适配数据
+        float min_price = std::numeric_limits<float>::max();
+        float max_price = std::numeric_limits<float>::lowest();
+        
+        // 遍历所有数据点找到最大值和最小值
+        for (const auto& kline_point : *kline_data) {
+            // 检查high, low, open, close中的最大值和最小值
+            float high = kline_point.high;
+            float low = kline_point.low;
+            
+            if (high > max_price) max_price = high;
+            if (low < min_price) min_price = low;
+        }
+        
+        // 添加一些边距，使图表不紧贴边缘
+        float margin = (max_price - min_price) * 0.1f; // 10%的边距
+        if (margin == 0) margin = 1.0f; // 防止价格完全相同时边距为0
+        
+        min_price -= margin;
+        max_price += margin;
+        
+        // 设置Y轴范围
+        lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, 
+                          static_cast<int32_t>(min_price), 
+                          static_cast<int32_t>(max_price));
+        
+        ESP_LOGI(TAG, "K-line chart Y-axis range: min=%.2f, max=%.2f", min_price, max_price);
+        
+        // 添加数据系列 - 显示收盘价
         lv_chart_series_t* close_ser = lv_chart_add_series(chart, lv_color_hex(0x00FF00), LV_CHART_AXIS_PRIMARY_Y);
         if (!close_ser) {
             ESP_LOGE(TAG, "Failed to add chart series");
@@ -1645,9 +1674,10 @@ void WXT185Display::DrawKLineChart() {
         
         // 添加点到图表
         int point_count = 0;
-        for (size_t i = 0; i < kline_data->size() && point_count < 30; i++) { // 限制显示30个点
+        // 为了更好地显示图表，我们按时间顺序添加数据（从 oldest 到 newest）
+        for (int i = kline_data->size() - 1; i >= 0 && point_count < 30; i--) { // 限制显示30个点
             // 只添加收盘价到图表
-            lv_chart_set_next_value(chart, close_ser, static_cast<int32_t>((*kline_data)[i].close * 100)); // 收盘价
+            lv_chart_set_next_value(chart, close_ser, static_cast<int32_t>(kline_data->at(i).close)); 
             point_count++;
         }
         
