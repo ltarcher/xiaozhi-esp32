@@ -100,7 +100,7 @@ protected:
     lv_obj_t* crypto_time_selector_ = nullptr;
     lv_obj_t* crypto_roller = nullptr;
     lv_obj_t* kline_frequency_buttons_[10];  // K线频率按钮数组
-    int selected_kline_frequency_ = 4; // 默认选择1小时K线 (对应索引4)
+    int selected_kline_frequency_ = 3; // 默认选择1小时K线 (对应索引3)
     
     // 设置页面组件
     lv_obj_t* settings_title_ = nullptr;
