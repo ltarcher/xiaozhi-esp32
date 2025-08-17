@@ -48,12 +48,6 @@ struct WXT185ThemeColors {
     lv_color_t low_battery;
     lv_color_t header;
     lv_color_t selector;
-    // 通用roller样式
-    lv_color_t roller_bg;           // roller背景颜色
-    lv_color_t roller_border;       // roller边框颜色
-    lv_color_t roller_text;         // roller文本颜色
-    lv_color_t roller_indicator;    // roller选中项边框颜色
-    uint8_t roller_radius;          // roller圆角半径
     // 虚拟币页面样式
     lv_color_t crypto_background;
     lv_color_t crypto_text;
@@ -70,6 +64,12 @@ struct WXT185ThemeColors {
     lv_color_t settings_roller_border;
     lv_color_t settings_button_text;
     lv_color_t settings_button_bg;
+    // 通用roller样式
+    lv_color_t roller_bg;           // roller背景颜色
+    lv_color_t roller_border;       // roller边框颜色
+    lv_color_t roller_text;         // roller文本颜色
+    lv_color_t roller_indicator;    // roller选中项边框颜色
+    uint8_t roller_radius;          // roller圆角半径
 };
 
 // 定义页面

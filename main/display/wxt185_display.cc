@@ -1011,6 +1011,9 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_set_size(crypto_roller_, 100, 100);
     // 在上面中间对齐
     lv_obj_align(crypto_roller_, LV_ALIGN_TOP_MID, 0, 10);
+    
+    // 应用统一的roller样式
+    ApplyRollerStyle(crypto_roller_, false);
 
     // 添加虚拟币选项到roller
     // 获取虚拟币列表
@@ -1033,17 +1036,14 @@ void WXT185Display::CreateCryptoPage() {
 
     lv_roller_set_visible_row_count(crypto_roller_, 1);
     lv_obj_set_style_text_font(crypto_roller_, &lv_font_montserrat_24, 0);
+    // 移除旧的手动样式设置，使用ApplyRollerStyle统一设置
+    /*
     lv_obj_set_style_text_color(crypto_roller_, current_wxt185_theme_.text, 0);
     lv_obj_set_style_bg_color(crypto_roller_, current_wxt185_theme_.crypto_background, 0);
     lv_obj_set_style_radius(crypto_roller_, 0, 0);
     lv_obj_set_style_border_width(crypto_roller_, 0, 0);
+    */
     lv_obj_set_style_pad_all(crypto_roller_, 0, 0);
-    
-    // 添加事件处理函数
-    lv_obj_add_event_cb(crypto_roller_, CryptoSelectorEventHandler, LV_EVENT_VALUE_CHANGED, this);
-
-    // 创建K线频率按钮容器
-    crypto_kline_btn_container_ = lv_obj_create(crypto_page_);
     lv_obj_set_size(crypto_kline_btn_container_, 210, 60); // 增加高度以容纳两行按钮
     lv_obj_align(crypto_kline_btn_container_, LV_ALIGN_TOP_MID, 0, 50);
     lv_obj_set_style_flex_flow(crypto_kline_btn_container_, LV_FLEX_FLOW_ROW_WRAP, 0); // 改为换行布局
@@ -1171,11 +1171,11 @@ void WXT185Display::CreateSettingsPage() {
     settings_theme_roller_ = lv_roller_create(settings_page_);
     ESP_LOGI(TAG, "Theme roller created");
     lv_obj_set_style_text_font(settings_theme_roller_, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(settings_theme_roller_, current_wxt185_theme_.settings_roller_text, 0);
-    // 修改背景颜色以匹配当前主题
-    lv_obj_set_style_bg_color(settings_theme_roller_, current_wxt185_theme_.settings_roller_bg, 0);
-    lv_obj_set_style_border_color(settings_theme_roller_, current_wxt185_theme_.settings_roller_border, 0);
-
+    lv_obj_align_to(settings_theme_roller_, settings_theme_label_, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
+    lv_obj_set_width(settings_theme_roller_, 100);
+    
+    // 应用统一的roller样式
+    ApplyRollerStyle(settings_theme_roller_, true);
     // 添加主题选项到roller
     char theme_options[MAX_THEME_NAME_LENGTH * ThemeCount] = {0};
     for (int i = 0; i < ThemeCount; i++) {
@@ -1202,10 +1202,11 @@ void WXT185Display::CreateSettingsPage() {
     settings_default_crypto_roller_ = lv_roller_create(settings_page_);
     ESP_LOGI(TAG, "Default crypto roller created");
     lv_obj_set_style_text_font(settings_default_crypto_roller_, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(settings_default_crypto_roller_, current_wxt185_theme_.settings_roller_text, 0);
-    // 修改背景颜色以匹配当前主题
-    lv_obj_set_style_bg_color(settings_default_crypto_roller_, current_wxt185_theme_.settings_roller_bg, 0);
-    lv_obj_set_style_border_color(settings_default_crypto_roller_, current_wxt185_theme_.settings_roller_border, 0);
+    lv_obj_align_to(settings_default_crypto_roller_, settings_default_crypto_label_, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
+    lv_obj_set_width(settings_default_crypto_roller_, 100);
+    
+    // 应用统一的roller样式
+    ApplyRollerStyle(settings_default_crypto_roller_, true);
 
     // 添加虚拟币选项到roller
     // 获取虚拟币列表
@@ -1242,12 +1243,12 @@ void WXT185Display::CreateSettingsPage() {
     settings_kline_time_roller_ = lv_roller_create(settings_page_);
     ESP_LOGI(TAG, "K-line time roller created");
     lv_obj_set_style_text_font(settings_kline_time_roller_, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(settings_kline_time_roller_, current_wxt185_theme_.settings_roller_text, 0);
-    // 修改背景颜色以匹配当前主题
-    lv_obj_set_style_bg_color(settings_kline_time_roller_, current_wxt185_theme_.settings_roller_bg, 0);
-    lv_obj_set_style_border_color(settings_kline_time_roller_, current_wxt185_theme_.settings_roller_border, 0);
-
-    // 添加K线频率选项到roller
+    lv_obj_align_to(settings_kline_time_roller_, settings_kline_time_label_, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
+    lv_obj_set_width(settings_kline_time_roller_, 100);
+    
+    // 应用统一的roller样式
+    ApplyRollerStyle(settings_kline_time_roller_, true);
+// 添加K线频率选项到roller
     const char** klinefreq = nullptr;
     if (bijie_coins_ != nullptr) {
         klinefreq = bijie_coins_->GetKLineTimeFrequencies();
@@ -1272,23 +1273,13 @@ void WXT185Display::CreateSettingsPage() {
     lv_roller_set_visible_row_count(settings_kline_time_roller_, 1);
     lv_roller_set_selected(settings_kline_time_roller_, kline_frequency, LV_ANIM_OFF);
     lv_obj_add_event_cb(settings_kline_time_roller_, kline_frequency_roller_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
-    lv_obj_align_to(settings_kline_time_roller_, settings_kline_time_label_, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
-    lv_obj_set_width(settings_kline_time_roller_, 100);
-
-    // 7. 创建屏保开关
-    settings_screensaver_label_ = lv_label_create(settings_page_);
-    ESP_LOGI(TAG, "Screensaver label created");
-    lv_label_set_text(settings_screensaver_label_, "Screensaver:");
-    lv_obj_set_style_text_font(settings_screensaver_label_, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(settings_screensaver_label_, current_wxt185_theme_.settings_label, 0);
-    // 将屏保开关标签放置在K线频率选择配置下方
-    lv_obj_align_to(settings_screensaver_label_, settings_kline_time_label_, LV_ALIGN_OUT_BOTTOM_MID, 0, 30);
-
-    settings_screensaver_switch_ = lv_switch_create(settings_page_);
-    ESP_LOGI(TAG, "Screensaver switch created");
-    lv_obj_set_style_bg_color(settings_screensaver_switch_, current_wxt185_theme_.settings_screensaver_switch, 0);
-    // 设置指示器颜色
-    lv_obj_set_style_bg_color(settings_screensaver_switch_, current_wxt185_theme_.settings_screensaver_switch, LV_PART_INDICATOR | LV_STATE_CHECKED);
+    // 移除旧的手动样式设置，使用ApplyRollerStyle统一设置
+    /*
+    lv_obj_set_style_text_color(settings_kline_time_roller_, current_wxt185_theme_.settings_roller_text, 0);
+    // 修改背景颜色以匹配当前主题
+    lv_obj_set_style_bg_color(settings_kline_time_roller_, current_wxt185_theme_.settings_roller_bg, 0);
+    lv_obj_set_style_border_color(settings_kline_time_roller_, current_wxt185_theme_.settings_roller_border, 0);
+    */
     if (screensaver_enabled) {
         lv_obj_add_state(settings_screensaver_switch_, LV_STATE_CHECKED);
     }
@@ -1490,19 +1481,19 @@ void WXT185Display::ApplySettingsPageTheme() {
     }
     
     // 应用主题选择区域主题
-    lv_obj_set_style_bg_color(settings_theme_roller_, current_wxt185_theme_.settings_roller_bg, 0);
-    lv_obj_set_style_border_color(settings_theme_roller_, current_wxt185_theme_.settings_roller_border, 0);
-    lv_obj_set_style_text_color(settings_theme_roller_, current_wxt185_theme_.settings_roller_text, 0);
+    if (settings_theme_roller_) {
+        ApplyRollerStyle(settings_theme_roller_, true);
+    }
 
     // 应用虚拟币选择区域主题
-    lv_obj_set_style_bg_color(settings_default_crypto_roller_, current_wxt185_theme_.settings_roller_bg, 0);
-    lv_obj_set_style_border_color(settings_default_crypto_roller_, current_wxt185_theme_.settings_roller_border, 0);
-    lv_obj_set_style_text_color(settings_default_crypto_roller_, current_wxt185_theme_.settings_roller_text, 0);
+    if (settings_default_crypto_roller_) {
+        ApplyRollerStyle(settings_default_crypto_roller_, true);
+    }
     
     // 应用时间框架选择区域主题
-    lv_obj_set_style_bg_color(settings_kline_time_roller_, current_wxt185_theme_.settings_roller_bg, 0);
-    lv_obj_set_style_border_color(settings_kline_time_roller_, current_wxt185_theme_.settings_roller_border, 0);
-    lv_obj_set_style_text_color(settings_kline_time_roller_, current_wxt185_theme_.settings_roller_text, 0);
+    if (settings_kline_time_roller_) {
+        ApplyRollerStyle(settings_kline_time_roller_, true);
+    }
     
     // 应用屏保开关主题
     if (settings_screensaver_switch_) {
