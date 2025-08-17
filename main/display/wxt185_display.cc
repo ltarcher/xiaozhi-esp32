@@ -363,7 +363,8 @@ void WXT185Display::SaveSettings() {
     settings.SetString("theme", ThemeString[theme_index]);
     settings.SetInt("default_crypto", crypto_index);
     settings.SetInt("kline_frequency", kline_index);
-    settings.SetInt("screensaver_enabled", screensaver_state ? 1 : 0);
+    // 修复NVS键名过长问题，将"screensaver_enabled"改为"scr_enabled"
+    settings.SetInt("scr_enabled", screensaver_state ? 1 : 0);
     // TODO: 保存实时行情和K线行情开关状态
     
     ESP_LOGI(TAG, "Settings saved - Theme: %d, Crypto: %d, KLine: %d, Screensaver: %d", 
@@ -417,31 +418,6 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
                            DisplayFonts fonts)
     : LcdDisplay(panel_io, panel, fonts, width, height) {
     ESP_LOGI(TAG, "Initializing WXT185 Display");
-
-    // Load theme from settings
-    Settings settings("display", false);
-    std::string theme_name = settings.GetString("theme", "light");
-    ESP_LOGI(TAG, "Theme: %s", theme_name.c_str());
-    if (theme_name == "dark" || theme_name == "DARK") {
-        current_wxt185_theme_ = DARK_THEME_WXT185;
-    } else if (theme_name == "light" || theme_name == "LIGHT") {
-        current_wxt185_theme_ = LIGHT_THEME_WXT185;
-    } else if (theme_name == "metal") {
-        current_wxt185_theme_ = METAL_THEME_WXT185;
-    } else if (theme_name == "technology") {
-        current_wxt185_theme_ = TECHNOLOGY_THEME_WXT185;
-    } else if (theme_name == "cosmic") {
-        current_wxt185_theme_ = COSMIC_THEME_WXT185;
-    } else {
-        // 默认light
-        current_wxt185_theme_ = LIGHT_THEME_WXT185;
-    }
-    
-    // 从设置中加载配置值
-    selected_theme = settings.GetInt("theme_index", 0);       // 默认主题索引
-    default_crypto = settings.GetInt("default_crypto", 0);    // 默认虚拟币索引
-    kline_frequency = settings.GetInt("kline_frequency", 3);  // 默认K线频率 (3=1小时)
-    screensaver_enabled = settings.GetInt("screensaver_enabled", 1) == 1; // 默认启用屏保
 
     // 初始化LCD屏幕
     // draw white
@@ -501,11 +477,35 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     }
     // 屏幕初始化结束
 
+        // Load theme from settings
+    Settings settings("display", false);
+    std::string theme_name = settings.GetString("theme", "light");
+    // theme_name转为小写
+    for (auto& c : theme_name) {
+        c = tolower(c);
+    }
+
+    ESP_LOGI(TAG, "Theme: %s", theme_name.c_str());
+    if (theme_name == "dark" || theme_name == "DARK") {
+        current_wxt185_theme_ = DARK_THEME_WXT185;
+    } else if (theme_name == "light" || theme_name == "LIGHT") {
+        current_wxt185_theme_ = LIGHT_THEME_WXT185;
+    } else if (theme_name == "metal") {
+        current_wxt185_theme_ = METAL_THEME_WXT185;
+    } else if (theme_name == "technology") {
+        current_wxt185_theme_ = TECHNOLOGY_THEME_WXT185;
+    } else if (theme_name == "cosmic") {
+        current_wxt185_theme_ = COSMIC_THEME_WXT185;
+    } else {
+        // 默认light
+        current_wxt185_theme_ = LIGHT_THEME_WXT185;
+    }
+
     // 初始化默认设置
     selected_theme = settings.GetInt("theme_index", 0);       // 默认主题索引
     default_crypto = settings.GetInt("default_crypto", 0);    // 默认虚拟币索引
     kline_frequency = settings.GetInt("kline_frequency", 3);  // 默认K线频率 (3=1小时)
-    screensaver_enabled = settings.GetInt("screensaver_enabled", 1) == 1; // 默认启用屏保
+    screensaver_enabled = settings.GetInt("scr_enabled", 1) == 1; // 默认启用屏保
     
     // 初始化当前显示的虚拟币数据
     current_crypto_data_.symbol = "BTC";
@@ -1160,7 +1160,8 @@ void WXT185Display::CreateSettingsPage() {
     lv_label_set_text(settings_screensaver_label_, "Screensaver:");
     lv_obj_set_style_text_font(settings_screensaver_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(settings_screensaver_label_, current_wxt185_theme_.text, 0);
-    lv_obj_align_to(settings_screensaver_label_, settings_kline_time_roller_, LV_ALIGN_OUT_RIGHT_MID, -80, 0);
+    // 将屏保开关标签放置在K线频率选择配置下方
+    lv_obj_align_to(settings_screensaver_label_, settings_kline_time_label_, LV_ALIGN_OUT_BOTTOM_MID, 0, 30);
 
     settings_screensaver_switch_ = lv_switch_create(settings_page_);
     ESP_LOGI(TAG, "Screensaver switch created");
@@ -1169,11 +1170,18 @@ void WXT185Display::CreateSettingsPage() {
         lv_obj_add_state(settings_screensaver_switch_, LV_STATE_CHECKED);
     }
     lv_obj_add_event_cb(settings_screensaver_switch_, screensaver_switch_event_handler, LV_EVENT_VALUE_CHANGED, this);
-    lv_obj_align_to(settings_screensaver_switch_, settings_screensaver_label_, LV_ALIGN_OUT_RIGHT_MID, 55, 0);
+    // 将屏保开关放置在标签旁边
+    lv_obj_align_to(settings_screensaver_switch_, settings_screensaver_label_, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
       
     // 8. 创建保存按钮
     settings_save_button_ = lv_button_create(settings_page_);
     ESP_LOGI(TAG, "Save button created");
+    // 设置按钮标签
+    settings_save_label_ = lv_label_create(settings_save_button_);
+    ESP_LOGI(TAG, "Save button label created");
+    lv_label_set_text(settings_save_label_, "Save");
+    lv_obj_center(settings_save_label_);
+
     lv_obj_set_style_bg_color(settings_save_button_, current_wxt185_theme_.settings_screensaver_switch, 0);
     lv_obj_set_size(settings_save_button_, 100, 40);
     lv_obj_align(settings_save_button_, LV_ALIGN_BOTTOM_MID, 0, -30);
@@ -2272,7 +2280,7 @@ void WXT185Display::EnterScreensaver() {
     }
 }
 void WXT185Display::ExitScreensaver() {
-     try {
+    try {
         DisplayLockGuard lock(this);
         
         if (!screensaver_active_ || !screensaver_page_) return;
@@ -2285,35 +2293,57 @@ void WXT185Display::ExitScreensaver() {
         // 隐藏屏保页面
         if (screensaver_page_) lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
         
-        // 显示当前页面
-        lv_obj_t* current_page = nullptr;
-        switch (current_page_index_) {
-            case PAGE_CHAT:
-                if (chat_page_) {
-                    lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
-                    lv_obj_move_foreground(chat_page_);
-                    current_page = chat_page_;
-                }
-                break;
-            case PAGE_CRYPTO:
-                if (crypto_page_) {
-                    lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
-                    lv_obj_move_foreground(crypto_page_);
-                    current_page = crypto_page_;
-                }
-                break;
-            case PAGE_SETTINGS:
-                if (settings_page_) {
-                    lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
-                    lv_obj_move_foreground(settings_page_);
-                    current_page = settings_page_;
-                }
-                break;
-        }
-        
-        // 确保当前页面在最前，而不是主屏幕
-        if (current_page) {
-            lv_obj_move_foreground(current_page);
+        // 显示主屏幕并确保启用滚动功能
+        if (main_screen_) {
+            lv_obj_clear_flag(main_screen_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_move_foreground(main_screen_);
+            
+            // 重新启用主屏幕的滚动功能
+            lv_obj_set_scroll_dir(main_screen_, LV_DIR_HOR);
+            lv_obj_set_scroll_snap_x(main_screen_, LV_SCROLL_SNAP_CENTER);
+            lv_obj_set_scrollbar_mode(main_screen_, LV_SCROLLBAR_MODE_OFF);
+            lv_obj_add_flag(main_screen_, LV_OBJ_FLAG_SCROLLABLE);
+            
+            // 确保主屏幕有正确的事件处理回调
+#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+            // 先移除可能存在的旧事件回调以避免重复
+            lv_obj_remove_event_cb(main_screen_, PageEventHandler);
+            // 添加页面滚动回调
+            lv_obj_add_event_cb(main_screen_, PageEventHandler, LV_EVENT_SCROLL_END, this);
+            
+            // 移除各页面的滚动事件回调以避免冲突
+            if (chat_page_) {
+                lv_obj_remove_event_cb(chat_page_, PageEventHandler);
+            }
+            if (crypto_page_) {
+                lv_obj_remove_event_cb(crypto_page_, PageEventHandler);
+            }
+            if (settings_page_) {
+                lv_obj_remove_event_cb(settings_page_, PageEventHandler);
+            }
+#endif
+            
+            // 确保当前页面正确显示
+            switch (current_page_index_) {
+                case PAGE_CHAT:
+                    if (chat_page_) {
+                        lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
+                        lv_obj_scroll_to_view_recursive(chat_page_, LV_ANIM_OFF);
+                    }
+                    break;
+                case PAGE_CRYPTO:
+                    if (crypto_page_) {
+                        lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
+                        lv_obj_scroll_to_view_recursive(crypto_page_, LV_ANIM_OFF);
+                    }
+                    break;
+                case PAGE_SETTINGS:
+                    if (settings_page_) {
+                        lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
+                        lv_obj_scroll_to_view_recursive(settings_page_, LV_ANIM_OFF);
+                    }
+                    break;
+            }
         }
         
         ESP_LOGI(TAG, "Exited screensaver mode");
