@@ -116,6 +116,7 @@ protected:
     lv_obj_t* settings_screensaver_label_ = nullptr;
     lv_obj_t* settings_screensaver_switch_ = nullptr;
     lv_obj_t* settings_save_button_ = nullptr;  // 添加保存按钮
+    lv_obj_t* settings_save_label_ = nullptr;
     
     // 屏幕保护相关组件
     lv_obj_t* screensaver_page_ = nullptr;

@@ -1171,6 +1171,12 @@ void WXT185Display::CreateSettingsPage() {
     // 8. 创建保存按钮
     settings_save_button_ = lv_button_create(settings_page_);
     ESP_LOGI(TAG, "Save button created");
+    // 设置按钮标签
+    settings_save_label_ = lv_label_create(settings_save_button_);
+    ESP_LOGI(TAG, "Save button label created");
+    lv_label_set_text(settings_save_label_, "Save");
+    lv_obj_center(settings_save_label_);
+
     lv_obj_set_style_bg_color(settings_save_button_, current_wxt185_theme_.settings_screensaver_switch, 0);
     lv_obj_set_size(settings_save_button_, 100, 40);
     lv_obj_align(settings_save_button_, LV_ALIGN_BOTTOM_MID, 0, -30);
