@@ -1155,7 +1155,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_label_set_text(settings_screensaver_label_, "Screensaver:");
     lv_obj_set_style_text_font(settings_screensaver_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(settings_screensaver_label_, current_wxt185_theme_.text, 0);
-    lv_obj_align(settings_screensaver_label_, LV_ALIGN_TOP_MID, -80, 180);
+    lv_obj_align_to(settings_screensaver_label_, settings_kline_time_roller_, LV_ALIGN_OUT_RIGHT_MID, -80, 0);
 
     settings_screensaver_switch_ = lv_switch_create(settings_page_);
     ESP_LOGI(TAG, "Screensaver switch created");
@@ -1165,53 +1165,14 @@ void WXT185Display::CreateSettingsPage() {
     }
     lv_obj_add_event_cb(settings_screensaver_switch_, screensaver_switch_event_handler, LV_EVENT_VALUE_CHANGED, this);
     lv_obj_align_to(settings_screensaver_switch_, settings_screensaver_label_, LV_ALIGN_OUT_RIGHT_MID, 55, 0);
-    
-    // 8. 创建实时行情开关
-    lv_obj_t* settings_realtime_crypto_label_ = lv_label_create(settings_page_);
-    ESP_LOGI(TAG, "Realtime crypto label created");
-    lv_label_set_text(settings_realtime_crypto_label_, "Realtime Data:");
-    lv_obj_set_style_text_font(settings_realtime_crypto_label_, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(settings_realtime_crypto_label_, current_wxt185_theme_.text, 0);
-    lv_obj_align(settings_realtime_crypto_label_, LV_ALIGN_TOP_MID, -80, 210);
-
-    lv_obj_t* settings_realtime_crypto_switch_ = lv_switch_create(settings_page_);
-    ESP_LOGI(TAG, "Realtime crypto switch created");
-    lv_obj_set_style_bg_color(settings_realtime_crypto_switch_, current_wxt185_theme_.settings_screensaver_switch, 0);
-    if (enable_realtime_crypto_data_) {
-        lv_obj_add_state(settings_realtime_crypto_switch_, LV_STATE_CHECKED);
-    }
-    // TODO: 添加实时行情开关事件处理函数
-    lv_obj_align_to(settings_realtime_crypto_switch_, settings_realtime_crypto_label_, LV_ALIGN_OUT_RIGHT_MID, 55, 0);
-    
-    // 9. 创建K线行情开关
-    lv_obj_t* settings_kline_crypto_label_ = lv_label_create(settings_page_);
-    ESP_LOGI(TAG, "KLine crypto label created");
-    lv_label_set_text(settings_kline_crypto_label_, "K-Line Data:");
-    lv_obj_set_style_text_font(settings_kline_crypto_label_, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(settings_kline_crypto_label_, current_wxt185_theme_.text, 0);
-    lv_obj_align(settings_kline_crypto_label_, LV_ALIGN_TOP_MID, -80, 240);
-
-    lv_obj_t* settings_kline_crypto_switch_ = lv_switch_create(settings_page_);
-    ESP_LOGI(TAG, "KLine crypto switch created");
-    lv_obj_set_style_bg_color(settings_kline_crypto_switch_, current_wxt185_theme_.settings_screensaver_switch, 0);
-    if (enable_kline_crypto_data_) {
-        lv_obj_add_state(settings_kline_crypto_switch_, LV_STATE_CHECKED);
-    }
-    // TODO: 添加K线行情开关事件处理函数
-    lv_obj_align_to(settings_kline_crypto_switch_, settings_kline_crypto_label_, LV_ALIGN_OUT_RIGHT_MID, 55, 0);
-    
-    // 10. 创建保存按钮
+      
+    // 8. 创建保存按钮
     settings_save_button_ = lv_button_create(settings_page_);
     ESP_LOGI(TAG, "Save button created");
     lv_obj_set_style_bg_color(settings_save_button_, current_wxt185_theme_.settings_screensaver_switch, 0);
     lv_obj_set_size(settings_save_button_, 100, 40);
-    lv_obj_align(settings_save_button_, LV_ALIGN_BOTTOM_MID, 0, 0);
-    
-    lv_obj_t* save_label = lv_label_create(settings_save_button_);
-    ESP_LOGI(TAG, "Save button label created");
-    lv_label_set_text(save_label, "Save");
-    lv_obj_center(save_label);
-    
+    lv_obj_align(settings_save_button_, LV_ALIGN_BOTTOM_MID, 0, -30);
+
     lv_obj_add_event_cb(settings_save_button_, settings_save_button_event_handler, LV_EVENT_CLICKED, this);
     
     ESP_LOGI(TAG, "Settings page creation completed");
