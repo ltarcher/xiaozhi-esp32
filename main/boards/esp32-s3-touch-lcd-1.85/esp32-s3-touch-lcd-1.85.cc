@@ -472,6 +472,8 @@ private:
         if (ret != ESP_OK) {
             ESP_LOGW(TAG, "CST816S touch controller not found on I2C bus at address 0x%02X, error: %s", 
                      ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, esp_err_to_name(ret));
+            // 出错复位
+            ESP_ERROR_CHECK(ret);
             return tp;
         } else {
             ESP_LOGI(TAG, "Successfully detected touch controller with 100kHz I2C speed on separate bus");
