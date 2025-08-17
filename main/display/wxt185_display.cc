@@ -1748,10 +1748,10 @@ void WXT185Display::HandleTouchEnd(lv_point_t point) {
     
     is_touching_ = false;
     
-    // 如果当前处于屏保状态，任何滑动都应关闭屏保
+    // 如果当前处于屏保状态，任何触摸都应关闭屏保
     if (screensaver_active_) {
-        ESP_LOGI(TAG, "Swipe detected in screensaver mode, exiting screensaver");
-        ExitScreensaver();
+        ESP_LOGI(TAG, "Touch detected in screensaver mode, exiting screensaver");
+        OnActivity();
         return;
     }
     
@@ -1826,27 +1826,47 @@ void WXT185Display::PageEventHandler(lv_event_t* e) {
     if (code == LV_EVENT_SCROLL_END) {
         // 如果当前在屏保状态，不处理页面滚动事件
         if (self->screensaver_active_) {
-            ESP_LOGI(TAG, "Currently in screensaver mode, exiting screensaver");
+            ESP_LOGI(TAG, "Currently in screensaver mode, exiting screensaver due to scroll");
             self->OnActivity();
             return;
         }
         
         lv_point_t scroll_end;
         lv_obj_get_scroll_end(self->main_screen_, &scroll_end);
-        ESP_LOGI(TAG, "Scroll end: (%d, %d)", scroll_end.x, scroll_end.y);
+        int16_t scroll_end_x = scroll_end.x;
 
-        // 使用屏幕宽度而不是content_width来计算页面
-        uint32_t page = (scroll_end.x + self->width_ / 2) / self->width_;
+        // 根据滚动结束位置确定当前页面
+        int new_page_index = (scroll_end_x + self->width_ / 2) / self->width_;
+        if (new_page_index < 0) new_page_index = 0;
+        if (new_page_index > 2) new_page_index = 2;
 
-        /* 确保页面索引有效 */
-        if (page >= 3) page = 2;  // 最多3个页面(0,1,2)
-
-        /* 更新当前页面索引 */
-        WXT185Display::current_page_index_ = page;
-        ESP_LOGI(TAG, "Current page index: %d", WXT185Display::current_page_index_);
+        self->current_page_index_ = new_page_index;
+        
+        // 滚动到指定页面
+        lv_obj_t* target_page = nullptr;
+        switch (new_page_index) {
+            case 0:
+                target_page = self->chat_page_;
+                ESP_LOGI(TAG, "Scrolled to chat page");
+                break;
+            case 1:
+                target_page = self->crypto_page_;
+                ESP_LOGI(TAG, "Scrolled to crypto page");
+                break;
+            case 2:
+                target_page = self->settings_page_;
+                ESP_LOGI(TAG, "Scrolled to settings page");
+                break;
+            default:
+                return;
+        }
+        
+        if (target_page) {
+            lv_obj_scroll_to_view_recursive(target_page, LV_ANIM_ON);
+        }
         
         // 如果切换到虚拟币页面，更新显示
-        if (WXT185Display::current_page_index_ == PAGE_CRYPTO) {
+        if (new_page_index == PAGE_CRYPTO) {
             self->UpdateCryptoData();
         }
     }
@@ -1866,7 +1886,7 @@ void WXT185Display::KLineFrequencyButtonEventHandler(lv_event_t* e) {
                 
                 // 更新选中状态
                 self->selected_kline_frequency_ = i;
-                
+       
                 // 更新所有按钮的样式
                 for (int j = 0; j < 10; j++) {
                     if (j == i) {
@@ -2179,7 +2199,7 @@ void WXT185Display::EnterScreensaver() {
 }
 
 void WXT185Display::ExitScreensaver() {
-    try {
+     try {
         DisplayLockGuard lock(this);
         
         if (!screensaver_active_ || !screensaver_page_) return;
