@@ -2479,6 +2479,11 @@ void WXT185Display::ExitScreensaver() {
             // 添加页面滚动回调
             lv_obj_add_event_cb(main_screen_, PageEventHandler, LV_EVENT_SCROLL_END, this);
             
+            // 重新添加触摸事件处理回调
+            lv_obj_remove_event_cb(main_screen_, TouchEventHandler);
+            lv_obj_add_event_cb(main_screen_, TouchEventHandler, LV_EVENT_PRESSED, this);
+            lv_obj_add_event_cb(main_screen_, TouchEventHandler, LV_EVENT_RELEASED, this);
+            
             // 移除各页面的滚动事件回调以避免冲突
             if (chat_page_) {
                 lv_obj_remove_event_cb(chat_page_, PageEventHandler);
@@ -2488,6 +2493,35 @@ void WXT185Display::ExitScreensaver() {
             }
             if (settings_page_) {
                 lv_obj_remove_event_cb(settings_page_, PageEventHandler);
+            }
+            
+            // 重新添加各页面的事件处理回调
+            if (chat_page_) {
+                // 重新添加页面滚动回调
+                lv_obj_add_event_cb(chat_page_, PageEventHandler, LV_EVENT_SCROLL_END, this);
+                
+                // 重新添加触摸事件处理回调
+                lv_obj_remove_event_cb(chat_page_, TouchEventHandler);
+                lv_obj_add_event_cb(chat_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
+                lv_obj_add_event_cb(chat_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
+            }
+            if (crypto_page_) {
+                // 重新添加页面滚动回调
+                lv_obj_add_event_cb(crypto_page_, PageEventHandler, LV_EVENT_SCROLL_END, this);
+                
+                // 重新添加触摸事件处理回调
+                lv_obj_remove_event_cb(crypto_page_, TouchEventHandler);
+                lv_obj_add_event_cb(crypto_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
+                lv_obj_add_event_cb(crypto_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
+            }
+            if (settings_page_) {
+                // 重新添加页面滚动回调
+                lv_obj_add_event_cb(settings_page_, PageEventHandler, LV_EVENT_SCROLL_END, this);
+                
+                // 重新添加触摸事件处理回调
+                lv_obj_remove_event_cb(settings_page_, TouchEventHandler);
+                lv_obj_add_event_cb(settings_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
+                lv_obj_add_event_cb(settings_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
             }
 #endif
             
@@ -2565,6 +2599,7 @@ void WXT185Display::UpdateScreensaverContent() {
                     char change_text[32];
                     snprintf(change_text, sizeof(change_text), "%.2f%%", screensaver_crypto_.change_24h);
                     lv_label_set_text(screensaver_crypto_change_, change_text);
+
                     
                     // 根据涨跌设置颜色
                     if (screensaver_crypto_.change_24h >= 0) {

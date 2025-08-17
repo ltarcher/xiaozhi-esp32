@@ -22,6 +22,7 @@ struct CryptocurrencyData {
     std::vector<KLineData> kline_data_5m;  // 5分钟K线
     std::vector<KLineData> kline_data_15m; // 15分钟K线
     std::vector<KLineData> kline_data_1h;  // 1小时K线
+    std::vector<KLineData> kline_data_2h;  // 2小时K线
     std::vector<KLineData> kline_data_4h;  // 4小时K线
     std::vector<KLineData> kline_data_1d;  // 1天K线
     std::vector<KLineData> kline_data_1w;  // 1周K线
