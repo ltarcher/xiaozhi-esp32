@@ -57,6 +57,12 @@ struct WXT185ThemeColors {
     lv_color_t crypto_progress_bg_color;
     // 设置页面样式
     lv_color_t settings_screensaver_switch;
+    lv_color_t settings_label;
+    lv_color_t settings_roller_text;
+    lv_color_t settings_roller_bg;
+    lv_color_t settings_roller_border;
+    lv_color_t settings_button_text;
+    lv_color_t settings_button_bg;
 };
 
 // 定义页面

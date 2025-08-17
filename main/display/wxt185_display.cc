@@ -30,6 +30,14 @@
 #define LIGHT_INNER_RING_COLOR       lv_color_hex(0xEEEEEE)  // 内圆环颜色
 #define LIGHT_SCREENSAVER_SWITCH_COLOR lv_color_hex(0x1A6C37) // 屏保开关颜色
 
+// 设置页面颜色定义 - 基于LIGHT主题
+#define LIGHT_SETTINGS_LABEL_COLOR         LIGHT_TEXT_COLOR              // 设置标签颜色
+#define LIGHT_SETTINGS_ROLLER_TEXT_COLOR   LIGHT_TEXT_COLOR              // 设置选择器文本颜色
+#define LIGHT_SETTINGS_ROLLER_BG_COLOR     LIGHT_SELECTOR_COLOR          // 设置选择器背景颜色
+#define LIGHT_SETTINGS_ROLLER_BORDER_COLOR LIGHT_BORDER_COLOR            // 设置选择器边框颜色
+#define LIGHT_SETTINGS_BUTTON_TEXT_COLOR   LIGHT_TEXT_COLOR              // 设置按钮文本颜色
+#define LIGHT_SETTINGS_BUTTON_BG_COLOR     LIGHT_SCREENSAVER_SWITCH_COLOR // 设置按钮背景颜色
+
 // 虚拟币界面颜色定义 - 基于LIGHT主题
 #define LIGHT_CRYPTO_BACKGROUND_COLOR      LIGHT_BACKGROUND_COLOR      // 背景色
 #define LIGHT_CRYPTO_TEXT_COLOR            LIGHT_TEXT_COLOR            // 主文本色
@@ -54,6 +62,14 @@
 #define DARK_OUTER_RING_COLOR        lv_color_hex(0x252525)  // 外圆环颜色
 #define DARK_INNER_RING_COLOR        lv_color_hex(0x1E1E1E)  // 内圆环颜色
 #define DARK_SCREENSAVER_SWITCH_COLOR lv_color_hex(0x1A6C37)  // 屏保开关颜色
+
+// 设置页面颜色定义 - 基于DARK主题
+#define DARK_SETTINGS_LABEL_COLOR         DARK_TEXT_COLOR              // 设置标签颜色
+#define DARK_SETTINGS_ROLLER_TEXT_COLOR   DARK_TEXT_COLOR              // 设置选择器文本颜色
+#define DARK_SETTINGS_ROLLER_BG_COLOR     DARK_SELECTOR_COLOR          // 设置选择器背景颜色
+#define DARK_SETTINGS_ROLLER_BORDER_COLOR DARK_BORDER_COLOR            // 设置选择器边框颜色
+#define DARK_SETTINGS_BUTTON_TEXT_COLOR   DARK_TEXT_COLOR              // 设置按钮文本颜色
+#define DARK_SETTINGS_BUTTON_BG_COLOR     DARK_SCREENSAVER_SWITCH_COLOR // 设置按钮背景颜色
 
 // 虚拟币界面颜色定义 - 基于DARK主题
 #define DARK_CRYPTO_BACKGROUND_COLOR      DARK_BACKGROUND_COLOR      // 背景色
@@ -80,6 +96,14 @@
 #define METAL_INNER_RING_COLOR       lv_color_hex(0xC0C0C0)   // 内圆环颜色
 #define METAL_SCREENSAVER_SWITCH_COLOR lv_color_hex(0x1A6C37)  // 屏保开关颜色
 
+// 设置页面颜色定义 - 基于METAL主题
+#define METAL_SETTINGS_LABEL_COLOR         METAL_TEXT_COLOR              // 设置标签颜色
+#define METAL_SETTINGS_ROLLER_TEXT_COLOR   METAL_TEXT_COLOR              // 设置选择器文本颜色
+#define METAL_SETTINGS_ROLLER_BG_COLOR     METAL_SELECTOR_COLOR          // 设置选择器背景颜色
+#define METAL_SETTINGS_ROLLER_BORDER_COLOR METAL_BORDER_COLOR            // 设置选择器边框颜色
+#define METAL_SETTINGS_BUTTON_TEXT_COLOR   METAL_TEXT_COLOR              // 设置按钮文本颜色
+#define METAL_SETTINGS_BUTTON_BG_COLOR     METAL_SCREENSAVER_SWITCH_COLOR // 设置按钮背景颜色
+
 // 虚拟币界面颜色定义 - 基于METAL主题
 #define METAL_CRYPTO_BACKGROUND_COLOR      METAL_BACKGROUND_COLOR      // 背景色
 #define METAL_CRYPTO_TEXT_COLOR            METAL_TEXT_COLOR            // 主文本色
@@ -105,6 +129,14 @@
 #define TECHNOLOGY_INNER_RING_COLOR  lv_color_hex(0x0A0A20)   // 内圆环颜色
 #define TECHNOLOGY_SCREENSAVER_SWITCH_COLOR lv_color_hex(0x006400) // 屏保开关颜色
 
+// 设置页面颜色定义 - 基于TECHNOLOGY主题
+#define TECHNOLOGY_SETTINGS_LABEL_COLOR         TECHNOLOGY_TEXT_COLOR              // 设置标签颜色
+#define TECHNOLOGY_SETTINGS_ROLLER_TEXT_COLOR   TECHNOLOGY_TEXT_COLOR              // 设置选择器文本颜色
+#define TECHNOLOGY_SETTINGS_ROLLER_BG_COLOR     TECHNOLOGY_SELECTOR_COLOR          // 设置选择器背景颜色
+#define TECHNOLOGY_SETTINGS_ROLLER_BORDER_COLOR TECHNOLOGY_BORDER_COLOR            // 设置选择器边框颜色
+#define TECHNOLOGY_SETTINGS_BUTTON_TEXT_COLOR   TECHNOLOGY_TEXT_COLOR              // 设置按钮文本颜色
+#define TECHNOLOGY_SETTINGS_BUTTON_BG_COLOR     TECHNOLOGY_SCREENSAVER_SWITCH_COLOR // 设置按钮背景颜色
+
 // 虚拟币界面颜色定义 - 基于TECHNOLOGY主题
 #define TECHNOLOGY_CRYPTO_BACKGROUND_COLOR      TECHNOLOGY_BACKGROUND_COLOR      // 背景色
 #define TECHNOLOGY_CRYPTO_TEXT_COLOR            TECHNOLOGY_TEXT_COLOR            // 主文本色
@@ -129,6 +161,14 @@
 #define COSMIC_OUTER_RING_COLOR      lv_color_hex(0x150015)   // 外圆环颜色
 #define COSMIC_INNER_RING_COLOR      lv_color_hex(0x100010)   // 内圆环颜色
 #define COSMIC_SCREENSAVER_SWITCH_COLOR lv_color_hex(0x4B0082) // 屏保开关颜色
+
+// 设置页面颜色定义 - 基于COSMIC主题
+#define COSMIC_SETTINGS_LABEL_COLOR         COSMIC_TEXT_COLOR              // 设置标签颜色
+#define COSMIC_SETTINGS_ROLLER_TEXT_COLOR   COSMIC_TEXT_COLOR              // 设置选择器文本颜色
+#define COSMIC_SETTINGS_ROLLER_BG_COLOR     COSMIC_SELECTOR_COLOR          // 设置选择器背景颜色
+#define COSMIC_SETTINGS_ROLLER_BORDER_COLOR COSMIC_BORDER_COLOR            // 设置选择器边框颜色
+#define COSMIC_SETTINGS_BUTTON_TEXT_COLOR   COSMIC_TEXT_COLOR              // 设置按钮文本颜色
+#define COSMIC_SETTINGS_BUTTON_BG_COLOR     COSMIC_SCREENSAVER_SWITCH_COLOR // 设置按钮背景颜色
 
 // 虚拟币界面颜色定义 - 基于COSMIC主题
 #define COSMIC_CRYPTO_BACKGROUND_COLOR      COSMIC_BACKGROUND_COLOR      // 背景色
@@ -161,7 +201,13 @@ const WXT185ThemeColors LIGHT_THEME_WXT185 = {
     .crypto_down_color = LIGHT_CRYPTO_DOWN_COLOR,
     .crypto_border_color = LIGHT_CRYPTO_BORDER_COLOR,
     .crypto_progress_bg_color = LIGHT_CRYPTO_PROGRESS_BG_COLOR,
-    .settings_screensaver_switch = LIGHT_SCREENSAVER_SWITCH_COLOR
+    .settings_screensaver_switch = LIGHT_SCREENSAVER_SWITCH_COLOR,
+    .settings_label = LIGHT_SETTINGS_LABEL_COLOR,
+    .settings_roller_text = LIGHT_SETTINGS_ROLLER_TEXT_COLOR,
+    .settings_roller_bg = LIGHT_SETTINGS_ROLLER_BG_COLOR,
+    .settings_roller_border = LIGHT_SETTINGS_ROLLER_BORDER_COLOR,
+    .settings_button_text = LIGHT_SETTINGS_BUTTON_TEXT_COLOR,
+    .settings_button_bg = LIGHT_SETTINGS_BUTTON_BG_COLOR
 };
 
 const WXT185ThemeColors DARK_THEME_WXT185 = {
@@ -185,7 +231,13 @@ const WXT185ThemeColors DARK_THEME_WXT185 = {
     .crypto_down_color = DARK_CRYPTO_DOWN_COLOR,
     .crypto_border_color = DARK_CRYPTO_BORDER_COLOR,
     .crypto_progress_bg_color = DARK_CRYPTO_PROGRESS_BG_COLOR,
-    .settings_screensaver_switch = DARK_SCREENSAVER_SWITCH_COLOR
+    .settings_screensaver_switch = DARK_SCREENSAVER_SWITCH_COLOR,
+    .settings_label = DARK_SETTINGS_LABEL_COLOR,
+    .settings_roller_text = DARK_SETTINGS_ROLLER_TEXT_COLOR,
+    .settings_roller_bg = DARK_SETTINGS_ROLLER_BG_COLOR,
+    .settings_roller_border = DARK_SETTINGS_ROLLER_BORDER_COLOR,
+    .settings_button_text = DARK_SETTINGS_BUTTON_TEXT_COLOR,
+    .settings_button_bg = DARK_SETTINGS_BUTTON_BG_COLOR
 };
 
 const WXT185ThemeColors METAL_THEME_WXT185 = {
@@ -209,7 +261,13 @@ const WXT185ThemeColors METAL_THEME_WXT185 = {
     .crypto_down_color = METAL_CRYPTO_DOWN_COLOR,
     .crypto_border_color = METAL_CRYPTO_BORDER_COLOR,
     .crypto_progress_bg_color = METAL_CRYPTO_PROGRESS_BG_COLOR,
-    .settings_screensaver_switch = METAL_SCREENSAVER_SWITCH_COLOR
+    .settings_screensaver_switch = METAL_SCREENSAVER_SWITCH_COLOR,
+    .settings_label = METAL_SETTINGS_LABEL_COLOR,
+    .settings_roller_text = METAL_SETTINGS_ROLLER_TEXT_COLOR,
+    .settings_roller_bg = METAL_SETTINGS_ROLLER_BG_COLOR,
+    .settings_roller_border = METAL_SETTINGS_ROLLER_BORDER_COLOR,
+    .settings_button_text = METAL_SETTINGS_BUTTON_TEXT_COLOR,
+    .settings_button_bg = METAL_SETTINGS_BUTTON_BG_COLOR
 };
 
 const WXT185ThemeColors TECHNOLOGY_THEME_WXT185 = {
@@ -233,7 +291,13 @@ const WXT185ThemeColors TECHNOLOGY_THEME_WXT185 = {
     .crypto_down_color = TECHNOLOGY_CRYPTO_DOWN_COLOR,
     .crypto_border_color = TECHNOLOGY_CRYPTO_BORDER_COLOR,
     .crypto_progress_bg_color = TECHNOLOGY_CRYPTO_PROGRESS_BG_COLOR,
-    .settings_screensaver_switch = TECHNOLOGY_SCREENSAVER_SWITCH_COLOR
+    .settings_screensaver_switch = TECHNOLOGY_SCREENSAVER_SWITCH_COLOR,
+    .settings_label = TECHNOLOGY_SETTINGS_LABEL_COLOR,
+    .settings_roller_text = TECHNOLOGY_SETTINGS_ROLLER_TEXT_COLOR,
+    .settings_roller_bg = TECHNOLOGY_SETTINGS_ROLLER_BG_COLOR,
+    .settings_roller_border = TECHNOLOGY_SETTINGS_ROLLER_BORDER_COLOR,
+    .settings_button_text = TECHNOLOGY_SETTINGS_BUTTON_TEXT_COLOR,
+    .settings_button_bg = TECHNOLOGY_SETTINGS_BUTTON_BG_COLOR
 };
 
 const WXT185ThemeColors COSMIC_THEME_WXT185 = {
@@ -257,7 +321,13 @@ const WXT185ThemeColors COSMIC_THEME_WXT185 = {
     .crypto_down_color = COSMIC_CRYPTO_DOWN_COLOR,
     .crypto_border_color = COSMIC_CRYPTO_BORDER_COLOR,
     .crypto_progress_bg_color = COSMIC_CRYPTO_PROGRESS_BG_COLOR,
-    .settings_screensaver_switch = COSMIC_SCREENSAVER_SWITCH_COLOR    
+    .settings_screensaver_switch = COSMIC_SCREENSAVER_SWITCH_COLOR,
+    .settings_label = COSMIC_SETTINGS_LABEL_COLOR,
+    .settings_roller_text = COSMIC_SETTINGS_ROLLER_TEXT_COLOR,
+    .settings_roller_bg = COSMIC_SETTINGS_ROLLER_BG_COLOR,
+    .settings_roller_border = COSMIC_SETTINGS_ROLLER_BORDER_COLOR,
+    .settings_button_text = COSMIC_SETTINGS_BUTTON_TEXT_COLOR,
+    .settings_button_bg = COSMIC_SETTINGS_BUTTON_BG_COLOR    
 };
 
 // 定义字体(需要idf.py menuconfig启用lvgl字体配置项)
@@ -1050,14 +1120,16 @@ void WXT185Display::CreateSettingsPage() {
     ESP_LOGI(TAG, "Theme label created");
     lv_label_set_text(settings_theme_label_, "Theme:");
     lv_obj_set_style_text_font(settings_theme_label_, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(settings_theme_label_, current_wxt185_theme_.text, 0);
+    lv_obj_set_style_text_color(settings_theme_label_, current_wxt185_theme_.settings_label, 0);
     lv_obj_align(settings_theme_label_, LV_ALIGN_TOP_MID, -80, 80);
 
     settings_theme_roller_ = lv_roller_create(settings_page_);
     ESP_LOGI(TAG, "Theme roller created");
     lv_obj_set_style_text_font(settings_theme_roller_, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(settings_theme_roller_, current_wxt185_theme_.text, 0);
-    lv_obj_set_style_bg_color(settings_theme_roller_, lv_color_hex(0x1a001a), 0);
+    lv_obj_set_style_text_color(settings_theme_roller_, current_wxt185_theme_.settings_roller_text, 0);
+    // 修改背景颜色以匹配当前主题
+    lv_obj_set_style_bg_color(settings_theme_roller_, current_wxt185_theme_.settings_roller_bg, 0);
+    lv_obj_set_style_border_color(settings_theme_roller_, current_wxt185_theme_.settings_roller_border, 0);
 
     // 添加主题选项到roller
     char theme_options[MAX_THEME_NAME_LENGTH * ThemeCount] = {0};
@@ -1079,14 +1151,16 @@ void WXT185Display::CreateSettingsPage() {
     ESP_LOGI(TAG, "Default crypto label created");
     lv_label_set_text(settings_default_crypto_label_, "Default Coin:");
     lv_obj_set_style_text_font(settings_default_crypto_label_, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(settings_default_crypto_label_, current_wxt185_theme_.text, 0);
+    lv_obj_set_style_text_color(settings_default_crypto_label_, current_wxt185_theme_.settings_label, 0);
     lv_obj_align(settings_default_crypto_label_, LV_ALIGN_TOP_MID, -80, 120);
 
     settings_default_crypto_roller_ = lv_roller_create(settings_page_);
     ESP_LOGI(TAG, "Default crypto roller created");
     lv_obj_set_style_text_font(settings_default_crypto_roller_, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(settings_default_crypto_roller_, current_wxt185_theme_.text, 0);
-    lv_obj_set_style_bg_color(settings_default_crypto_roller_, lv_color_hex(0x1a001a), 0);
+    lv_obj_set_style_text_color(settings_default_crypto_roller_, current_wxt185_theme_.settings_roller_text, 0);
+    // 修改背景颜色以匹配当前主题
+    lv_obj_set_style_bg_color(settings_default_crypto_roller_, current_wxt185_theme_.settings_roller_bg, 0);
+    lv_obj_set_style_border_color(settings_default_crypto_roller_, current_wxt185_theme_.settings_roller_border, 0);
 
     // 添加虚拟币选项到roller
     // 获取虚拟币列表
@@ -1117,14 +1191,16 @@ void WXT185Display::CreateSettingsPage() {
     ESP_LOGI(TAG, "K-line time label created");
     lv_label_set_text(settings_kline_time_label_, "K-Line Freq:");
     lv_obj_set_style_text_font(settings_kline_time_label_, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(settings_kline_time_label_, current_wxt185_theme_.text, 0);
+    lv_obj_set_style_text_color(settings_kline_time_label_, current_wxt185_theme_.settings_label, 0);
     lv_obj_align(settings_kline_time_label_, LV_ALIGN_TOP_MID, -80, 160);
 
     settings_kline_time_roller_ = lv_roller_create(settings_page_);
     ESP_LOGI(TAG, "K-line time roller created");
     lv_obj_set_style_text_font(settings_kline_time_roller_, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(settings_kline_time_roller_, current_wxt185_theme_.text, 0);
-    lv_obj_set_style_bg_color(settings_kline_time_roller_, lv_color_hex(0x1a001a), 0);
+    lv_obj_set_style_text_color(settings_kline_time_roller_, current_wxt185_theme_.settings_roller_text, 0);
+    // 修改背景颜色以匹配当前主题
+    lv_obj_set_style_bg_color(settings_kline_time_roller_, current_wxt185_theme_.settings_roller_bg, 0);
+    lv_obj_set_style_border_color(settings_kline_time_roller_, current_wxt185_theme_.settings_roller_border, 0);
 
     // 添加K线频率选项到roller
     const char** klinefreq = nullptr;
@@ -1159,13 +1235,15 @@ void WXT185Display::CreateSettingsPage() {
     ESP_LOGI(TAG, "Screensaver label created");
     lv_label_set_text(settings_screensaver_label_, "Screensaver:");
     lv_obj_set_style_text_font(settings_screensaver_label_, &lv_font_montserrat_16, 0);
-    lv_obj_set_style_text_color(settings_screensaver_label_, current_wxt185_theme_.text, 0);
+    lv_obj_set_style_text_color(settings_screensaver_label_, current_wxt185_theme_.settings_label, 0);
     // 将屏保开关标签放置在K线频率选择配置下方
     lv_obj_align_to(settings_screensaver_label_, settings_kline_time_label_, LV_ALIGN_OUT_BOTTOM_MID, 0, 30);
 
     settings_screensaver_switch_ = lv_switch_create(settings_page_);
     ESP_LOGI(TAG, "Screensaver switch created");
     lv_obj_set_style_bg_color(settings_screensaver_switch_, current_wxt185_theme_.settings_screensaver_switch, 0);
+    // 设置指示器颜色
+    lv_obj_set_style_bg_color(settings_screensaver_switch_, current_wxt185_theme_.settings_screensaver_switch, LV_PART_INDICATOR | LV_STATE_CHECKED);
     if (screensaver_enabled) {
         lv_obj_add_state(settings_screensaver_switch_, LV_STATE_CHECKED);
     }
@@ -1181,8 +1259,10 @@ void WXT185Display::CreateSettingsPage() {
     ESP_LOGI(TAG, "Save button label created");
     lv_label_set_text(settings_save_label_, "Save");
     lv_obj_center(settings_save_label_);
-
-    lv_obj_set_style_bg_color(settings_save_button_, current_wxt185_theme_.settings_screensaver_switch, 0);
+    
+    // 设置按钮样式
+    lv_obj_set_style_bg_color(settings_save_button_, current_wxt185_theme_.settings_button_bg, 0);
+    lv_obj_set_style_text_color(settings_save_label_, current_wxt185_theme_.settings_button_text, 0);
     lv_obj_set_size(settings_save_button_, 100, 40);
     lv_obj_align(settings_save_button_, LV_ALIGN_BOTTOM_MID, 0, -30);
 
@@ -1341,17 +1421,54 @@ void WXT185Display::ApplySettingsPageTheme() {
     // 应用头部区域主题
     lv_obj_set_style_text_color(settings_title_, current_wxt185_theme_.text, 0);
     
+    // 应用标签文本颜色
+    if (settings_theme_label_) {
+        lv_obj_set_style_text_color(settings_theme_label_, current_wxt185_theme_.settings_label, 0);
+    }
+    
+    if (settings_default_crypto_label_) {
+        lv_obj_set_style_text_color(settings_default_crypto_label_, current_wxt185_theme_.settings_label, 0);
+    }
+    
+    if (settings_kline_time_label_) {
+        lv_obj_set_style_text_color(settings_kline_time_label_, current_wxt185_theme_.settings_label, 0);
+    }
+    
+    if (settings_screensaver_label_) {
+        lv_obj_set_style_text_color(settings_screensaver_label_, current_wxt185_theme_.settings_label, 0);
+    }
+    
     // 应用主题选择区域主题
-    lv_obj_set_style_bg_color(settings_theme_roller_, current_wxt185_theme_.selector, 0);
-    lv_obj_set_style_border_color(settings_theme_roller_, current_wxt185_theme_.border, 0);
+    lv_obj_set_style_bg_color(settings_theme_roller_, current_wxt185_theme_.settings_roller_bg, 0);
+    lv_obj_set_style_border_color(settings_theme_roller_, current_wxt185_theme_.settings_roller_border, 0);
+    lv_obj_set_style_text_color(settings_theme_roller_, current_wxt185_theme_.settings_roller_text, 0);
 
     // 应用虚拟币选择区域主题
-    lv_obj_set_style_bg_color(settings_default_crypto_roller_, current_wxt185_theme_.selector, 0);
-    lv_obj_set_style_border_color(settings_default_crypto_roller_, current_wxt185_theme_.border, 0);
+    lv_obj_set_style_bg_color(settings_default_crypto_roller_, current_wxt185_theme_.settings_roller_bg, 0);
+    lv_obj_set_style_border_color(settings_default_crypto_roller_, current_wxt185_theme_.settings_roller_border, 0);
+    lv_obj_set_style_text_color(settings_default_crypto_roller_, current_wxt185_theme_.settings_roller_text, 0);
     
     // 应用时间框架选择区域主题
-    lv_obj_set_style_bg_color(settings_kline_time_roller_, current_wxt185_theme_.selector, 0);
-    lv_obj_set_style_border_color(settings_kline_time_roller_, current_wxt185_theme_.border, 0);
+    lv_obj_set_style_bg_color(settings_kline_time_roller_, current_wxt185_theme_.settings_roller_bg, 0);
+    lv_obj_set_style_border_color(settings_kline_time_roller_, current_wxt185_theme_.settings_roller_border, 0);
+    lv_obj_set_style_text_color(settings_kline_time_roller_, current_wxt185_theme_.settings_roller_text, 0);
+    
+    // 应用屏保开关主题
+    if (settings_screensaver_switch_) {
+        lv_obj_set_style_bg_color(settings_screensaver_switch_, current_wxt185_theme_.settings_screensaver_switch, 0);
+        // 设置指示器颜色
+        lv_obj_set_style_bg_color(settings_screensaver_switch_, current_wxt185_theme_.settings_screensaver_switch, LV_PART_INDICATOR | LV_STATE_CHECKED);
+    }
+    
+    // 应用保存按钮主题
+    if (settings_save_button_) {
+        lv_obj_set_style_bg_color(settings_save_button_, current_wxt185_theme_.settings_button_bg, 0);
+    }
+    
+    // 应用保存按钮标签主题
+    if (settings_save_label_) {
+        lv_obj_set_style_text_color(settings_save_label_, current_wxt185_theme_.settings_button_text, 0);
+    }
 }
 
 void WXT185Display::ApplyScreensaverTheme() {
@@ -1387,6 +1504,8 @@ void WXT185Display::ApplyScreensaverTheme() {
 void WXT185Display::SetEmotion(const char* emotion) {
     ESP_LOGI(TAG, "Setting emotion: %s", emotion ? emotion : "null");
     LcdDisplay::SetEmotion(emotion);
+}
+
 }
 
 void WXT185Display::SetIcon(const char* icon) {
