@@ -507,8 +507,8 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
         std::string url = settings.GetString("url");
     */
     // 从NVS读取url
-    Settings settings("websocket", false);
-    std::string url = settings.GetString("url");
+    Settings server_settings("websocket", false);
+    std::string url = server_settings.GetString("url");
     ESP_LOGI(TAG, "WS URL: %s", url.c_str());
 
     // 初始化默认设置
