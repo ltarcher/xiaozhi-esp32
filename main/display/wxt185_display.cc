@@ -1883,7 +1883,7 @@ void WXT185Display::CryptoSelectorEventHandler(lv_event_t* e) {
     
     lv_event_code_t code = lv_event_get_code(e);
     WXT185Display* self = static_cast<WXT185Display*>(lv_event_get_user_data(e));
-    
+
     if (code == LV_EVENT_VALUE_CHANGED) {
         // 虚拟币选择事件处理
         if (self && self->crypto_roller_) {
@@ -1957,7 +1957,54 @@ void WXT185Display::ThemeSelectorEventHandler(lv_event_t* e) {
 
 void WXT185Display::TimeframeSelectorEventHandler(lv_event_t* e) {
     ESP_LOGI(TAG, "Timeframe selector event handler called");
-    // 时间框架选择事件处理
+    
+    lv_event_code_t code = lv_event_get_code(e);
+    WXT185Display* self = static_cast<WXT185Display*>(lv_event_get_user_data(e));
+    
+    if (code == LV_EVENT_VALUE_CHANGED) {
+        if (self) {
+            // 获取触发事件的对象（时间框架选择器）
+            lv_obj_t* roller = lv_event_get_target(e);
+            if (roller) {
+                // 获取选中的时间框架索引
+                int selected_timeframe = lv_roller_get_selected(roller);
+                ESP_LOGI(TAG, "Timeframe roller value changed to index: %d", selected_timeframe);
+                
+                // 更新当前选中的时间框架
+                self->selected_kline_frequency_ = selected_timeframe;
+                
+                // 更新所有K线频率按钮的样式
+                for (int i = 0; i < 10; i++) {
+                    if (self->kline_frequency_buttons_[i]) {
+                        if (i == selected_timeframe) {
+                            // 选中的按钮使用特殊颜色
+                            lv_obj_set_style_bg_color(self->kline_frequency_buttons_[i], lv_color_hex(0x1a6c37), 0);
+                        } else {
+                            // 未选中的按钮使用默认选择器颜色
+                            lv_obj_set_style_bg_color(self->kline_frequency_buttons_[i], self->current_wxt185_theme_.selector, 0);
+                        }
+                    }
+                }
+                
+                // 如果已连接到币界服务，获取新的K线数据
+                if (self->bijie_coins_ && self->bijie_coins_connected_) {
+                    uint32_t kline_type = self->GetKLineTypeByIndex(selected_timeframe);
+                    ESP_LOGI(TAG, "Requesting K-line data for currency %d with type %d", 
+                             self->current_crypto_data_.currency_id, kline_type);
+                    
+                    self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, kline_type, 30, 
+                                                     [self](const std::vector<KLineData>& kline_data) {
+                        ESP_LOGI(TAG, "Received K-line data with %d points", (int)kline_data.size());
+                        // 数据获取完成后重新绘制图表
+                        self->DrawKLineChart();
+                    });
+                } else {
+                    // 如果没有连接到币界服务，直接重新绘制图表（使用已有数据）
+                    self->DrawKLineChart();
+                }
+            }
+        }
+    }
 }
 
 void WXT185Display::ScreensaverCryptoSelectorEventHandler(lv_event_t* e) {
