@@ -1918,7 +1918,41 @@ void WXT185Display::CryptoSelectorEventHandler(lv_event_t* e) {
 
 void WXT185Display::ThemeSelectorEventHandler(lv_event_t* e) {
     ESP_LOGI(TAG, "Theme selector event handler called");
-    // 主题选择事件处理
+    
+    lv_event_code_t code = lv_event_get_code(e);
+    WXT185Display* self = static_cast<WXT185Display*>(lv_event_get_user_data(e));
+    
+    if (code == LV_EVENT_VALUE_CHANGED) {
+        if (self && self->settings_theme_roller_) {
+            int selected_theme = lv_roller_get_selected(self->settings_theme_roller_);
+            ESP_LOGI(TAG, "Theme roller value changed to index: %d", selected_theme);
+            
+            // 根据选择的主题索引设置当前主题
+            switch (selected_theme) {
+                case 0: // Light theme
+                    self->current_wxt185_theme_ = LIGHT_THEME_WXT185;
+                    break;
+                case 1: // Dark theme
+                    self->current_wxt185_theme_ = DARK_THEME_WXT185;
+                    break;
+                case 2: // Metal theme
+                    self->current_wxt185_theme_ = METAL_THEME_WXT185;
+                    break;
+                case 3: // Technology theme
+                    self->current_wxt185_theme_ = TECHNOLOGY_THEME_WXT185;
+                    break;
+                case 4: // Cosmic theme
+                    self->current_wxt185_theme_ = COSMIC_THEME_WXT185;
+                    break;
+                default:
+                    self->current_wxt185_theme_ = LIGHT_THEME_WXT185;
+                    break;
+            }
+            
+            // 应用新主题
+            self->ApplyTheme();
+        }
+    }
 }
 
 void WXT185Display::TimeframeSelectorEventHandler(lv_event_t* e) {
@@ -1934,6 +1968,8 @@ void WXT185Display::ScreensaverCryptoSelectorEventHandler(lv_event_t* e) {
 void WXT185Display::SettingsSaveButtonEventHandler(lv_event_t* e) {
     ESP_LOGI(TAG, "Settings save button event handler called");
     // 保存按钮事件处理已经在静态函数中实现
+}
+
 }
 
 void WXT185Display::ScreensaverTimerCallback(void* arg) {
