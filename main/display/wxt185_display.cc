@@ -900,20 +900,43 @@ void WXT185Display::CreateCryptoPage() {
     // 添加虚拟币选项到roller
     // 获取虚拟币列表
     int crypto_count = 0;
+    static const char* default_coins[] = {"BTC", "ETH", "BNB", "XRP", "ADA", "DOGE", "SOL", "DOT", "MATIC", "LTC", nullptr};
+    
     if (bijie_coins_ != nullptr) {
         std::vector<CoinInfo> v = bijie_coins_->GetCoinList();
         crypto_count = v.size();
-        char crypto_options[MAX_COIN_NAME_LEN * v.size()] = {0};
-        for (int i = 0; i < crypto_count; i++) {
-            strcat(crypto_options, v[i].name.c_str());
-            if (i < crypto_count - 1) {
+        if (crypto_count > 0) {
+            char crypto_options[MAX_COIN_NAME_LEN * v.size()] = {0};
+            for (int i = 0; i < crypto_count; i++) {
+                strcat(crypto_options, v[i].name.c_str());
+                if (i < crypto_count - 1) {
+                    strcat(crypto_options, "\n");
+                }
+            }
+            lv_roller_set_options(crypto_roller_, crypto_options, LV_ROLLER_MODE_NORMAL);
+        } else {
+            // 如果币界服务没有返回数据，使用默认列表
+            char crypto_options[200] = {0};
+            for (int i = 0; default_coins[i] != nullptr; i++) {
+                strcat(crypto_options, default_coins[i]);
+                if (default_coins[i+1] != nullptr) {
+                    strcat(crypto_options, "\n");
+                }
+            }
+            lv_roller_set_options(crypto_roller_, crypto_options, LV_ROLLER_MODE_NORMAL);
+            crypto_count = 10; // 默认10个虚拟币
+        }
+    } else {
+        // 如果币界服务未初始化，使用默认列表
+        char crypto_options[200] = {0};
+        for (int i = 0; default_coins[i] != nullptr; i++) {
+            strcat(crypto_options, default_coins[i]);
+            if (default_coins[i+1] != nullptr) {
                 strcat(crypto_options, "\n");
             }
         }
         lv_roller_set_options(crypto_roller_, crypto_options, LV_ROLLER_MODE_NORMAL);
-    }
-    else {
-        lv_roller_set_options(crypto_roller_, "", LV_ROLLER_MODE_NORMAL);
+        crypto_count = 10; // 默认10个虚拟币
     }
 
     lv_roller_set_visible_row_count(crypto_roller_, 1);
@@ -962,7 +985,13 @@ void WXT185Display::CreateCryptoPage() {
         }
         
         lv_obj_t* label = lv_label_create(btn);
-        lv_label_set_text(label, klinefreq[i]);
+        if (klinefreq && klinefreq[i]) {
+            lv_label_set_text(label, klinefreq[i]);
+        } else if (default_freqs[i]) {
+            lv_label_set_text(label, default_freqs[i]);
+        } else {
+            lv_label_set_text(label, "N/A");
+        }
         lv_obj_set_style_text_font(label, &lv_font_montserrat_12, 0);
         lv_obj_set_style_text_color(label, current_wxt185_theme_.text, 0);
         lv_obj_center(label);
@@ -981,7 +1010,7 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_set_style_border_width(crypto_content_, 0, 0);
 
     crypto_price_label_ = lv_label_create(crypto_content_);
-    lv_label_set_text(crypto_price_label_, "0.00");
+    lv_label_set_text(crypto_price_label_, "$0.00");
     lv_obj_align(crypto_price_label_, LV_ALIGN_LEFT_MID, 10, 0);
     lv_obj_set_style_text_font(crypto_price_label_, fonts_.text_font, 0);
     lv_obj_set_style_text_color(crypto_price_label_, current_wxt185_theme_.text, 0);
@@ -1007,6 +1036,19 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_set_style_text_font(update_time_label, &lv_font_montserrat_14, 0);
     lv_obj_set_style_text_color(update_time_label, current_wxt185_theme_.text, 0);
     lv_obj_align(update_time_label, LV_ALIGN_BOTTOM_MID, 0, -30);
+    
+    // 初始化crypto_data_向量
+    if (crypto_data_.empty()) {
+        for (int i = 0; default_coins[i] != nullptr && i < crypto_count; i++) {
+            CryptocurrencyData crypto;
+            crypto.symbol = default_coins[i];
+            crypto.name = default_coins[i]; // 简化处理，实际应用中应该有完整的名称映射
+            crypto.price = 0.0f;
+            crypto.change_24h = 0.0f;
+            crypto.currency_id = i + 1; // 简单的ID分配
+            crypto_data_.push_back(crypto);
+        }
+    }
     
     ESP_LOGI(TAG, "Crypto page creation completed");
 }
@@ -1494,6 +1536,40 @@ void WXT185Display::UpdateCryptoData() {
             } else {
                 lv_obj_set_style_text_color(crypto_change_label_, current_wxt185_theme_.crypto_down_color, 0);
             }
+        } else {
+            // 如果选择的索引无效，使用当前选中的货币数据
+            char price_text[32];
+            snprintf(price_text, sizeof(price_text), "$%.2f", current_crypto_data_.price);
+            lv_label_set_text(crypto_price_label_, price_text);
+            
+            // 更新变化率标签
+            char change_text[32];
+            snprintf(change_text, sizeof(change_text), "%.2f%%", current_crypto_data_.change_24h);
+            lv_label_set_text(crypto_change_label_, change_text);
+            
+            // 根据变化率设置颜色
+            if (current_crypto_data_.change_24h >= 0) {
+                lv_obj_set_style_text_color(crypto_change_label_, current_wxt185_theme_.crypto_up_color, 0);
+            } else {
+                lv_obj_set_style_text_color(crypto_change_label_, current_wxt185_theme_.crypto_down_color, 0);
+            }
+        }
+    } else if (crypto_price_label_ && crypto_change_label_) {
+        // 即使crypto_data_为空，也使用当前选中的货币数据
+        char price_text[32];
+        snprintf(price_text, sizeof(price_text), "$%.2f", current_crypto_data_.price);
+        lv_label_set_text(crypto_price_label_, price_text);
+        
+        // 更新变化率标签
+        char change_text[32];
+        snprintf(change_text, sizeof(change_text), "%.2f%%", current_crypto_data_.change_24h);
+        lv_label_set_text(crypto_change_label_, change_text);
+        
+        // 根据变化率设置颜色
+        if (current_crypto_data_.change_24h >= 0) {
+            lv_obj_set_style_text_color(crypto_change_label_, current_wxt185_theme_.crypto_up_color, 0);
+        } else {
+            lv_obj_set_style_text_color(crypto_change_label_, current_wxt185_theme_.crypto_down_color, 0);
         }
     }
 }
@@ -1999,6 +2075,16 @@ void WXT185Display::CryptoSelectorEventHandler(lv_event_t* e) {
                         self->DrawKLineChart();
                     });
                 }
+            } else {
+                // 如果索引无效，使用默认的BTC数据
+                self->current_crypto_data_.symbol = "BTC";
+                self->current_crypto_data_.name = "Bitcoin";
+                self->current_crypto_data_.price = 0.0;
+                self->current_crypto_data_.change_24h = 0.0;
+                self->current_crypto_data_.currency_id = 1;
+                
+                // 更新UI显示
+                self->UpdateCryptoData();
             }
         }
     }
@@ -2206,15 +2292,13 @@ static void update_crypto_data_async(void* user_data) {
             self->UpdateScreensaverContent();
         }
         
-        // 如果当前在虚拟币页面，更新虚拟币页面内容
-        if (self->current_page_index_ == PAGE_CRYPTO) {  // 1是虚拟币页面索引
-            self->UpdateCryptoData();
-            
-            // 根据控制变量决定是否获取K线数据
-            if (self->enable_kline_crypto_data_) {
-                // 更新K线图表
-                self->DrawKLineChart();
-            }
+        // 更新虚拟币页面内容（无论当前在哪个页面）
+        self->UpdateCryptoData();
+        
+        // 根据控制变量决定是否获取K线数据
+        if (self->enable_kline_crypto_data_ && self->current_page_index_ == PAGE_CRYPTO) {
+            // 更新K线图表
+            self->DrawKLineChart();
         }
     } catch (const std::exception& e) {
         ESP_LOGE(TAG, "Exception occurred in update_crypto_data_async: %s", e.what());
@@ -2840,6 +2924,7 @@ void WXT185Display::UpdateCryptoDataFromBiJie() {
     bijie_coins_->SetMarketDataCallback([this](const CoinMarketData& market_data) {
         ESP_LOGI(TAG, "Received market data callback for currency ID: %d", market_data.currency_id);
         
+        bool data_updated = false;
         // 查找对应的虚拟币数据
         for (auto& crypto : crypto_data_) {
             if (crypto.currency_id == market_data.currency_id) {
@@ -2850,42 +2935,45 @@ void WXT185Display::UpdateCryptoDataFromBiJie() {
                 ESP_LOGI(TAG, "Updated %s: price=%.2f, change=%.2f%%", 
                          crypto.symbol.c_str(), crypto.price, crypto.change_24h);
                 
-                // 如果当前在虚拟币页面，更新显示
-                if (current_page_index_ == PAGE_CRYPTO) {
-                    UpdateCryptoData();
-                }
-                
-                // 更新当前选中的货币数据（current_crypto_data_）
-                if (market_data.currency_id == current_crypto_data_.currency_id) {
-                    current_crypto_data_.price = market_data.close;
-                    current_crypto_data_.change_24h = market_data.change_24h;
-                    
-                    // 如果是当前显示的货币，也更新顶部的价格和涨跌幅标签
-                    if (crypto_price_label_) {
-                        char price_text[32];
-                        snprintf(price_text, sizeof(price_text), "%s $%.2f", 
-                                 crypto.symbol.c_str(), market_data.close);
-                        lv_label_set_text(crypto_price_label_, price_text);
-                    }
-                    
-                    // 更新涨跌幅标签
-                    if (crypto_change_label_) {
-                        char change_text[32];
-                        snprintf(change_text, sizeof(change_text), "%.2f%%", market_data.change_24h);
-                        lv_label_set_text(crypto_change_label_, change_text);
-                        
-                        // 根据涨跌设置颜色
-                        if (market_data.change_24h >= 0) {
-                            lv_obj_set_style_text_color(crypto_change_label_, lv_color_hex(0x00FF00), 0);
-                        } else {
-                            lv_obj_set_style_text_color(crypto_change_label_, lv_color_hex(0xFF0000), 0);
-                        }
-                    }
-                    
-                    // 更新图表
-                    DrawKLineChart();
-                }
+                data_updated = true;
                 break;
+            }
+        }
+        
+        // 如果当前在虚拟币页面，更新显示
+        if (current_page_index_ == PAGE_CRYPTO) {
+            UpdateCryptoData();
+        }
+        
+        // 更新当前选中的货币数据（current_crypto_data_）
+        if (market_data.currency_id == current_crypto_data_.currency_id) {
+            current_crypto_data_.price = market_data.close;
+            current_crypto_data_.change_24h = market_data.change_24h;
+            
+            // 如果是当前显示的货币，也更新顶部的价格和涨跌幅标签
+            if (crypto_price_label_ && current_page_index_ == PAGE_CRYPTO) {
+                char price_text[32];
+                snprintf(price_text, sizeof(price_text), "$%.2f", market_data.close);
+                lv_label_set_text(crypto_price_label_, price_text);
+            }
+            
+            // 更新涨跌幅标签
+            if (crypto_change_label_ && current_page_index_ == PAGE_CRYPTO) {
+                char change_text[32];
+                snprintf(change_text, sizeof(change_text), "%.2f%%", market_data.change_24h);
+                lv_label_set_text(crypto_change_label_, change_text);
+                
+                // 根据涨跌设置颜色
+                if (market_data.change_24h >= 0) {
+                    lv_obj_set_style_text_color(crypto_change_label_, current_wxt185_theme_.crypto_up_color, 0);
+                } else {
+                    lv_obj_set_style_text_color(crypto_change_label_, current_wxt185_theme_.crypto_down_color, 0);
+                }
+            }
+            
+            // 更新图表
+            if (current_page_index_ == PAGE_CRYPTO) {
+                DrawKLineChart();
             }
         }
         
@@ -2911,6 +2999,11 @@ void WXT185Display::UpdateCryptoDataFromBiJie() {
                     break;
                 }
             }
+        }
+        
+        // 如果当前在虚拟币页面，更新显示
+        if (current_page_index_ == PAGE_CRYPTO) {
+            UpdateCryptoData();
         }
     } catch (const std::exception& e) {
         ESP_LOGE(TAG, "Exception occurred while updating crypto data from BiJie: %s", e.what());
