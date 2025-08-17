@@ -1837,7 +1837,7 @@ void WXT185Display::HandleTouchEnd(lv_point_t point) {
 void WXT185Display::SwitchToPage(int page_index) {
     ESP_LOGI(TAG, "Switching to page %d", page_index);
     DisplayLockGuard lock(this);
-    if (main_screen_ == nullptr || page_index < 0 || page_index > 2) return;
+    if (main_screen_ == nullptr || page_index < PAGE_CHAT || page_index >= MAX_PAGE_INDEX) return;
     
     // 如果当前在屏保状态，不执行页面切换
     if (screensaver_active_) {
@@ -2416,6 +2416,11 @@ void WXT185Display::EnterScreensaver() {
         DisplayLockGuard lock(this);
         
         if (screensaver_active_ || !screensaver_page_) return;
+
+        // 切换到第一页面，进入屏保模式
+        if (current_page_index_ != PAGE_CHAT) {
+            SwitchToPage(PAGE_CHAT);
+        }
         
         screensaver_active_ = true;
         ESP_LOGI(TAG, "Entering screensaver mode begin");
@@ -2430,6 +2435,7 @@ void WXT185Display::EnterScreensaver() {
         
         // 显示屏保页面
         if (screensaver_page_) {
+
             lv_obj_clear_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
             // 确保屏保页面在最前
             lv_obj_move_foreground(screensaver_page_);
