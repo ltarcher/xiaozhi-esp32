@@ -59,9 +59,6 @@ struct WXT185ThemeColors {
     // 设置页面样式
     lv_color_t settings_screensaver_switch;
     lv_color_t settings_label;
-    lv_color_t settings_roller_text;
-    lv_color_t settings_roller_bg;
-    lv_color_t settings_roller_border;
     lv_color_t settings_button_text;
     lv_color_t settings_button_bg;
     // 通用roller样式
@@ -115,6 +112,9 @@ protected:
     lv_obj_t* crypto_change_label_ = nullptr;
     lv_obj_t* crypto_chart_ = nullptr;
     
+    // 虚拟币页面roller样式
+    lv_style_t style_crypto_roller_;
+    
     lv_obj_t* kline_frequency_buttons_[10];  // K线频率按钮数组
     int selected_kline_frequency_ = 3; // 默认选择1小时K线 (对应索引3)
     
@@ -130,6 +130,11 @@ protected:
     lv_obj_t* settings_screensaver_switch_ = nullptr;
     lv_obj_t* settings_save_button_ = nullptr;  // 添加保存按钮
     lv_obj_t* settings_save_label_ = nullptr;
+    
+    // 设置页面roller样式
+    lv_style_t style_settings_theme_roller_;
+    lv_style_t style_settings_default_crypto_roller_;
+    lv_style_t style_settings_kline_time_roller_;
     
     // 屏幕保护相关组件
     lv_obj_t* screensaver_page_ = nullptr;
@@ -199,7 +204,7 @@ protected:
     void ApplyScreensaverTheme(); // 新增屏幕保护主题应用函数
     
     // 通用 roller 样式设置函数
-    void ApplyRollerStyle(lv_obj_t* roller, bool isSettings = false);
+    void ApplyRollerStyle(lv_obj_t* roller, lv_style_t& style_roller_bg);
     
     // 虚拟币数据处理函数
     void UpdateCryptoData();
