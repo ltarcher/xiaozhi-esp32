@@ -633,9 +633,7 @@ void WXT185Display::SetupUI() {
     lv_obj_set_style_bg_color(main_screen_, current_wxt185_theme_.background, 0);
     
     ESP_LOGI(TAG, "Created page view container");
-    
-#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
-    ESP_LOGI(TAG, "Enabling horizontal scrolling");
+
     // 启用水平滚动
     lv_obj_set_scroll_dir(main_screen_, LV_DIR_HOR);
     lv_obj_set_scroll_snap_x(main_screen_, LV_SCROLL_SNAP_CENTER);
@@ -644,6 +642,9 @@ void WXT185Display::SetupUI() {
 
     // 添加页面滚动回调
     lv_obj_add_event_cb(main_screen_, PageEventHandler, LV_EVENT_SCROLL_END, this);
+    
+#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+    ESP_LOGI(TAG, "Enabling horizontal scrolling");
 
     // 添加触摸事件处理（仅在有触摸屏时添加）
     lv_obj_add_event_cb(main_screen_, TouchEventHandler, LV_EVENT_PRESSED, this);
@@ -1825,7 +1826,8 @@ void WXT185Display::PageEventHandler(lv_event_t* e) {
     if (code == LV_EVENT_SCROLL_END) {
         // 如果当前在屏保状态，不处理页面滚动事件
         if (self->screensaver_active_) {
-            ESP_LOGI(TAG, "Currently in screensaver mode, ignoring scroll event");
+            ESP_LOGI(TAG, "Currently in screensaver mode, exiting screensaver");
+            self->ExitScreensaver();
             return;
         }
         
