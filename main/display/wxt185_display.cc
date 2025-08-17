@@ -1157,7 +1157,8 @@ void WXT185Display::CreateSettingsPage() {
     lv_label_set_text(settings_screensaver_label_, "Screensaver:");
     lv_obj_set_style_text_font(settings_screensaver_label_, &lv_font_montserrat_16, 0);
     lv_obj_set_style_text_color(settings_screensaver_label_, current_wxt185_theme_.text, 0);
-    lv_obj_align_to(settings_screensaver_label_, settings_kline_time_roller_, LV_ALIGN_OUT_RIGHT_MID, -80, 0);
+    // 将屏保开关标签放置在K线频率选择配置下方
+    lv_obj_align_to(settings_screensaver_label_, settings_kline_time_label_, LV_ALIGN_OUT_BOTTOM_MID, 0, 30);
 
     settings_screensaver_switch_ = lv_switch_create(settings_page_);
     ESP_LOGI(TAG, "Screensaver switch created");
@@ -1166,7 +1167,8 @@ void WXT185Display::CreateSettingsPage() {
         lv_obj_add_state(settings_screensaver_switch_, LV_STATE_CHECKED);
     }
     lv_obj_add_event_cb(settings_screensaver_switch_, screensaver_switch_event_handler, LV_EVENT_VALUE_CHANGED, this);
-    lv_obj_align_to(settings_screensaver_switch_, settings_screensaver_label_, LV_ALIGN_OUT_BOTTOM_MID, 55, 0);
+    // 将屏保开关放置在标签旁边
+    lv_obj_align_to(settings_screensaver_switch_, settings_screensaver_label_, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
       
     // 8. 创建保存按钮
     settings_save_button_ = lv_button_create(settings_page_);
