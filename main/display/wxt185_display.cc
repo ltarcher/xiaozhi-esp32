@@ -1948,11 +1948,13 @@ void WXT185Display::PageEventHandler(lv_event_t* e) {
             case PAGE_CHAT:
                 if (self->chat_page_) {
                     lv_obj_clear_flag(self->chat_page_, LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_scroll_to_view_recursive(self->chat_page_, LV_ANIM_OFF);
                 }
                 break;
             case PAGE_CRYPTO:
                 if (self->crypto_page_) {
                     lv_obj_clear_flag(self->crypto_page_, LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_scroll_to_view_recursive(self->crypto_page_, LV_ANIM_OFF);
                 }
                 // 如果切换到虚拟币页面，更新显示
                 self->UpdateCryptoData();
@@ -1960,6 +1962,7 @@ void WXT185Display::PageEventHandler(lv_event_t* e) {
             case PAGE_SETTINGS:
                 if (self->settings_page_) {
                     lv_obj_clear_flag(self->settings_page_, LV_OBJ_FLAG_HIDDEN);
+                    lv_obj_scroll_to_view_recursive(self->settings_page_, LV_ANIM_OFF);
                 }
                 break;
         }
@@ -1998,6 +2001,7 @@ void WXT185Display::PageEventHandler(lv_event_t* e) {
 
 void WXT185Display::KLineFrequencyButtonEventHandler(lv_event_t* e) {
     ESP_LOGI(TAG, "KLine frequency button event handler called");
+
     lv_event_code_t code = lv_event_get_code(e);
     WXT185Display* self = static_cast<WXT185Display*>(lv_event_get_user_data(e));
     
@@ -2443,6 +2447,7 @@ void WXT185Display::EnterScreensaver() {
         screensaver_active_ = false; // 确保状态一致性
     }
 }
+
 void WXT185Display::ExitScreensaver() {
     try {
         DisplayLockGuard lock(this);
@@ -2459,9 +2464,6 @@ void WXT185Display::ExitScreensaver() {
         
         // 显示主屏幕并确保启用滚动功能
         if (main_screen_) {
-            lv_obj_clear_flag(main_screen_, LV_OBJ_FLAG_HIDDEN);
-            lv_obj_move_foreground(main_screen_);
-            
             // 重新启用主屏幕的滚动功能
             lv_obj_set_scroll_dir(main_screen_, LV_DIR_HOR);
             lv_obj_set_scroll_snap_x(main_screen_, LV_SCROLL_SNAP_CENTER);
@@ -2472,7 +2474,7 @@ void WXT185Display::ExitScreensaver() {
             lv_obj_scroll_to_x(main_screen_, current_page_index_ * width_, LV_ANIM_OFF);
             
             // 确保主屏幕有正确的事件处理回调
-#if CONFIG_ESP32_S32_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
             // 先移除可能存在的旧事件回调以避免重复
             lv_obj_remove_event_cb(main_screen_, PageEventHandler);
             lv_obj_remove_event_cb(main_screen_, TouchEventHandler);
@@ -2530,16 +2532,19 @@ void WXT185Display::ExitScreensaver() {
                 case PAGE_CHAT:
                     if (chat_page_) {
                         lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
+                        lv_obj_scroll_to_view_recursive(chat_page_, LV_ANIM_OFF);
                     }
                     break;
                 case PAGE_CRYPTO:
                     if (crypto_page_) {
                         lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
+                        lv_obj_scroll_to_view_recursive(crypto_page_, LV_ANIM_OFF);
                     }
                     break;
                 case PAGE_SETTINGS:
                     if (settings_page_) {
                         lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
+                        lv_obj_scroll_to_view_recursive(settings_page_, LV_ANIM_OFF);
                     }
                     break;
             }
