@@ -923,6 +923,9 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_set_style_radius(crypto_roller_, 0, 0);
     lv_obj_set_style_border_width(crypto_roller_, 0, 0);
     lv_obj_set_style_pad_all(crypto_roller_, 0, 0);
+    
+    // 添加事件处理函数
+    lv_obj_add_event_cb(crypto_roller_, CryptoSelectorEventHandler, LV_EVENT_VALUE_CHANGED, this);
 
     // 创建K线频率按钮容器
     crypto_kline_btn_container_ = lv_obj_create(crypto_page_);
@@ -1877,8 +1880,40 @@ void WXT185Display::KLineFrequencyButtonEventHandler(lv_event_t* e) {
 
 void WXT185Display::CryptoSelectorEventHandler(lv_event_t* e) {
     ESP_LOGI(TAG, "Crypto selector event handler called");
-
-    // 虚拟币选择事件处理
+    
+    lv_event_code_t code = lv_event_get_code(e);
+    WXT185Display* self = static_cast<WXT185Display*>(lv_event_get_user_data(e));
+    
+    if (code == LV_EVENT_VALUE_CHANGED) {
+        // 虚拟币选择事件处理
+        if (self && self->crypto_roller_) {
+            int selected_index = lv_roller_get_selected(self->crypto_roller_);
+            ESP_LOGI(TAG, "Crypto roller value changed to index: %d", selected_index);
+            
+            if (selected_index >= 0 && selected_index < (int)self->crypto_data_.size()) {
+                // 更新当前选中的虚拟币数据
+                self->current_crypto_data_ = self->crypto_data_[selected_index];
+                ESP_LOGI(TAG, "Updated current crypto data to: %s (ID: %d)", 
+                         self->current_crypto_data_.symbol.c_str(), 
+                         self->current_crypto_data_.currency_id);
+                
+                // 更新UI显示
+                self->UpdateCryptoData();
+                
+                // 如果已连接到币界服务，获取新的K线数据
+                if (self->bijie_coins_ && self->bijie_coins_connected_) {
+                    uint32_t kline_type = self->GetKLineTypeByIndex(self->selected_kline_frequency_);
+                    ESP_LOGI(TAG, "Requesting K-line data for new crypto (ID: %d) with type %d", 
+                             self->current_crypto_data_.currency_id, kline_type);
+                    self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, kline_type, 30, 
+                                                     [self](const std::vector<KLineData>& kline_data) {
+                        ESP_LOGI(TAG, "Received K-line data with %d points for new crypto", kline_data.size());
+                        self->DrawKLineChart();
+                    });
+                }
+            }
+        }
+    }
 }
 
 void WXT185Display::ThemeSelectorEventHandler(lv_event_t* e) {
@@ -2601,34 +2636,37 @@ void WXT185Display::UpdateCryptoDataFromBiJie() {
                 // 如果当前在虚拟币页面，更新显示
                 if (current_page_index_ == PAGE_CRYPTO) {
                     UpdateCryptoData();
+                }
+                
+                // 更新当前选中的货币数据（current_crypto_data_）
+                if (market_data.currency_id == current_crypto_data_.currency_id) {
+                    current_crypto_data_.price = market_data.close;
+                    current_crypto_data_.change_24h = market_data.change_24h;
                     
                     // 如果是当前显示的货币，也更新顶部的价格和涨跌幅标签
-                    if (market_data.currency_id == current_crypto_data_.currency_id) {
-                        // 更新价格标签
-                        if (crypto_price_label_) {
-                            char price_text[32];
-                            snprintf(price_text, sizeof(price_text), "%s $%.2f", 
-                                     crypto.symbol.c_str(), market_data.close);
-                            lv_label_set_text(crypto_price_label_, price_text);
-                        }
-                        
-                        // 更新涨跌幅标签
-                        if (crypto_change_label_) {
-                            char change_text[32];
-                            snprintf(change_text, sizeof(change_text), "%.2f%%", market_data.change_24h);
-                            lv_label_set_text(crypto_change_label_, change_text);
-                            
-                            // 根据涨跌设置颜色
-                            if (market_data.change_24h >= 0) {
-                                lv_obj_set_style_text_color(crypto_change_label_, lv_color_hex(0x00FF00), 0);
-                            } else {
-                                lv_obj_set_style_text_color(crypto_change_label_, lv_color_hex(0xFF0000), 0);
-                            }
-                        }
-                        
-                        // 更新图表
-                        DrawKLineChart();
+                    if (crypto_price_label_) {
+                        char price_text[32];
+                        snprintf(price_text, sizeof(price_text), "%s $%.2f", 
+                                 crypto.symbol.c_str(), market_data.close);
+                        lv_label_set_text(crypto_price_label_, price_text);
                     }
+                    
+                    // 更新涨跌幅标签
+                    if (crypto_change_label_) {
+                        char change_text[32];
+                        snprintf(change_text, sizeof(change_text), "%.2f%%", market_data.change_24h);
+                        lv_label_set_text(crypto_change_label_, change_text);
+                        
+                        // 根据涨跌设置颜色
+                        if (market_data.change_24h >= 0) {
+                            lv_obj_set_style_text_color(crypto_change_label_, lv_color_hex(0x00FF00), 0);
+                        } else {
+                            lv_obj_set_style_text_color(crypto_change_label_, lv_color_hex(0xFF0000), 0);
+                        }
+                    }
+                    
+                    // 更新图表
+                    DrawKLineChart();
                 }
                 break;
             }
