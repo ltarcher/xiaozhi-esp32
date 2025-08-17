@@ -199,7 +199,7 @@ protected:
     void ApplyScreensaverTheme(); // 新增屏幕保护主题应用函数
     
     // 通用 roller 样式设置函数
-    void ApplyRollerStyle(lv_obj_t* roller, bool isSettings = false);
+    void ApplyRollerStyle(lv_obj_t* roller, lv_style_t& style_roller_bg, bool isSettings = false);
     
     // 虚拟币数据处理函数
     void UpdateCryptoData();

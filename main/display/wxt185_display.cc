@@ -3140,11 +3140,10 @@ uint32_t WXT185Display::GetKLineTypeByIndex(uint8_t index) {
 
 
 // 通用 roller 样式设置函数
-void WXT185Display::ApplyRollerStyle(lv_obj_t* roller, bool isSettings) {
-    if (!roller) return;
+void WXT185Display::ApplyRollerStyle(lv_obj_t* roller, lv_style_t& style_roller_bg, bool isSettings) {
+    if (!roller || !style_roller_bg) return;
     
     // 创建并配置样式
-    static lv_style_t style_roller_bg;
     lv_style_init(&style_roller_bg);
     
     // 设置滚动背景颜色（使用主题中定义的roller背景颜色）
