@@ -2303,55 +2303,57 @@ void WXT185Display::ExitScreensaver() {
             lv_obj_set_scroll_snap_x(main_screen_, LV_SCROLL_SNAP_CENTER);
             lv_obj_set_scrollbar_mode(main_screen_, LV_SCROLLBAR_MODE_OFF);
             lv_obj_add_flag(main_screen_, LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_scroll_to_x(main_screen_, current_page_index_ * width_, LV_ANIM_OFF);
             
             // 确保主屏幕有正确的事件处理回调
 #if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
             // 先移除可能存在的旧事件回调以避免重复
             lv_obj_remove_event_cb(main_screen_, PageEventHandler);
+            lv_obj_remove_event_cb(main_screen_, TouchEventHandler);
+            
             // 添加页面滚动回调
             lv_obj_add_event_cb(main_screen_, PageEventHandler, LV_EVENT_SCROLL_END, this);
             
-            // 重新添加触摸事件处理回调
-            lv_obj_remove_event_cb(main_screen_, TouchEventHandler);
+            // 添加触摸事件处理回调
             lv_obj_add_event_cb(main_screen_, TouchEventHandler, LV_EVENT_PRESSED, this);
             lv_obj_add_event_cb(main_screen_, TouchEventHandler, LV_EVENT_RELEASED, this);
             
             // 移除各页面的滚动事件回调以避免冲突
             if (chat_page_) {
                 lv_obj_remove_event_cb(chat_page_, PageEventHandler);
+                lv_obj_remove_event_cb(chat_page_, TouchEventHandler);
             }
             if (crypto_page_) {
                 lv_obj_remove_event_cb(crypto_page_, PageEventHandler);
+                lv_obj_remove_event_cb(crypto_page_, TouchEventHandler);
             }
             if (settings_page_) {
                 lv_obj_remove_event_cb(settings_page_, PageEventHandler);
+                lv_obj_remove_event_cb(settings_page_, TouchEventHandler);
             }
             
             // 重新添加各页面的事件处理回调
             if (chat_page_) {
-                // 重新添加页面滚动回调
+                // 添加页面滚动回调
                 lv_obj_add_event_cb(chat_page_, PageEventHandler, LV_EVENT_SCROLL_END, this);
                 
-                // 重新添加触摸事件处理回调
-                lv_obj_remove_event_cb(chat_page_, TouchEventHandler);
+                // 添加触摸事件处理回调
                 lv_obj_add_event_cb(chat_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
                 lv_obj_add_event_cb(chat_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
             }
             if (crypto_page_) {
-                // 重新添加页面滚动回调
+                // 添加页面滚动回调
                 lv_obj_add_event_cb(crypto_page_, PageEventHandler, LV_EVENT_SCROLL_END, this);
                 
-                // 重新添加触摸事件处理回调
-                lv_obj_remove_event_cb(crypto_page_, TouchEventHandler);
+                // 添加触摸事件处理回调
                 lv_obj_add_event_cb(crypto_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
                 lv_obj_add_event_cb(crypto_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
             }
             if (settings_page_) {
-                // 重新添加页面滚动回调
+                // 添加页面滚动回调
                 lv_obj_add_event_cb(settings_page_, PageEventHandler, LV_EVENT_SCROLL_END, this);
                 
-                // 重新添加触摸事件处理回调
-                lv_obj_remove_event_cb(settings_page_, TouchEventHandler);
+                // 添加触摸事件处理回调
                 lv_obj_add_event_cb(settings_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
                 lv_obj_add_event_cb(settings_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
             }
