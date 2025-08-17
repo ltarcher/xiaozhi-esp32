@@ -363,7 +363,8 @@ void WXT185Display::SaveSettings() {
     settings.SetString("theme", ThemeString[theme_index]);
     settings.SetInt("default_crypto", crypto_index);
     settings.SetInt("kline_frequency", kline_index);
-    settings.SetInt("screensaver_enabled", screensaver_state ? 1 : 0);
+    // 修复NVS键名过长问题，将"screensaver_enabled"改为"scr_enabled"
+    settings.SetInt("scr_enabled", screensaver_state ? 1 : 0);
     // TODO: 保存实时行情和K线行情开关状态
     
     ESP_LOGI(TAG, "Settings saved - Theme: %d, Crypto: %d, KLine: %d, Screensaver: %d", 
@@ -417,31 +418,6 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
                            DisplayFonts fonts)
     : LcdDisplay(panel_io, panel, fonts, width, height) {
     ESP_LOGI(TAG, "Initializing WXT185 Display");
-
-    // Load theme from settings
-    Settings settings("display", false);
-    std::string theme_name = settings.GetString("theme", "light");
-    ESP_LOGI(TAG, "Theme: %s", theme_name.c_str());
-    if (theme_name == "dark" || theme_name == "DARK") {
-        current_wxt185_theme_ = DARK_THEME_WXT185;
-    } else if (theme_name == "light" || theme_name == "LIGHT") {
-        current_wxt185_theme_ = LIGHT_THEME_WXT185;
-    } else if (theme_name == "metal") {
-        current_wxt185_theme_ = METAL_THEME_WXT185;
-    } else if (theme_name == "technology") {
-        current_wxt185_theme_ = TECHNOLOGY_THEME_WXT185;
-    } else if (theme_name == "cosmic") {
-        current_wxt185_theme_ = COSMIC_THEME_WXT185;
-    } else {
-        // 默认light
-        current_wxt185_theme_ = LIGHT_THEME_WXT185;
-    }
-    
-    // 从设置中加载配置值
-    selected_theme = settings.GetInt("theme_index", 0);       // 默认主题索引
-    default_crypto = settings.GetInt("default_crypto", 0);    // 默认虚拟币索引
-    kline_frequency = settings.GetInt("kline_frequency", 3);  // 默认K线频率 (3=1小时)
-    screensaver_enabled = settings.GetInt("screensaver_enabled", 1) == 1; // 默认启用屏保
 
     // 初始化LCD屏幕
     // draw white
@@ -501,11 +477,35 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     }
     // 屏幕初始化结束
 
+        // Load theme from settings
+    Settings settings("display", false);
+    std::string theme_name = settings.GetString("theme", "light");
+    // theme_name转为小写
+    for (auto& c : theme_name) {
+        c = tolower(c);
+    }
+
+    ESP_LOGI(TAG, "Theme: %s", theme_name.c_str());
+    if (theme_name == "dark" || theme_name == "DARK") {
+        current_wxt185_theme_ = DARK_THEME_WXT185;
+    } else if (theme_name == "light" || theme_name == "LIGHT") {
+        current_wxt185_theme_ = LIGHT_THEME_WXT185;
+    } else if (theme_name == "metal") {
+        current_wxt185_theme_ = METAL_THEME_WXT185;
+    } else if (theme_name == "technology") {
+        current_wxt185_theme_ = TECHNOLOGY_THEME_WXT185;
+    } else if (theme_name == "cosmic") {
+        current_wxt185_theme_ = COSMIC_THEME_WXT185;
+    } else {
+        // 默认light
+        current_wxt185_theme_ = LIGHT_THEME_WXT185;
+    }
+
     // 初始化默认设置
     selected_theme = settings.GetInt("theme_index", 0);       // 默认主题索引
     default_crypto = settings.GetInt("default_crypto", 0);    // 默认虚拟币索引
     kline_frequency = settings.GetInt("kline_frequency", 3);  // 默认K线频率 (3=1小时)
-    screensaver_enabled = settings.GetInt("screensaver_enabled", 1) == 1; // 默认启用屏保
+    screensaver_enabled = settings.GetInt("scr_enabled", 1) == 1; // 默认启用屏保
     
     // 初始化当前显示的虚拟币数据
     current_crypto_data_.symbol = "BTC";
