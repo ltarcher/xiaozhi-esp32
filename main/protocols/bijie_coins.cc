@@ -16,11 +16,28 @@
 #include <sstream>
 #include <iomanip>
 
+// 用于标识K线请求的键值结构
+struct KLineRequestKey {
+    int currency_id;
+    int kline_type;
+    
+    bool operator<(const KLineRequestKey& other) const {
+        if (currency_id != other.currency_id) {
+            return currency_id < other.currency_id;
+        }
+        return kline_type < other.kline_type;
+    }
+    
+    bool operator==(const KLineRequestKey& other) const {
+        return currency_id == other.currency_id && kline_type == other.kline_type;
+    }
+};
+
 static const char* TAG = "BiJieCoins";
 
 // 重连间隔时间（毫秒）
 static const int RECONNECT_INTERVAL_MS = 5000; // 5秒
-static std::set<int> pending_kline_requests_; // 跟踪正在进行的K线数据请求
+static std::set<KLineRequestKey> pending_kline_requests_; // 跟踪正在进行的K线数据请求
 static std::mutex kline_requests_mutex_; // 互斥锁保护pending_kline_requests_
 
 // 为每个WebSocket连接创建一个独立的实现类
@@ -433,11 +450,12 @@ public:
     }
     
     void GetKLineData(int currency_id, int kline_type, int limit, OnKLineDataCallback callback) {
-        // 检查是否已经有相同currency_id的请求正在进行
+        // 检查是否已经有相同currency_id和kline_type的请求正在进行
         {
             std::lock_guard<std::mutex> lock(kline_requests_mutex_);
-            if (pending_kline_requests_.find(currency_id) != pending_kline_requests_.end()) {
-                ESP_LOGW(TAG, "K-line data request for currency %d is already in progress, returning existing data", currency_id);
+            KLineRequestKey key{currency_id, kline_type};
+            if (pending_kline_requests_.find(key) != pending_kline_requests_.end()) {
+                ESP_LOGW(TAG, "K-line data request for currency %d with type %d is already in progress, returning existing data", currency_id, kline_type);
                 // 如果已经有请求在进行，直接调用回调函数返回现有数据
                 if (callback) {
                     // 获取现有数据
@@ -501,8 +519,8 @@ public:
                 return;
             }
             
-            // 将当前currency_id添加到正在进行的请求集合中
-            pending_kline_requests_.insert(currency_id);
+            // 将当前currency_id和kline_type组合添加到正在进行的请求集合中
+            pending_kline_requests_.insert(key);
         }
         
         // 创建一个新的任务来处理HTTP请求
@@ -565,7 +583,7 @@ private:
             // 从正在进行的请求集合中移除currency_id
             {
                 std::lock_guard<std::mutex> lock(kline_requests_mutex_);
-                pending_kline_requests_.erase(task_data->currency_id);
+                pending_kline_requests_.erase({task_data->currency_id, task_data->kline_type});
             }
             
             delete task_data;
@@ -585,7 +603,7 @@ private:
             // 从正在进行的请求集合中移除currency_id
             {
                 std::lock_guard<std::mutex> lock(kline_requests_mutex_);
-                pending_kline_requests_.erase(task_data->currency_id);
+                pending_kline_requests_.erase({task_data->currency_id, task_data->kline_type});
             }
             
             delete task_data;
@@ -649,7 +667,7 @@ private:
             // 从正在进行的请求集合中移除currency_id
             {
                 std::lock_guard<std::mutex> lock(kline_requests_mutex_);
-                pending_kline_requests_.erase(task_data->currency_id);
+                pending_kline_requests_.erase({task_data->currency_id, task_data->kline_type});
             }
             
             delete task_data;
@@ -837,7 +855,7 @@ private:
         // 从正在进行的请求集合中移除currency_id
         {
             std::lock_guard<std::mutex> lock(kline_requests_mutex_);
-            pending_kline_requests_.erase(task_data->currency_id);
+            pending_kline_requests_.erase({task_data->currency_id, task_data->kline_type});
         }        
         // 清理任务数据
         delete task_data;
