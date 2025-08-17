@@ -1796,7 +1796,37 @@ void WXT185Display::SwitchToPage(int page_index) {
     }
     
     if (target_page) {
+        // 确保目标页面可见
+        lv_obj_clear_flag(target_page, LV_OBJ_FLAG_HIDDEN);
         lv_obj_scroll_to_view_recursive(target_page, LV_ANIM_ON);
+    }
+    
+    // 隐藏其他页面
+    switch (page_index) {
+        case PAGE_CHAT:
+            if (crypto_page_) {
+                lv_obj_add_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
+            }
+            if (settings_page_) {
+                lv_obj_add_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
+            }
+            break;
+        case PAGE_CRYPTO:
+            if (chat_page_) {
+                lv_obj_add_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
+            }
+            if (settings_page_) {
+                lv_obj_add_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
+            }
+            break;
+        case PAGE_SETTINGS:
+            if (chat_page_) {
+                lv_obj_add_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
+            }
+            if (crypto_page_) {
+                lv_obj_add_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
+            }
+            break;
     }
     
     // 如果切换到虚拟币页面，更新显示
@@ -1817,6 +1847,12 @@ void WXT185Display::PageEventHandler(lv_event_t* e) {
             return;
         }
         
+        // 检查主屏幕是否存在
+        if (!self->main_screen_) {
+            ESP_LOGW(TAG, "Main screen is null");
+            return;
+        }
+        
         lv_point_t scroll_end;
         lv_obj_get_scroll_end(self->main_screen_, &scroll_end);
         int16_t scroll_end_x = scroll_end.x;
@@ -1831,9 +1867,53 @@ void WXT185Display::PageEventHandler(lv_event_t* e) {
         // 注意：不再需要滚动到指定页面，因为用户已经完成了滚动操作
         // 只需要更新当前页面索引并执行相应操作
         
-        // 如果切换到虚拟币页面，更新显示
-        if (new_page_index == PAGE_CRYPTO) {
-            self->UpdateCryptoData();
+        // 确保当前页面正确显示
+        switch (new_page_index) {
+            case PAGE_CHAT:
+                if (self->chat_page_) {
+                    lv_obj_clear_flag(self->chat_page_, LV_OBJ_FLAG_HIDDEN);
+                }
+                break;
+            case PAGE_CRYPTO:
+                if (self->crypto_page_) {
+                    lv_obj_clear_flag(self->crypto_page_, LV_OBJ_FLAG_HIDDEN);
+                }
+                // 如果切换到虚拟币页面，更新显示
+                self->UpdateCryptoData();
+                break;
+            case PAGE_SETTINGS:
+                if (self->settings_page_) {
+                    lv_obj_clear_flag(self->settings_page_, LV_OBJ_FLAG_HIDDEN);
+                }
+                break;
+        }
+        
+        // 隐藏其他页面
+        switch (new_page_index) {
+            case PAGE_CHAT:
+                if (self->crypto_page_) {
+                    lv_obj_add_flag(self->crypto_page_, LV_OBJ_FLAG_HIDDEN);
+                }
+                if (self->settings_page_) {
+                    lv_obj_add_flag(self->settings_page_, LV_OBJ_FLAG_HIDDEN);
+                }
+                break;
+            case PAGE_CRYPTO:
+                if (self->chat_page_) {
+                    lv_obj_add_flag(self->chat_page_, LV_OBJ_FLAG_HIDDEN);
+                }
+                if (self->settings_page_) {
+                    lv_obj_add_flag(self->settings_page_, LV_OBJ_FLAG_HIDDEN);
+                }
+                break;
+            case PAGE_SETTINGS:
+                if (self->chat_page_) {
+                    lv_obj_add_flag(self->chat_page_, LV_OBJ_FLAG_HIDDEN);
+                }
+                if (self->crypto_page_) {
+                    lv_obj_add_flag(self->crypto_page_, LV_OBJ_FLAG_HIDDEN);
+                }
+                break;
         }
         
         ESP_LOGI(TAG, "Page switched to index: %d", new_page_index);
@@ -2303,10 +2383,12 @@ void WXT185Display::ExitScreensaver() {
             lv_obj_set_scroll_snap_x(main_screen_, LV_SCROLL_SNAP_CENTER);
             lv_obj_set_scrollbar_mode(main_screen_, LV_SCROLLBAR_MODE_OFF);
             lv_obj_add_flag(main_screen_, LV_OBJ_FLAG_SCROLLABLE);
+            
+            // 确保滚动到正确的位置
             lv_obj_scroll_to_x(main_screen_, current_page_index_ * width_, LV_ANIM_OFF);
             
             // 确保主屏幕有正确的事件处理回调
-#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+#if CONFIG_ESP32_S32_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
             // 先移除可能存在的旧事件回调以避免重复
             lv_obj_remove_event_cb(main_screen_, PageEventHandler);
             lv_obj_remove_event_cb(main_screen_, TouchEventHandler);
@@ -2317,6 +2399,7 @@ void WXT185Display::ExitScreensaver() {
             // 添加触摸事件处理回调
             lv_obj_add_event_cb(main_screen_, TouchEventHandler, LV_EVENT_PRESSED, this);
             lv_obj_add_event_cb(main_screen_, TouchEventHandler, LV_EVENT_RELEASED, this);
+#endif
             
             // 移除各页面的滚动事件回调以避免冲突
             if (chat_page_) {
@@ -2357,26 +2440,22 @@ void WXT185Display::ExitScreensaver() {
                 lv_obj_add_event_cb(settings_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
                 lv_obj_add_event_cb(settings_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
             }
-#endif
             
             // 确保当前页面正确显示
             switch (current_page_index_) {
                 case PAGE_CHAT:
                     if (chat_page_) {
                         lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
-                        lv_obj_scroll_to_view_recursive(chat_page_, LV_ANIM_OFF);
                     }
                     break;
                 case PAGE_CRYPTO:
                     if (crypto_page_) {
                         lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
-                        lv_obj_scroll_to_view_recursive(crypto_page_, LV_ANIM_OFF);
                     }
                     break;
                 case PAGE_SETTINGS:
                     if (settings_page_) {
                         lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
-                        lv_obj_scroll_to_view_recursive(settings_page_, LV_ANIM_OFF);
                     }
                     break;
             }
