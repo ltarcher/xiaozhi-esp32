@@ -17,18 +17,22 @@
 // 颜色定义 - LIGHT主题
 #define LIGHT_BACKGROUND_COLOR       lv_color_white()
 #define LIGHT_TEXT_COLOR             lv_color_black()
-#define LIGHT_CHAT_BACKGROUND_COLOR  lv_color_hex(0xE0E0E0)
+#define LIGHT_CHAT_BACKGROUND_COLOR  lv_color_hex(0xF0F0F0)
 #define LIGHT_USER_BUBBLE_COLOR      lv_color_hex(0x1A6C37)
-#define LIGHT_ASSISTANT_BUBBLE_COLOR lv_color_white()
-#define LIGHT_SYSTEM_BUBBLE_COLOR    lv_color_hex(0xE0E0E0)
+#define LIGHT_ASSISTANT_BUBBLE_COLOR lv_color_hex(0xE0E0E0)
+#define LIGHT_SYSTEM_BUBBLE_COLOR    lv_color_hex(0xD0D0D0)
 #define LIGHT_SYSTEM_TEXT_COLOR      lv_color_hex(0x666666)
-#define LIGHT_BORDER_COLOR           lv_color_hex(0xE0E0E0)
-#define LIGHT_LOW_BATTERY_COLOR      lv_color_black()
-#define LIGHT_HEADER_COLOR           lv_color_hex(0xDDDDDD)
-#define LIGHT_SELECTOR_COLOR         lv_color_hex(0xF0F0F0)
-#define LIGHT_OUTER_RING_COLOR       lv_color_hex(0xDDDDDD)  // 外圆环颜色
-#define LIGHT_INNER_RING_COLOR       lv_color_hex(0xEEEEEE)  // 内圆环颜色
+#define LIGHT_BORDER_COLOR           lv_color_hex(0xDDDDDD)
+#define LIGHT_LOW_BATTERY_COLOR      lv_color_hex(0xFF0000)
+#define LIGHT_HEADER_COLOR           lv_color_hex(0xEEEEEE)
+#define LIGHT_SELECTOR_COLOR         lv_color_hex(0xF5F5F5)
+#define LIGHT_OUTER_RING_COLOR       lv_color_hex(0xEEEEEE)  // 外圆环颜色
+#define LIGHT_INNER_RING_COLOR       lv_color_hex(0xF0F0F0)  // 内圆环颜色
 #define LIGHT_SCREENSAVER_SWITCH_COLOR lv_color_hex(0x1A6C37) // 屏保开关颜色
+
+// 通用roller颜色定义 - LIGHT主题
+#define LIGHT_ROLLER_BG_COLOR         lv_color_hex(0xE0F0FF)  // roller背景颜色
+#define LIGHT_ROLLER_BORDER_COLOR     lv_color_hex(0x99CCFF)  // roller边框颜色
 
 // 设置页面颜色定义 - 基于LIGHT主题
 #define LIGHT_SETTINGS_LABEL_COLOR         LIGHT_TEXT_COLOR              // 设置标签颜色
@@ -63,6 +67,10 @@
 #define DARK_INNER_RING_COLOR        lv_color_hex(0x1E1E1E)  // 内圆环颜色
 #define DARK_SCREENSAVER_SWITCH_COLOR lv_color_hex(0x1A6C37)  // 屏保开关颜色
 
+// 通用roller颜色定义 - DARK主题
+#define DARK_ROLLER_BG_COLOR         lv_color_hex(0x252525)  // roller背景颜色
+#define DARK_ROLLER_BORDER_COLOR     lv_color_hex(0x444444)  // roller边框颜色
+
 // 设置页面颜色定义 - 基于DARK主题
 #define DARK_SETTINGS_LABEL_COLOR         DARK_TEXT_COLOR              // 设置标签颜色
 #define DARK_SETTINGS_ROLLER_TEXT_COLOR   DARK_TEXT_COLOR              // 设置选择器文本颜色
@@ -95,6 +103,10 @@
 #define METAL_OUTER_RING_COLOR       lv_color_hex(0xB0B0B0)   // 外圆环颜色
 #define METAL_INNER_RING_COLOR       lv_color_hex(0xC0C0C0)   // 内圆环颜色
 #define METAL_SCREENSAVER_SWITCH_COLOR lv_color_hex(0x1A6C37)  // 屏保开关颜色
+
+// 通用roller颜色定义 - METAL主题
+#define METAL_ROLLER_BG_COLOR         lv_color_hex(0xD3D3D3)  // roller背景颜色
+#define METAL_ROLLER_BORDER_COLOR     lv_color_hex(0x696969)  // roller边框颜色
 
 // 设置页面颜色定义 - 基于METAL主题
 #define METAL_SETTINGS_LABEL_COLOR         METAL_TEXT_COLOR              // 设置标签颜色
@@ -129,6 +141,10 @@
 #define TECHNOLOGY_INNER_RING_COLOR  lv_color_hex(0x0A0A20)   // 内圆环颜色
 #define TECHNOLOGY_SCREENSAVER_SWITCH_COLOR lv_color_hex(0x006400) // 屏保开关颜色
 
+// 通用roller颜色定义
+#define TECHNOLOGY_ROLLER_BG_COLOR         lv_color_hex(0xE0F0FF)  // roller背景颜色
+#define TECHNOLOGY_ROLLER_BORDER_COLOR     lv_color_hex(0x99CCFF)  // roller边框颜色
+
 // 设置页面颜色定义 - 基于TECHNOLOGY主题
 #define TECHNOLOGY_SETTINGS_LABEL_COLOR         TECHNOLOGY_TEXT_COLOR              // 设置标签颜色
 #define TECHNOLOGY_SETTINGS_ROLLER_TEXT_COLOR   TECHNOLOGY_TEXT_COLOR              // 设置选择器文本颜色
@@ -141,8 +157,8 @@
 #define TECHNOLOGY_CRYPTO_BACKGROUND_COLOR      TECHNOLOGY_BACKGROUND_COLOR      // 背景色
 #define TECHNOLOGY_CRYPTO_TEXT_COLOR            TECHNOLOGY_TEXT_COLOR            // 主文本色
 #define TECHNOLOGY_CRYPTO_SUB_TEXT_COLOR        TECHNOLOGY_SYSTEM_TEXT_COLOR     // 次要文本色
-#define TECHNOLOGY_CRYPTO_UP_COLOR              TECHNOLOGY_TEXT_COLOR            // 上涨颜色(青色)
-#define TECHNOLOGY_CRYPTO_DOWN_COLOR            TECHNOLOGY_LOW_BATTERY_COLOR     // 下跌颜色(橙红色)
+#define TECHNOLOGY_CRYPTO_UP_COLOR              TECHNOLOGY_TEXT_COLOR            // 上涨颜色
+#define TECHNOLOGY_CRYPTO_DOWN_COLOR            TECHNOLOGY_LOW_BATTERY_COLOR     // 下跌颜色(红色)
 #define TECHNOLOGY_CRYPTO_BORDER_COLOR          TECHNOLOGY_BORDER_COLOR          // 边框颜色
 #define TECHNOLOGY_CRYPTO_PROGRESS_BG_COLOR     TECHNOLOGY_CHAT_BACKGROUND_COLOR // 进度环背景色
 
@@ -161,6 +177,10 @@
 #define COSMIC_OUTER_RING_COLOR      lv_color_hex(0x150015)   // 外圆环颜色
 #define COSMIC_INNER_RING_COLOR      lv_color_hex(0x100010)   // 内圆环颜色
 #define COSMIC_SCREENSAVER_SWITCH_COLOR lv_color_hex(0x4B0082) // 屏保开关颜色
+
+// 通用roller颜色定义
+#define COSMIC_ROLLER_BG_COLOR         lv_color_hex(0x250025)  // roller背景颜色
+#define COSMIC_ROLLER_BORDER_COLOR     lv_color_hex(0x800080)  // roller边框颜色
 
 // 设置页面颜色定义 - 基于COSMIC主题
 #define COSMIC_SETTINGS_LABEL_COLOR         COSMIC_TEXT_COLOR              // 设置标签颜色
@@ -207,7 +227,12 @@ const WXT185ThemeColors LIGHT_THEME_WXT185 = {
     .settings_roller_bg = LIGHT_SETTINGS_ROLLER_BG_COLOR,
     .settings_roller_border = LIGHT_SETTINGS_ROLLER_BORDER_COLOR,
     .settings_button_text = LIGHT_SETTINGS_BUTTON_TEXT_COLOR,
-    .settings_button_bg = LIGHT_SETTINGS_BUTTON_BG_COLOR
+    .settings_button_bg = LIGHT_SETTINGS_BUTTON_BG_COLOR,
+    .roller_bg = LIGHT_ROLLER_BG_COLOR,
+    .roller_border = LIGHT_ROLLER_BORDER_COLOR,
+    .roller_text = LIGHT_TEXT_COLOR,
+    .roller_indicator = LIGHT_BORDER_COLOR,
+    .roller_radius = 8
 };
 
 const WXT185ThemeColors DARK_THEME_WXT185 = {
@@ -237,7 +262,12 @@ const WXT185ThemeColors DARK_THEME_WXT185 = {
     .settings_roller_bg = DARK_SETTINGS_ROLLER_BG_COLOR,
     .settings_roller_border = DARK_SETTINGS_ROLLER_BORDER_COLOR,
     .settings_button_text = DARK_SETTINGS_BUTTON_TEXT_COLOR,
-    .settings_button_bg = DARK_SETTINGS_BUTTON_BG_COLOR
+    .settings_button_bg = DARK_SETTINGS_BUTTON_BG_COLOR,
+    .roller_bg = DARK_ROLLER_BG_COLOR,
+    .roller_border = DARK_ROLLER_BORDER_COLOR,
+    .roller_text = DARK_TEXT_COLOR,
+    .roller_indicator = DARK_BORDER_COLOR,
+    .roller_radius = 8
 };
 
 const WXT185ThemeColors METAL_THEME_WXT185 = {
@@ -267,7 +297,12 @@ const WXT185ThemeColors METAL_THEME_WXT185 = {
     .settings_roller_bg = METAL_SETTINGS_ROLLER_BG_COLOR,
     .settings_roller_border = METAL_SETTINGS_ROLLER_BORDER_COLOR,
     .settings_button_text = METAL_SETTINGS_BUTTON_TEXT_COLOR,
-    .settings_button_bg = METAL_SETTINGS_BUTTON_BG_COLOR
+    .settings_button_bg = METAL_SETTINGS_BUTTON_BG_COLOR,
+    .roller_bg = METAL_ROLLER_BG_COLOR,
+    .roller_border = METAL_ROLLER_BORDER_COLOR,
+    .roller_text = METAL_TEXT_COLOR,
+    .roller_indicator = METAL_BORDER_COLOR,
+    .roller_radius = 8
 };
 
 const WXT185ThemeColors TECHNOLOGY_THEME_WXT185 = {
@@ -297,7 +332,12 @@ const WXT185ThemeColors TECHNOLOGY_THEME_WXT185 = {
     .settings_roller_bg = TECHNOLOGY_SETTINGS_ROLLER_BG_COLOR,
     .settings_roller_border = TECHNOLOGY_SETTINGS_ROLLER_BORDER_COLOR,
     .settings_button_text = TECHNOLOGY_SETTINGS_BUTTON_TEXT_COLOR,
-    .settings_button_bg = TECHNOLOGY_SETTINGS_BUTTON_BG_COLOR
+    .settings_button_bg = TECHNOLOGY_SETTINGS_BUTTON_BG_COLOR,
+    .roller_bg = TECHNOLOGY_ROLLER_BG_COLOR,
+    .roller_border = TECHNOLOGY_ROLLER_BORDER_COLOR,
+    .roller_text = TECHNOLOGY_TEXT_COLOR,
+    .roller_indicator = TECHNOLOGY_BORDER_COLOR,
+    .roller_radius = 8
 };
 
 const WXT185ThemeColors COSMIC_THEME_WXT185 = {
@@ -327,7 +367,12 @@ const WXT185ThemeColors COSMIC_THEME_WXT185 = {
     .settings_roller_bg = COSMIC_SETTINGS_ROLLER_BG_COLOR,
     .settings_roller_border = COSMIC_SETTINGS_ROLLER_BORDER_COLOR,
     .settings_button_text = COSMIC_SETTINGS_BUTTON_TEXT_COLOR,
-    .settings_button_bg = COSMIC_SETTINGS_BUTTON_BG_COLOR    
+    .settings_button_bg = COSMIC_SETTINGS_BUTTON_BG_COLOR,
+    .roller_bg = COSMIC_ROLLER_BG_COLOR,
+    .roller_border = COSMIC_ROLLER_BORDER_COLOR,
+    .roller_text = COSMIC_TEXT_COLOR,
+    .roller_indicator = COSMIC_BORDER_COLOR,
+    .roller_radius = 8    
 };
 
 // 定义字体(需要idf.py menuconfig启用lvgl字体配置项)
@@ -3056,4 +3101,40 @@ uint32_t WXT185Display::GetKLineTypeByIndex(uint8_t index) {
         case 9: return 12; // 3月
         default: return 2; // 默认使用1小时
     }
+}
+
+
+// 通用 roller 样式设置函数
+void WXT185Display::ApplyRollerStyle(lv_obj_t* roller, bool isSettings) {
+    if (!roller) return;
+    
+    // 创建并配置样式
+    static lv_style_t style_roller_bg;
+    lv_style_init(&style_roller_bg);
+    
+    // 设置滚动背景颜色（使用主题中定义的roller背景颜色）
+    lv_color_t bg_color = isSettings ? current_wxt185_theme_.settings_roller_bg : current_wxt185_theme_.roller_bg;
+    lv_style_set_bg_color(&style_roller_bg, bg_color);
+    
+    // 设置背景透明度
+    lv_style_set_bg_opa(&style_roller_bg, 200);
+    
+    // 设置边框
+    lv_color_t border_color = isSettings ? current_wxt185_theme_.settings_roller_border : current_wxt185_theme_.roller_border;
+    lv_style_set_border_color(&style_roller_bg, border_color);
+    lv_style_set_border_width(&style_roller_bg, 2);
+    
+    // 设置圆角
+    lv_style_set_radius(&style_roller_bg, current_wxt185_theme_.roller_radius);
+    
+    // 将样式应用到 roller
+    lv_obj_add_style(roller, &style_roller_bg, 0);
+    
+    // 设置文本颜色
+    lv_color_t text_color = isSettings ? current_wxt185_theme_.settings_roller_text : current_wxt185_theme_.roller_text;
+    lv_obj_set_style_text_color(roller, text_color, 0);
+    
+    // 设置指示器颜色
+    lv_color_t indicator_color = current_wxt185_theme_.roller_indicator;
+    lv_obj_set_style_border_color(roller, indicator_color, LV_PART_SELECTED);
 }

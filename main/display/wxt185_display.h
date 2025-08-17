@@ -47,6 +47,12 @@ struct WXT185ThemeColors {
     lv_color_t low_battery;
     lv_color_t header;
     lv_color_t selector;
+    // 通用roller样式
+    lv_color_t roller_bg;           // roller背景颜色
+    lv_color_t roller_border;       // roller边框颜色
+    lv_color_t roller_text;         // roller文本颜色
+    lv_color_t roller_indicator;    // roller选中项边框颜色
+    uint8_t roller_radius;          // roller圆角半径
     // 虚拟币页面样式
     lv_color_t crypto_background;
     lv_color_t crypto_text;
@@ -190,6 +196,9 @@ protected:
     void ApplyCryptoPageTheme();
     void ApplySettingsPageTheme();
     void ApplyScreensaverTheme(); // 新增屏幕保护主题应用函数
+    
+    // 通用 roller 样式设置函数
+    void ApplyRollerStyle(lv_obj_t* roller, bool isSettings = false);
     
     // 虚拟币数据处理函数
     void UpdateCryptoData();
