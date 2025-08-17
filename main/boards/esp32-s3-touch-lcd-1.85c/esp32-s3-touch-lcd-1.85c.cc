@@ -421,6 +421,14 @@ private:
         */
         ESP_LOGI(TAG, "I2C touch controller initialized successfully");
     }
+    void Touch_reset() {
+        // 通过io_expander EXO1 重置触摸屏
+        esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 0);
+        vTaskDelay(pdMS_TO_TICKS(10));
+        esp_io_expander_set_level(io_expander, IO_EXPANDER_PIN_NUM_1, 1);
+        vTaskDelay(pdMS_TO_TICKS(50));
+
+    }
     esp_lcd_touch_handle_t InitializeTouch()
     {
         InitializeI2cTouch();
@@ -446,7 +454,8 @@ private:
         esp_err_t ret;
         // 增加多次探测,防止初始化失败
         for (int i = 0; i < 10; i++) {
-            ret = i2c_master_probe(tp_i2c_bus, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, 2000);
+            //每次超市时间都增加3s
+            ret = i2c_master_probe(tp_i2c_bus, ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, 20000 + i * 3000);
             if (ret != ESP_OK) {
                 ESP_LOGW(TAG, "CST816S touch controller not found on I2C bus at address 0x%02X, skipping touch initialization, time: %d",
                         ESP_LCD_TOUCH_IO_I2C_CST816S_ADDRESS, i + 1);
@@ -456,6 +465,8 @@ private:
                 break;
             }
         }
+        // 如果10次探测还是不行，直接复位
+        ESP_ERROR_CHECK(ret);
         
         esp_lcd_panel_io_handle_t tp_io_handle = NULL;
         esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
@@ -523,10 +534,10 @@ public:
     CustomBoard() :
         boot_button_(BOOT_BUTTON_GPIO) {
         InitializeI2c();
+        InitializeTca9554();
 #if CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
         esp_lcd_touch_handle_t tp = InitializeTouch();
 #endif
-        InitializeTca9554();
         InitializeSpi();
         Initializest77916Display();
         InitializeButtons();
