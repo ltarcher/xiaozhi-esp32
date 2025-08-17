@@ -1581,6 +1581,10 @@ void WXT185Display::DrawKLineChart() {
         lv_obj_set_size(chart, lv_obj_get_width(crypto_chart_) - 20, lv_obj_get_height(crypto_chart_) - 20);
         lv_obj_center(chart);
         
+        // 设置图表点数为实际数据点数量，但不超过最大显示数量30
+        uint16_t chart_point_count = kline_data->size() > 30 ? 30 : kline_data->size();
+        lv_chart_set_point_count(chart, chart_point_count);
+        
         // 设置图表样式
         lv_chart_set_type(chart, LV_CHART_TYPE_LINE); // 使用线图替代K线图，因为LVGL不直接支持K线图
         lv_chart_set_div_line_count(chart, 5, 5);
