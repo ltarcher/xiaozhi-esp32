@@ -501,6 +501,16 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
         current_wxt185_theme_ = LIGHT_THEME_WXT185;
     }
 
+    /* 
+        初始化连接服务器的url，由于新版本ws连接的url可以从设置里读取，因此可以直接写入地址到NVS即可。
+        Settings settings("websocket", false);
+        std::string url = settings.GetString("url");
+    */
+    // 从NVS读取url
+    Settings settings("websocket", false);
+    std::string url = settings.GetString("url");
+    ESP_LOGI(TAG, "WS URL: %s", url.c_str());
+
     // 初始化默认设置
     selected_theme = settings.GetInt("theme_index", 0);       // 默认主题索引
     default_crypto = settings.GetInt("default_crypto", 0);    // 默认虚拟币索引
