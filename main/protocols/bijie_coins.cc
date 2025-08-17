@@ -584,6 +584,7 @@ private:
             {
                 std::lock_guard<std::mutex> lock(kline_requests_mutex_);
                 pending_kline_requests_.erase({task_data->currency_id, task_data->kline_type});
+                ESP_LOGI(TAG, "network faild, removed currency_id %d kline_type %d from pending requests", task_data->currency_id, task_data->kline_type);
             }
             
             delete task_data;
@@ -604,6 +605,7 @@ private:
             {
                 std::lock_guard<std::mutex> lock(kline_requests_mutex_);
                 pending_kline_requests_.erase({task_data->currency_id, task_data->kline_type});
+                ESP_LOGI(TAG, "client faild, removed currency_id %d kline_type %d from pending requests", task_data->currency_id, task_data->kline_type);
             }
             
             delete task_data;
@@ -668,6 +670,7 @@ private:
             {
                 std::lock_guard<std::mutex> lock(kline_requests_mutex_);
                 pending_kline_requests_.erase({task_data->currency_id, task_data->kline_type});
+                ESP_LOGI(TAG, "Open url:%s failed, removed currency_id %d kline_type %d from pending requests", url.c_str(), task_data->currency_id, task_data->kline_type);
             }
             
             delete task_data;
@@ -856,6 +859,7 @@ private:
         {
             std::lock_guard<std::mutex> lock(kline_requests_mutex_);
             pending_kline_requests_.erase({task_data->currency_id, task_data->kline_type});
+            ESP_LOGI(TAG, "Getkline finish, removed currency_id %d kline_type %d from pending requests", task_data->currency_id, task_data->kline_type);
         }        
         // 清理任务数据
         delete task_data;
