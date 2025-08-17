@@ -502,8 +502,10 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     // 屏幕初始化结束
 
     // 初始化默认设置
-    kline_frequency = 3; // 默认一小时的K线频率
-    screensaver_enabled = true; // 默认启用屏保
+    selected_theme = settings.GetInt("theme_index", 0);       // 默认主题索引
+    default_crypto = settings.GetInt("default_crypto", 0);    // 默认虚拟币索引
+    kline_frequency = settings.GetInt("kline_frequency", 3);  // 默认K线频率 (3=1小时)
+    screensaver_enabled = settings.GetInt("screensaver_enabled", 1) == 1; // 默认启用屏保
     
     // 初始化当前显示的虚拟币数据
     current_crypto_data_.symbol = "BTC";
@@ -1218,8 +1220,7 @@ void WXT185Display::CreateSettingsPage() {
 }
 
 void WXT185Display::CreateScreensaverPage() {
-    // 未启动屏保时则返回
-    if (!screensaver_enabled) return;
+    // 无论screensaver_enabled状态如何都创建屏保页面，只是可能不启动定时器
     ESP_LOGI(TAG, "Creating screensaver page");
     
     // 1. 创建背景
@@ -1774,6 +1775,10 @@ void WXT185Display::HandleTouchEnd(lv_point_t point) {
                 SwitchToPage(current_page_index_ + 1);
             }
         }
+    } else if (abs(diff_x) <= 10 && abs(diff_y) <= 10) {
+        // 点击而非滑动，将事件视为用户活动
+        ESP_LOGI(TAG, "Touch tap detected, updating activity");
+        OnActivity();
     }
 }
 
@@ -1785,6 +1790,11 @@ void WXT185Display::SwitchToPage(int page_index) {
     // 如果当前在屏保状态，不执行页面切换
     if (screensaver_active_) {
         ESP_LOGI(TAG, "Currently in screensaver mode, ignoring page switch");
+        return;
+    }
+    
+    // 如果目标页面和当前页面相同，直接返回
+    if (current_page_index_ == page_index) {
         return;
     }
     
@@ -1842,35 +1852,18 @@ void WXT185Display::PageEventHandler(lv_event_t* e) {
 
         self->current_page_index_ = new_page_index;
         
-        // 滚动到指定页面
-        lv_obj_t* target_page = nullptr;
-        switch (new_page_index) {
-            case 0:
-                target_page = self->chat_page_;
-                ESP_LOGI(TAG, "Scrolled to chat page");
-                break;
-            case 1:
-                target_page = self->crypto_page_;
-                ESP_LOGI(TAG, "Scrolled to crypto page");
-                break;
-            case 2:
-                target_page = self->settings_page_;
-                ESP_LOGI(TAG, "Scrolled to settings page");
-                break;
-            default:
-                return;
-        }
-        
-        if (target_page) {
-            lv_obj_scroll_to_view_recursive(target_page, LV_ANIM_ON);
-        }
+        // 注意：不再需要滚动到指定页面，因为用户已经完成了滚动操作
+        // 只需要更新当前页面索引并执行相应操作
         
         // 如果切换到虚拟币页面，更新显示
         if (new_page_index == PAGE_CRYPTO) {
             self->UpdateCryptoData();
         }
+        
+        ESP_LOGI(TAG, "Page switched to index: %d", new_page_index);
     }
 }
+
 void WXT185Display::KLineFrequencyButtonEventHandler(lv_event_t* e) {
     ESP_LOGI(TAG, "KLine frequency button event handler called");
     lv_event_code_t code = lv_event_get_code(e);
@@ -2197,7 +2190,6 @@ void WXT185Display::EnterScreensaver() {
         screensaver_active_ = false; // 确保状态一致性
     }
 }
-
 void WXT185Display::ExitScreensaver() {
      try {
         DisplayLockGuard lock(this);
@@ -2213,25 +2205,34 @@ void WXT185Display::ExitScreensaver() {
         if (screensaver_page_) lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
         
         // 显示当前页面
+        lv_obj_t* current_page = nullptr;
         switch (current_page_index_) {
             case PAGE_CHAT:
                 if (chat_page_) {
                     lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
                     lv_obj_move_foreground(chat_page_);
+                    current_page = chat_page_;
                 }
                 break;
             case PAGE_CRYPTO:
                 if (crypto_page_) {
                     lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
                     lv_obj_move_foreground(crypto_page_);
+                    current_page = crypto_page_;
                 }
                 break;
             case PAGE_SETTINGS:
                 if (settings_page_) {
                     lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
                     lv_obj_move_foreground(settings_page_);
+                    current_page = settings_page_;
                 }
                 break;
+        }
+        
+        // 确保当前页面在最前，而不是主屏幕
+        if (current_page) {
+            lv_obj_move_foreground(current_page);
         }
         
         ESP_LOGI(TAG, "Exited screensaver mode");
