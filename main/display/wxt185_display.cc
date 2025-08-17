@@ -1587,6 +1587,10 @@ void WXT185Display::DrawKLineChart() {
         lv_obj_set_size(chart, lv_obj_get_width(crypto_chart_) - 20, lv_obj_get_height(crypto_chart_) - 20);
         lv_obj_center(chart);
         
+        // 设置图表点数为实际数据点数量，但不超过最大显示数量30
+        uint16_t chart_point_count = kline_data->size() > 30 ? 30 : kline_data->size();
+        lv_chart_set_point_count(chart, chart_point_count);
+        
         // 设置图表样式
         lv_chart_set_type(chart, LV_CHART_TYPE_LINE); // 使用线图替代K线图，因为LVGL不直接支持K线图
         lv_chart_set_div_line_count(chart, 5, 5);
@@ -1855,12 +1859,22 @@ void WXT185Display::KLineFrequencyButtonEventHandler(lv_event_t* e) {
                     } else {
                         // 未选中的按钮设置为默认颜色
                         lv_obj_set_style_bg_color(self->kline_frequency_buttons_[j], self->current_wxt185_theme_.selector, 0);
-                    
                     }
                 }
                 
-                // 重新绘制K线图表
-                self->DrawKLineChart();
+                // 请求新的K线数据
+                if (self->bijie_coins_ && self->bijie_coins_connected_) {
+                    uint32_t kline_type = self->GetKLineTypeByIndex(i);
+                    ESP_LOGI(TAG, "Requesting K-line data for currency %d with type %d", self->current_crypto_data_.currency_id, kline_type);
+                    self->bijie_coins_->GetKLineData(self->current_crypto_data_.currency_id, kline_type, 30, [self](const std::vector<KLineData>& kline_data) {
+                        ESP_LOGI(TAG, "Received K-line data with %d points", kline_data.size());
+                        // 数据获取完成后重新绘制图表
+                        self->DrawKLineChart();
+                    });
+                } else {
+                    // 如果没有连接到币界服务，直接重新绘制图表（使用已有数据）
+                    self->DrawKLineChart();
+                }
                 break;
             }
         }
