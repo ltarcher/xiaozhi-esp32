@@ -194,8 +194,6 @@ protected:
     static void CryptoSelectorEventHandler(lv_event_t* e);
     static void ThemeSelectorEventHandler(lv_event_t* e);
     static void TimeframeSelectorEventHandler(lv_event_t* e);
-    static void ScreensaverCryptoSelectorEventHandler(lv_event_t* e); // 屏保虚拟币选择事件处理
-    static void SettingsSaveButtonEventHandler(lv_event_t* e); // 保存按钮事件处理
     static void KLineFrequencyButtonEventHandler(lv_event_t* e); // K线频率按钮事件处理
     
     // 触摸事件处理

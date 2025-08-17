@@ -2007,18 +2007,6 @@ void WXT185Display::TimeframeSelectorEventHandler(lv_event_t* e) {
     }
 }
 
-void WXT185Display::ScreensaverCryptoSelectorEventHandler(lv_event_t* e) {
-    ESP_LOGI(TAG, "Screensaver crypto selector event handler called");
-    // 屏保虚拟币选择事件处理
-}
-
-void WXT185Display::SettingsSaveButtonEventHandler(lv_event_t* e) {
-    ESP_LOGI(TAG, "Settings save button event handler called");
-    // 保存按钮事件处理已经在静态函数中实现
-}
-
-}
-
 void WXT185Display::ScreensaverTimerCallback(void* arg) {
     try {
         WXT185Display* self = static_cast<WXT185Display*>(arg);
