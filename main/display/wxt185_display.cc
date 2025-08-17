@@ -1972,7 +1972,7 @@ void WXT185Display::TimeframeSelectorEventHandler(lv_event_t* e) {
     if (code == LV_EVENT_VALUE_CHANGED) {
         if (self) {
             // 获取触发事件的对象（时间框架选择器）
-            lv_obj_t* roller = lv_event_get_target(e);
+            lv_obj_t* roller = (lv_obj_t*)lv_event_get_target(e);
             if (roller) {
                 // 获取选中的时间框架索引
                 int selected_timeframe = lv_roller_get_selected(roller);
