@@ -567,9 +567,6 @@ WXT185Display::WXT185Display(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
     // 初始化UI
     SetupUI();
     
-    // 启动虚拟币更新定时器
-    StartCryptoUpdateTimer();
-    
     ESP_LOGI(TAG, "WXT185Display constructor completed");
 }
 
@@ -702,7 +699,6 @@ void WXT185Display::SetupUI() {
         ESP_LOGI(TAG, "Connected to BiJie coins");
     }
     
-    SwitchToPage(Page::PAGE_CRYPTO);
     ESP_LOGI(TAG, "WXT185 UI setup completed");
 }
 
