@@ -2429,7 +2429,10 @@ void WXT185Display::EnterScreensaver() {
 
         // 切换到第一页面，进入屏保模式
         if (current_page_index_ != PAGE_CHAT) {
-            SwitchToPage(PAGE_CHAT);
+            current_page_index_ = PAGE_CHAT;
+            ESP_LOGI(TAG, "Switching to chat page to enter screensaver mode");
+            // 确保主屏幕滚动到正确的位置(因为屏幕是基于main_screen_创建的，所以需要滚动)
+            lv_obj_scroll_to_x(main_screen_, current_page_index_ * width_, LV_ANIM_OFF);
         }
         
         screensaver_active_ = true;
