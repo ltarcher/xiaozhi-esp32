@@ -1392,6 +1392,12 @@ void WXT185Display::ApplyCryptoPageTheme() {
     // 应用虚拟币页面主题
     lv_obj_set_style_bg_color(crypto_page_, current_wxt185_theme_.background, 0);
     
+    // 应用虚拟币选择器主题
+    if (crypto_roller_) {
+        lv_obj_set_style_bg_color(crypto_roller_, current_wxt185_theme_.crypto_background, 0);
+        lv_obj_set_style_text_color(crypto_roller_, current_wxt185_theme_.crypto_text, 0);
+    }
+    
     // 应用图表区域主题
     lv_obj_set_style_bg_color(crypto_chart_, current_wxt185_theme_.selector, 0);
     lv_obj_set_style_border_color(crypto_chart_, current_wxt185_theme_.border, 0);
@@ -1504,8 +1510,6 @@ void WXT185Display::ApplyScreensaverTheme() {
 void WXT185Display::SetEmotion(const char* emotion) {
     ESP_LOGI(TAG, "Setting emotion: %s", emotion ? emotion : "null");
     LcdDisplay::SetEmotion(emotion);
-}
-
 }
 
 void WXT185Display::SetIcon(const char* icon) {
