@@ -1166,7 +1166,7 @@ void WXT185Display::CreateSettingsPage() {
         lv_obj_add_state(settings_screensaver_switch_, LV_STATE_CHECKED);
     }
     lv_obj_add_event_cb(settings_screensaver_switch_, screensaver_switch_event_handler, LV_EVENT_VALUE_CHANGED, this);
-    lv_obj_align_to(settings_screensaver_switch_, settings_screensaver_label_, LV_ALIGN_OUT_RIGHT_MID, 55, 0);
+    lv_obj_align_to(settings_screensaver_switch_, settings_screensaver_label_, LV_ALIGN_OUT_BOTTOM_MID, 55, 0);
       
     // 8. 创建保存按钮
     settings_save_button_ = lv_button_create(settings_page_);
@@ -2158,7 +2158,7 @@ void WXT185Display::EnterScreensaver() {
     }
 }
 void WXT185Display::ExitScreensaver() {
-     try {
+    try {
         DisplayLockGuard lock(this);
         
         if (!screensaver_active_ || !screensaver_page_) return;
@@ -2171,35 +2171,57 @@ void WXT185Display::ExitScreensaver() {
         // 隐藏屏保页面
         if (screensaver_page_) lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_HIDDEN);
         
-        // 显示当前页面
-        lv_obj_t* current_page = nullptr;
-        switch (current_page_index_) {
-            case PAGE_CHAT:
-                if (chat_page_) {
-                    lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
-                    lv_obj_move_foreground(chat_page_);
-                    current_page = chat_page_;
-                }
-                break;
-            case PAGE_CRYPTO:
-                if (crypto_page_) {
-                    lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
-                    lv_obj_move_foreground(crypto_page_);
-                    current_page = crypto_page_;
-                }
-                break;
-            case PAGE_SETTINGS:
-                if (settings_page_) {
-                    lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
-                    lv_obj_move_foreground(settings_page_);
-                    current_page = settings_page_;
-                }
-                break;
-        }
-        
-        // 确保当前页面在最前，而不是主屏幕
-        if (current_page) {
-            lv_obj_move_foreground(current_page);
+        // 显示主屏幕并确保启用滚动功能
+        if (main_screen_) {
+            lv_obj_clear_flag(main_screen_, LV_OBJ_FLAG_HIDDEN);
+            lv_obj_move_foreground(main_screen_);
+            
+            // 重新启用主屏幕的滚动功能
+            lv_obj_set_scroll_dir(main_screen_, LV_DIR_HOR);
+            lv_obj_set_scroll_snap_x(main_screen_, LV_SCROLL_SNAP_CENTER);
+            lv_obj_set_scrollbar_mode(main_screen_, LV_SCROLLBAR_MODE_OFF);
+            lv_obj_add_flag(main_screen_, LV_OBJ_FLAG_SCROLLABLE);
+            
+            // 确保主屏幕有正确的事件处理回调
+#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+            // 先移除可能存在的旧事件回调以避免重复
+            lv_obj_remove_event_cb(main_screen_, PageEventHandler);
+            // 添加页面滚动回调
+            lv_obj_add_event_cb(main_screen_, PageEventHandler, LV_EVENT_SCROLL_END, this);
+            
+            // 移除各页面的滚动事件回调以避免冲突
+            if (chat_page_) {
+                lv_obj_remove_event_cb(chat_page_, PageEventHandler);
+            }
+            if (crypto_page_) {
+                lv_obj_remove_event_cb(crypto_page_, PageEventHandler);
+            }
+            if (settings_page_) {
+                lv_obj_remove_event_cb(settings_page_, PageEventHandler);
+            }
+#endif
+            
+            // 确保当前页面正确显示
+            switch (current_page_index_) {
+                case PAGE_CHAT:
+                    if (chat_page_) {
+                        lv_obj_clear_flag(chat_page_, LV_OBJ_FLAG_HIDDEN);
+                        lv_obj_scroll_to_view_recursive(chat_page_, LV_ANIM_OFF);
+                    }
+                    break;
+                case PAGE_CRYPTO:
+                    if (crypto_page_) {
+                        lv_obj_clear_flag(crypto_page_, LV_OBJ_FLAG_HIDDEN);
+                        lv_obj_scroll_to_view_recursive(crypto_page_, LV_ANIM_OFF);
+                    }
+                    break;
+                case PAGE_SETTINGS:
+                    if (settings_page_) {
+                        lv_obj_clear_flag(settings_page_, LV_OBJ_FLAG_HIDDEN);
+                        lv_obj_scroll_to_view_recursive(settings_page_, LV_ANIM_OFF);
+                    }
+                    break;
+            }
         }
         
         ESP_LOGI(TAG, "Exited screensaver mode");
