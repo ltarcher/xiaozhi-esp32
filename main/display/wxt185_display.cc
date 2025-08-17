@@ -1827,7 +1827,7 @@ void WXT185Display::PageEventHandler(lv_event_t* e) {
         // 如果当前在屏保状态，不处理页面滚动事件
         if (self->screensaver_active_) {
             ESP_LOGI(TAG, "Currently in screensaver mode, exiting screensaver");
-            self->ExitScreensaver();
+            self->OnActivity();
             return;
         }
         
