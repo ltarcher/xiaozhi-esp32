@@ -2955,6 +2955,18 @@ void WXT185Display::UpdateCryptoDataFromBiJie() {
                 // 更新价格和24小时变化数据
                 crypto.price = market_data.close;
                 crypto.change_24h = market_data.change_24h;
+
+                // 更新虚拟币K线数据
+                crypto.kline_data_1m = market_data.kline_data_1m;
+                crypto.kline_data_5m = market_data.kline_data_5m;
+                crypto.kline_data_15m = market_data.kline_data_15m;
+                crypto.kline_data_1h = market_data.kline_data_1h;
+                crypto.kline_data_2h = market_data.kline_data_2h;
+                crypto.kline_data_4h = market_data.kline_data_4h;
+                crypto.kline_data_1d = market_data.kline_data_1d;
+                crypto.kline_data_1w = market_data.kline_data_1w;
+                crypto.kline_data_1mo = market_data.kline_data_1mo;
+                crypto.kline_data_3mo = market_data.kline_data_3mo;
                 
                 ESP_LOGI(TAG, "Updated %s: price=%.2f, change=%.2f%%", 
                          crypto.symbol.c_str(), crypto.price, crypto.change_24h);

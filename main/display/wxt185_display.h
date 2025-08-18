@@ -150,7 +150,7 @@ public:
     int64_t last_activity_time_ = 0;
     esp_timer_handle_t screensaver_timer_ = nullptr;
     CryptocurrencyData screensaver_crypto_;
-    std::vector<std::pair<float, float>> screensaver_kline_data_; // 屏保K线数据
+    std::vector<KLineData> screensaver_kline_data_; // 屏保K线数据
 
     // 虚拟币行情更新定时器
     esp_timer_handle_t crypto_update_timer_ = nullptr;
