@@ -625,6 +625,10 @@ WXT185Display::~WXT185Display() {
         ESP_LOGI(TAG, "Main screen deleted");
     }
     
+    // 图表系列对象会在图表对象被销毁时自动清理
+    // 我们只需要将指针置为nullptr
+    crypto_chart_series_ = nullptr;
+    
     ESP_LOGI(TAG, "WXT185Display instance destroyed");
 }
 
@@ -1667,29 +1671,19 @@ void WXT185Display::DrawKLineChart() {
             lv_obj_center(no_data_label);
             return;
         }
-        
-        // 创建图表对象
-        lv_obj_t* chart = lv_chart_create(crypto_chart_);
-        if (!chart) {
-            ESP_LOGE(TAG, "Failed to create chart object");
-            return;
-        }
-        
-        lv_obj_set_size(chart, lv_obj_get_width(crypto_chart_) - 20, lv_obj_get_height(crypto_chart_) - 20);
-        lv_obj_center(chart);
-        
+                
         // 设置图表点数为实际数据点数量，但不超过最大显示数量30
         uint16_t chart_point_count = kline_data->size() > 30 ? 30 : kline_data->size();
-        lv_chart_set_point_count(chart, chart_point_count);
+        lv_chart_set_point_count(crypto_chart_, chart_point_count);
         
         // 设置图表样式
-        lv_chart_set_type(chart, LV_CHART_TYPE_LINE); // 使用线图替代K线图，因为LVGL不直接支持K线图
-        lv_chart_set_div_line_count(chart, 5, 5);
+        lv_chart_set_type(crypto_chart_, LV_CHART_TYPE_LINE); // 使用线图替代K线图，因为LVGL不直接支持K线图
+        lv_chart_set_div_line_count(crypto_chart_, 5, 5);
         
         // 设置图表样式
-        lv_obj_set_style_bg_color(chart, current_wxt185_theme_.background, 0);
-        lv_obj_set_style_border_color(chart, current_wxt185_theme_.border, 0);
-        lv_obj_set_style_text_color(chart, current_wxt185_theme_.text, 0);
+        lv_obj_set_style_bg_color(crypto_chart_, current_wxt185_theme_.background, 0);
+        lv_obj_set_style_border_color(crypto_chart_, current_wxt185_theme_.border, 0);
+        lv_obj_set_style_text_color(crypto_chart_, current_wxt185_theme_.text, 0);
         
         // 计算Y轴范围以适配数据
         float min_price = std::numeric_limits<float>::max();
@@ -1713,17 +1707,24 @@ void WXT185Display::DrawKLineChart() {
         max_price += margin;
         
         // 设置Y轴范围
-        lv_chart_set_range(chart, LV_CHART_AXIS_PRIMARY_Y, 
+        lv_chart_set_range(crypto_chart_, LV_CHART_AXIS_PRIMARY_Y, 
                           static_cast<int32_t>(min_price), 
                           static_cast<int32_t>(max_price));
         
         ESP_LOGI(TAG, "K-line chart Y-axis range: min=%.2f, max=%.2f", min_price, max_price);
         
         // 添加数据系列 - 显示收盘价
-        lv_chart_series_t* close_ser = lv_chart_add_series(chart, lv_color_hex(0x00FF00), LV_CHART_AXIS_PRIMARY_Y);
-        if (!close_ser) {
-            ESP_LOGE(TAG, "Failed to add chart series");
-            return;
+        // 如果还没有创建图表系列对象，则创建一个
+        if (crypto_chart_series_ == nullptr) {
+            crypto_chart_series_ = lv_chart_add_series(crypto_chart_, lv_color_hex(0x00FF00), LV_CHART_AXIS_PRIMARY_Y);
+            if (!crypto_chart_series_) {
+                ESP_LOGE(TAG, "Failed to add chart series");
+                // 显示错误信息
+                lv_obj_t* error_label = lv_label_create(crypto_chart_);
+                lv_label_set_text(error_label, "Error creating chart");
+                lv_obj_center(error_label);
+                return;
+            }
         }
         
         // 添加点到图表
@@ -1731,7 +1732,7 @@ void WXT185Display::DrawKLineChart() {
         // 为了更好地显示图表，我们按时间顺序添加数据（从 oldest 到 newest）
         for (int i = kline_data->size() - 1; i >= 0 && point_count < 30; i--) { // 限制显示30个点
             // 只添加收盘价到图表
-            lv_chart_set_next_value(chart, close_ser, static_cast<int32_t>(kline_data->at(i).close)); 
+            lv_chart_set_next_value(crypto_chart_, crypto_chart_series_, static_cast<int32_t>(kline_data->at(i).close)); 
             point_count++;
         }
         
