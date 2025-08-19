@@ -1402,15 +1402,7 @@ void WXT185Display::CreateScreensaverPage() {
     lv_obj_add_flag(screensaver_page_, LV_OBJ_FLAG_SCROLLABLE);
     // 隐藏滚动条
     lv_obj_set_scrollbar_mode(screensaver_page_, LV_SCROLLBAR_MODE_OFF);
-    
-#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
-    ESP_LOGI(TAG, "Added touch event handlers to screensaver page start");
-    // 为屏保页面添加触摸事件处理程序
-    lv_obj_add_event_cb(screensaver_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
-    lv_obj_add_event_cb(screensaver_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
-    ESP_LOGI(TAG, "Added touch event handlers to screensaver page end");
-#endif
-    
+        
     // 2. 创建外圆环（刻度环）
     screensaver_outer_ring_ = lv_obj_create(screensaver_page_);
     lv_obj_set_size(screensaver_outer_ring_, width_ - 20 , width_ - 20);
@@ -1419,6 +1411,14 @@ void WXT185Display::CreateScreensaverPage() {
     lv_obj_set_style_bg_color(screensaver_outer_ring_, current_wxt185_theme_.outer_ring_background, 0);
     lv_obj_set_style_border_width(screensaver_outer_ring_, 2, 0);
     lv_obj_set_style_border_color(screensaver_outer_ring_, current_wxt185_theme_.border, 0);
+
+#if CONFIG_ESP32_S3_TOUCH_LCD_185_WITH_TOUCH || CONFIG_ESP32_S3_TOUCH_LCD_185C_WITH_TOUCH
+    ESP_LOGI(TAG, "Added touch event handlers to screensaver page start");
+    // 为屏保页面添加触摸事件处理程序
+    lv_obj_add_event_cb(screensaver_page_, TouchEventHandler, LV_EVENT_PRESSED, this);
+    lv_obj_add_event_cb(screensaver_page_, TouchEventHandler, LV_EVENT_RELEASED, this);
+    ESP_LOGI(TAG, "Added touch event handlers to screensaver page end");
+#endif
 
     // 5. 创建币名显示
     screensaver_crypto_name_ = lv_label_create(screensaver_page_);
