@@ -49,6 +49,9 @@
 #define LIGHT_ROLLER_TEXT_COLOR            LIGHT_TEXT_COLOR                // roller文本颜色
 #define LIGHT_ROLLER_INDICATOR_COLOR       LIGHT_BORDER_COLOR              // roller选中项边框颜色
 #define LIGHT_ROLLER_RADIUS                8                               // roller圆角半径
+// LIGHT主题roller选中项配色
+#define LIGHT_ROLLER_TEXT_SELECTED_COLOR   LIGHT_TEXT_COLOR                // roller选中项文本颜色
+#define LIGHT_ROLLER_SELECTED_BG_COLOR     lv_color_hex(0xDDDDDD)          // roller选中项背景颜色
 
 // 颜色定义 - DARK主题
 #define DARK_BACKGROUND_COLOR        lv_color_hex(0x121212)
@@ -85,6 +88,9 @@
 #define DARK_ROLLER_TEXT_COLOR            DARK_TEXT_COLOR                // roller文本颜色
 #define DARK_ROLLER_INDICATOR_COLOR       DARK_BORDER_COLOR              // roller选中项边框颜色
 #define DARK_ROLLER_RADIUS                8                              // roller圆角半径
+// DARK主题roller选中项配色
+#define DARK_ROLLER_TEXT_SELECTED_COLOR    DARK_TEXT_COLOR                 // roller选中项文本颜色
+#define DARK_ROLLER_SELECTED_BG_COLOR      lv_color_hex(0x404040)          // roller选中项背景颜色
 
 // 颜色定义 - METAL主题
 #define METAL_BACKGROUND_COLOR       lv_color_hex(0xC0C0C0)
@@ -121,6 +127,9 @@
 #define METAL_ROLLER_TEXT_COLOR            METAL_TEXT_COLOR               // roller文本颜色
 #define METAL_ROLLER_INDICATOR_COLOR       METAL_BORDER_COLOR             // roller选中项边框颜色
 #define METAL_ROLLER_RADIUS                8                              // roller圆角半径
+// METAL主题roller选中项配色
+#define METAL_ROLLER_TEXT_SELECTED_COLOR   METAL_TEXT_COLOR                // roller选中项文本颜色
+#define METAL_ROLLER_SELECTED_BG_COLOR     lv_color_hex(0xB0B0B0)          // roller选中项背景颜色
 
 // 颜色定义 - TECHNOLOGY主题
 #define TECHNOLOGY_BACKGROUND_COLOR  lv_color_hex(0x0A0A20)
@@ -157,6 +166,9 @@
 #define TECHNOLOGY_ROLLER_TEXT_COLOR            TECHNOLOGY_TEXT_COLOR               // roller文本颜色
 #define TECHNOLOGY_ROLLER_INDICATOR_COLOR       TECHNOLOGY_BORDER_COLOR             // roller选中项边框颜色
 #define TECHNOLOGY_ROLLER_RADIUS                8                                   // roller圆角半径
+// TECHNOLOGY主题roller选中项配色
+#define TECHNOLOGY_ROLLER_TEXT_SELECTED_COLOR  TECHNOLOGY_TEXT_COLOR               // roller选中项文本颜色
+#define TECHNOLOGY_ROLLER_SELECTED_BG_COLOR    lv_color_hex(0x151535)              // roller选中项背景颜色
 
 // 颜色定义 - COSMIC主题
 #define COSMIC_BACKGROUND_COLOR      lv_color_black()
@@ -193,6 +205,9 @@
 #define COSMIC_ROLLER_TEXT_COLOR            COSMIC_TEXT_COLOR               // roller文本颜色
 #define COSMIC_ROLLER_INDICATOR_COLOR       COSMIC_BORDER_COLOR             // roller选中项边框颜色
 #define COSMIC_ROLLER_RADIUS                8                               // roller圆角半径
+// COSMIC主题roller选中项配色
+#define COSMIC_ROLLER_TEXT_SELECTED_COLOR   COSMIC_TEXT_COLOR               // roller选中项文本颜色
+#define COSMIC_ROLLER_SELECTED_BG_COLOR     lv_color_hex(0x250025)          // roller选中项背景颜色
 
 // 主题定义
 const WXT185ThemeColors LIGHT_THEME_WXT185 = {
@@ -225,7 +240,9 @@ const WXT185ThemeColors LIGHT_THEME_WXT185 = {
     .roller_border_color = LIGHT_ROLLER_BORDER_COLOR,
     .roller_text_color = LIGHT_ROLLER_TEXT_COLOR,
     .roller_indicator_color = LIGHT_ROLLER_INDICATOR_COLOR,
-    .roller_radius = LIGHT_ROLLER_RADIUS
+    .roller_radius = LIGHT_ROLLER_RADIUS,
+    .roller_text_selected_color = LIGHT_ROLLER_TEXT_SELECTED_COLOR,
+    .roller_selected_bg_color = LIGHT_ROLLER_SELECTED_BG_COLOR
 };
 
 const WXT185ThemeColors DARK_THEME_WXT185 = {
@@ -258,7 +275,9 @@ const WXT185ThemeColors DARK_THEME_WXT185 = {
     .roller_border_color = DARK_ROLLER_BORDER_COLOR,
     .roller_text_color = DARK_ROLLER_TEXT_COLOR,
     .roller_indicator_color = DARK_ROLLER_INDICATOR_COLOR,
-    .roller_radius = DARK_ROLLER_RADIUS
+    .roller_radius = DARK_ROLLER_RADIUS,
+    .roller_text_selected_color = DARK_ROLLER_TEXT_SELECTED_COLOR,
+    .roller_selected_bg_color = DARK_ROLLER_SELECTED_BG_COLOR
 };
 
 const WXT185ThemeColors METAL_THEME_WXT185 = {
@@ -291,7 +310,9 @@ const WXT185ThemeColors METAL_THEME_WXT185 = {
     .roller_border_color = METAL_ROLLER_BORDER_COLOR,
     .roller_text_color = METAL_ROLLER_TEXT_COLOR,
     .roller_indicator_color = METAL_ROLLER_INDICATOR_COLOR,
-    .roller_radius = METAL_ROLLER_RADIUS
+    .roller_radius = METAL_ROLLER_RADIUS,
+    .roller_text_selected_color = METAL_ROLLER_TEXT_SELECTED_COLOR,
+    .roller_selected_bg_color = METAL_ROLLER_SELECTED_BG_COLOR
 };
 
 const WXT185ThemeColors TECHNOLOGY_THEME_WXT185 = {
@@ -324,7 +345,9 @@ const WXT185ThemeColors TECHNOLOGY_THEME_WXT185 = {
     .roller_border_color = TECHNOLOGY_ROLLER_BORDER_COLOR,
     .roller_text_color = TECHNOLOGY_ROLLER_TEXT_COLOR,
     .roller_indicator_color = TECHNOLOGY_ROLLER_INDICATOR_COLOR,
-    .roller_radius = TECHNOLOGY_ROLLER_RADIUS
+    .roller_radius = TECHNOLOGY_ROLLER_RADIUS,
+    .roller_text_selected_color = TECHNOLOGY_ROLLER_TEXT_SELECTED_COLOR,
+    .roller_selected_bg_color = TECHNOLOGY_ROLLER_SELECTED_BG_COLOR
 };
 
 const WXT185ThemeColors COSMIC_THEME_WXT185 = {
@@ -357,7 +380,9 @@ const WXT185ThemeColors COSMIC_THEME_WXT185 = {
     .roller_border_color = COSMIC_ROLLER_BORDER_COLOR,
     .roller_text_color = COSMIC_ROLLER_TEXT_COLOR,
     .roller_indicator_color = COSMIC_ROLLER_INDICATOR_COLOR,
-    .roller_radius = COSMIC_ROLLER_RADIUS
+    .roller_radius = COSMIC_ROLLER_RADIUS,
+    .roller_text_selected_color = COSMIC_ROLLER_TEXT_SELECTED_COLOR,
+    .roller_selected_bg_color = COSMIC_ROLLER_SELECTED_BG_COLOR
 };
 
 // 定义字体(需要idf.py menuconfig启用lvgl字体配置项)
@@ -738,10 +763,8 @@ void WXT185Display::SetupUI() {
     
     ESP_LOGI(TAG, "Setting up WXT185 UI");
     //初始所有roller样式
-    lv_style_init(&crypto_roller_style_);
-    lv_style_init(&settings_theme_roller_style_);
-    lv_style_init(&settings_default_crypto_roller_style_);
-    lv_style_init(&settings_kline_time_roller_style_);
+    lv_style_init(&roller_style_);
+    lv_style_init(&roller_select_style_);
     
     // 获取屏幕对象
     main_screen_ = lv_screen_active();
@@ -1069,19 +1092,8 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_set_style_pad_all(crypto_roller_, 0, 0);
     lv_obj_set_size(crypto_roller_, 100, 40);
 
-    // 设置背景透明度
-    lv_style_set_bg_opa(&crypto_roller_style_, 200);
-    // 设置边框
-    lv_style_set_border_color(&crypto_roller_style_, current_wxt185_theme_.roller_border_color);
-    
-    // 设置圆角
-    lv_style_set_radius(&crypto_roller_style_, current_wxt185_theme_.roller_radius);
-    
-    // 将样式应用到 roller
-    lv_obj_add_style(crypto_roller_, &crypto_roller_style_, 0);
-    // 设置指示器颜色
-    lv_obj_set_style_border_color(crypto_roller_, current_wxt185_theme_.roller_indicator_color, LV_PART_SELECTED);
-    //////////////////////////////////////////////////////////////////////////////////////////
+    // 设置样式
+    ApplyRollerStyle(crypto_roller_);
     
     // 添加事件处理函数
     lv_obj_add_event_cb(crypto_roller_, CryptoSelectorEventHandler, LV_EVENT_VALUE_CHANGED, this);
@@ -1252,20 +1264,9 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_align_to(settings_theme_roller_, settings_theme_label_, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
     lv_obj_set_size(settings_theme_roller_, 100, 40);
 
-    // 设置背景透明度
-    lv_style_set_bg_opa(&settings_theme_roller_style_, 200);
-    // 设置边框
-    lv_style_set_border_color(&settings_theme_roller_style_, current_wxt185_theme_.roller_border_color);
+    // 设置样式
+    ApplyRollerStyle(settings_theme_roller_);
     
-    // 设置圆角
-    lv_style_set_radius(&settings_theme_roller_style_, current_wxt185_theme_.roller_radius);
-    
-    // 将样式应用到 roller
-    lv_obj_add_style(settings_theme_roller_, &settings_theme_roller_style_, 0);
-    // 设置指示器颜色
-    lv_obj_set_style_border_color(settings_theme_roller_, current_wxt185_theme_.roller_indicator_color, LV_PART_SELECTED);
-    //////////////////////////////////////////////////////////////////////////////////////////
-
     // 5. 创建默认虚拟币设置
     settings_default_crypto_label_ = lv_label_create(settings_page_);
     ESP_LOGI(TAG, "Default crypto label created");
@@ -1303,20 +1304,8 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_add_event_cb(settings_default_crypto_roller_, default_crypto_roller_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_align_to(settings_default_crypto_roller_, settings_default_crypto_label_, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
     lv_obj_set_size(settings_default_crypto_roller_, 100, 40);
-
-    // 设置背景透明度
-    lv_style_set_bg_opa(&settings_default_crypto_roller_style_, 200);
-    // 设置边框
-    lv_style_set_border_color(&settings_default_crypto_roller_style_, current_wxt185_theme_.roller_border_color);
-    
-    // 设置圆角
-    lv_style_set_radius(&settings_default_crypto_roller_style_, current_wxt185_theme_.roller_radius);
-    
-    // 将样式应用到 roller
-    lv_obj_add_style(settings_default_crypto_roller_, &settings_default_crypto_roller_style_, 0);
-    // 设置指示器颜色
-    lv_obj_set_style_border_color(settings_default_crypto_roller_, current_wxt185_theme_.roller_indicator_color, LV_PART_SELECTED);
-    //////////////////////////////////////////////////////////////////////////////////////////
+    // 设置样式
+    ApplyRollerStyle(settings_default_crypto_roller_);
 
     // 6. 创建K线频率设置
     settings_kline_time_label_ = lv_label_create(settings_page_);
@@ -1360,20 +1349,8 @@ void WXT185Display::CreateSettingsPage() {
     lv_obj_align_to(settings_kline_time_roller_, settings_kline_time_label_, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
     lv_obj_set_size(settings_kline_time_roller_, 100, 40);
 
-    // 设置背景透明度
-    lv_style_set_bg_opa(&settings_kline_time_roller_style_, 200);
-    // 设置边框
-    lv_style_set_border_color(&settings_kline_time_roller_style_, current_wxt185_theme_.roller_border_color);
-    
-    // 设置圆角
-    lv_style_set_radius(&settings_kline_time_roller_style_, current_wxt185_theme_.roller_radius);
-    
-    // 将样式应用到 roller
-    lv_obj_add_style(settings_kline_time_roller_, &settings_kline_time_roller_style_, 0);
-    // 设置指示器颜色
-    lv_obj_set_style_border_color(settings_kline_time_roller_, current_wxt185_theme_.roller_indicator_color, LV_PART_SELECTED);
-    //////////////////////////////////////////////////////////////////////////////////////////
-
+    // 设置样式
+    ApplyRollerStyle(settings_kline_time_roller_);
 
     // 7. 创建屏保开关
     settings_screensaver_label_ = lv_label_create(settings_page_);
@@ -3343,4 +3320,24 @@ uint32_t WXT185Display::GetKLineTypeByIndex(uint8_t index) {
         case 9: return 12; // 3月
         default: return 2; // 默认使用1小时
     }
+}
+
+void WXT185Display::ApplyRollerStyle(lv_obj_t* roller) {
+    // 设置背景透明度
+    lv_style_set_bg_opa(&roller_style_, 200);
+    // 设置边框
+    lv_style_set_border_color(&roller_style_, current_wxt185_theme_.roller_border_color);
+    
+    // 设置圆角
+    lv_style_set_radius(&roller_style_, current_wxt185_theme_.roller_radius);
+    
+    // 将样式应用到 roller
+    lv_obj_add_style(roller, &roller_style_, 0);
+
+    // 设置指示器颜色
+    lv_obj_set_style_border_color(roller, current_wxt185_theme_.roller_indicator_color, LV_PART_SELECTED);
+    
+    // 设置选中项的文本和背景颜色
+    lv_obj_set_style_text_color(roller, current_wxt185_theme_.roller_text_selected_color, LV_PART_SELECTED);
+    lv_obj_set_style_bg_color(roller, current_wxt185_theme_.roller_selected_bg_color, LV_PART_SELECTED);
 }

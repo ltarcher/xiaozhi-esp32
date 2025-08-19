@@ -69,6 +69,8 @@ struct WXT185ThemeColors {
     lv_color_t roller_text_color;         // roller文本颜色
     lv_color_t roller_indicator_color;    // roller选中项边框颜色
     uint8_t roller_radius;                // roller圆角半径
+    lv_color_t roller_text_selected_color; // roller选中项文本颜色
+    lv_color_t roller_selected_bg_color;    // roller选中项背景颜色
 };
 
 // 定义页面
@@ -104,11 +106,15 @@ protected:
     lv_obj_t* chat_status_bar_ = nullptr;
     lv_obj_t* chat_content_ = nullptr;
     lv_obj_t* chat_input_area_ = nullptr;
+
+    // roller样式
+    lv_style_t roller_style_;
+    lv_style_t roller_select_style_;
+    void ApplyRollerStyle(lv_obj_t* obj);
     
     // 虚拟币页面组件
     lv_obj_t* crypto_header_ = nullptr;
     lv_obj_t* crypto_roller_ = nullptr;
-    lv_style_t crypto_roller_style_;    //roller样式
     lv_obj_t* crypto_kline_btn_container_ = nullptr;
     lv_obj_t* crypto_content_ = nullptr;
     lv_obj_t* crypto_price_label_ = nullptr;
@@ -123,13 +129,10 @@ protected:
     lv_obj_t* settings_title_ = nullptr;
     lv_obj_t* settings_theme_label_ = nullptr;
     lv_obj_t* settings_theme_roller_ = nullptr;
-    lv_style_t settings_theme_roller_style_; // 设置主题 roller样式
     lv_obj_t* settings_default_crypto_label_ = nullptr;
     lv_obj_t* settings_default_crypto_roller_ = nullptr;
-    lv_style_t settings_default_crypto_roller_style_; // 设置默认虚拟币 roller样式
     lv_obj_t* settings_kline_time_label_ = nullptr;
     lv_obj_t* settings_kline_time_roller_ = nullptr;
-    lv_style_t settings_kline_time_roller_style_; // 设置K线时间 roller样式
     lv_obj_t* settings_screensaver_label_ = nullptr;
     lv_obj_t* settings_screensaver_switch_ = nullptr;
     lv_obj_t* settings_save_button_ = nullptr;  // 添加保存按钮
