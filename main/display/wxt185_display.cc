@@ -1067,6 +1067,7 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_set_style_radius(crypto_roller_, 0, 0);
     lv_obj_set_style_border_width(crypto_roller_, 0, 0);
     lv_obj_set_style_pad_all(crypto_roller_, 0, 0);
+    lv_obj_set_size(crypto_roller_, 100, 40);
 
     // 设置背景透明度
     lv_style_set_bg_opa(&crypto_roller_style_, 200);
@@ -1249,7 +1250,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_roller_set_selected(settings_theme_roller_, selected_theme, LV_ANIM_OFF);
     lv_obj_add_event_cb(settings_theme_roller_, theme_roller_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_align_to(settings_theme_roller_, settings_theme_label_, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
-    lv_obj_set_width(settings_theme_roller_, 100);
+    lv_obj_set_size(settings_theme_roller_, 100, 40);
 
     // 设置背景透明度
     lv_style_set_bg_opa(&settings_theme_roller_style_, 200);
@@ -1301,7 +1302,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_roller_set_selected(settings_default_crypto_roller_, default_crypto, LV_ANIM_OFF);
     lv_obj_add_event_cb(settings_default_crypto_roller_, default_crypto_roller_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_align_to(settings_default_crypto_roller_, settings_default_crypto_label_, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
-    lv_obj_set_width(settings_default_crypto_roller_, 100);
+    lv_obj_set_size(settings_default_crypto_roller_, 100, 40);
 
     // 设置背景透明度
     lv_style_set_bg_opa(&settings_default_crypto_roller_style_, 200);
@@ -1357,7 +1358,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_roller_set_selected(settings_kline_time_roller_, kline_frequency, LV_ANIM_OFF);
     lv_obj_add_event_cb(settings_kline_time_roller_, kline_frequency_roller_event_handler, LV_EVENT_VALUE_CHANGED, NULL);
     lv_obj_align_to(settings_kline_time_roller_, settings_kline_time_label_, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
-    lv_obj_set_width(settings_kline_time_roller_, 100);
+    lv_obj_set_size(settings_kline_time_roller_, 100, 40);
 
     // 设置背景透明度
     lv_style_set_bg_opa(&settings_kline_time_roller_style_, 200);
