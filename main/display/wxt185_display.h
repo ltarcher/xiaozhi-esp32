@@ -114,6 +114,7 @@ protected:
     
     // 虚拟币页面组件
     lv_obj_t* crypto_header_ = nullptr;
+    lv_obj_t* crypto_update_time_label = nullptr;
     lv_obj_t* crypto_roller_ = nullptr;
     lv_obj_t* crypto_kline_btn_container_ = nullptr;
     lv_obj_t* crypto_content_ = nullptr;

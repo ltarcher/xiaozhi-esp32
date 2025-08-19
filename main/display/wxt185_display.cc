@@ -1037,7 +1037,7 @@ void WXT185Display::CreateCryptoPage() {
     crypto_roller_ = lv_roller_create(crypto_page_);
     lv_obj_set_size(crypto_roller_, 100, 100);
     // 在上面中间对齐
-    lv_obj_align(crypto_roller_, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_align(crypto_roller_, LV_ALIGN_BOTTOM_MID, 0, -30);
 
     // 添加虚拟币选项到roller
     // 获取虚拟币列表
@@ -1179,11 +1179,11 @@ void WXT185Display::CreateCryptoPage() {
     // DrawKLineChart();  // 移除这行，避免在没有数据时尝试绘制
     
     // 创建更新时间标签
-    lv_obj_t* update_time_label = lv_label_create(crypto_page_);
-    lv_label_set_text(update_time_label, "Updated: --:--:--");
-    lv_obj_set_style_text_font(update_time_label, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(update_time_label, current_wxt185_theme_.text, 0);
-    lv_obj_align(update_time_label, LV_ALIGN_BOTTOM_MID, 0, -30);
+    crypto_update_time_label = lv_label_create(crypto_page_);
+    lv_label_set_text(crypto_update_time_label, "--:--:--");
+    lv_obj_set_style_text_font(crypto_update_time_label, &lv_font_montserrat_24, 0);
+    lv_obj_set_style_text_color(crypto_update_time_label, current_wxt185_theme_.text, 0);
+    lv_obj_align(crypto_update_time_label, LV_ALIGN_TOP_MID, 0, 10);
     
     // 初始化crypto_data_向量
     if (crypto_data_.empty()) {
@@ -1883,8 +1883,7 @@ void WXT185Display::DrawKLineChart() {
     
         
         // 更新时间显示
-        lv_obj_t* update_time_label = lv_obj_get_child(crypto_page_, -1); // 获取最后一个子对象，即更新时间标签
-        if (update_time_label) {
+        if (crypto_update_time_label) {
             // 获取当前时间
             time_t now;
             time(&now);
@@ -1892,8 +1891,8 @@ void WXT185Display::DrawKLineChart() {
             localtime_r(&now, &timeinfo);
             
             char time_str[64];
-            strftime(time_str, sizeof(time_str), "Updated: %H:%M:%S", &timeinfo);
-            lv_label_set_text(update_time_label, time_str);
+            strftime(time_str, sizeof(time_str), "%H:%M:%S", &timeinfo);
+            lv_label_set_text(crypto_update_time_label, time_str);
         }
     } catch (const std::exception& e) {
         ESP_LOGE(TAG, "Exception occurred while drawing K-line chart: %s", e.what());
@@ -3090,7 +3089,6 @@ void WXT185Display::UpdateCryptoDataFromBiJie() {
     bijie_coins_->SetMarketDataCallback([this](const CoinMarketData& market_data) {
         ESP_LOGI(TAG, "Received market data callback for currency ID: %d", market_data.currency_id);
         
-        bool data_updated = false;
         // 查找对应的虚拟币数据
         for (auto& crypto : crypto_data_) {
             if (crypto.currency_id == market_data.currency_id) {
@@ -3113,7 +3111,6 @@ void WXT185Display::UpdateCryptoDataFromBiJie() {
                 ESP_LOGI(TAG, "Updated %s: price=%.2f, change=%.2f%%", 
                          crypto.symbol.c_str(), crypto.price, crypto.change_24h);
                 
-                data_updated = true;
                 break;
             }
         }
