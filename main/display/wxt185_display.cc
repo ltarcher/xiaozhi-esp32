@@ -771,6 +771,7 @@ void WXT185Display::SetupUI() {
     lv_obj_set_style_text_font(main_screen_, fonts_.text_font, 0);
     lv_obj_set_style_text_color(main_screen_, current_wxt185_theme_.text, 0);
     lv_obj_set_style_bg_color(main_screen_, current_wxt185_theme_.background, 0);
+    lv_obj_align(main_screen_, LV_ALIGN_CENTER, 0, 0);
 
     lv_obj_set_size(main_screen_, width_ * 3, height_);  // 3倍宽度以容纳三个页面
     lv_obj_set_style_radius(main_screen_, LV_RADIUS_CIRCLE, 0);
@@ -1035,9 +1036,8 @@ void WXT185Display::CreateCryptoPage() {
 
     // 2. 创建虚拟币roller，支持水平滚动
     crypto_roller_ = lv_roller_create(crypto_page_);
-    lv_obj_set_size(crypto_roller_, 100, 100);
     // 在上面中间对齐
-    lv_obj_align(crypto_roller_, LV_ALIGN_BOTTOM_MID, 0, -30);
+    lv_obj_align(crypto_roller_, LV_ALIGN_BOTTOM_MID, 0, -20);
 
     // 添加虚拟币选项到roller
     // 获取虚拟币列表
@@ -1090,7 +1090,7 @@ void WXT185Display::CreateCryptoPage() {
     lv_obj_set_style_radius(crypto_roller_, 0, 0);
     lv_obj_set_style_border_width(crypto_roller_, 0, 0);
     lv_obj_set_style_pad_all(crypto_roller_, 0, 0);
-    lv_obj_set_size(crypto_roller_, 100, 40);
+    lv_obj_set_size(crypto_roller_, 170, 50);
 
     // 设置样式
     ApplyRollerStyle(crypto_roller_);
@@ -3075,7 +3075,7 @@ void WXT185Display::ConnectToBiJieCoins() {
         
         // 显式删除任务，防止任务返回导致系统错误
         vTaskDelete(nullptr);
-    }, "bijie_coins_con", 4096, this, 5, nullptr);
+    }, "bijie_coins_con", 8192, this, 5, nullptr);
 }
 
 void WXT185Display::UpdateCryptoDataFromBiJie() {
