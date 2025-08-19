@@ -771,7 +771,7 @@ void WXT185Display::SetupUI() {
     lv_obj_set_style_text_font(main_screen_, fonts_.text_font, 0);
     lv_obj_set_style_text_color(main_screen_, current_wxt185_theme_.text, 0);
     lv_obj_set_style_bg_color(main_screen_, current_wxt185_theme_.background, 0);
-    lv_obj_align(main_screen_, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_center(main_screen_);
 
     lv_obj_set_size(main_screen_, width_ * 3, height_);  // 3倍宽度以容纳三个页面
     lv_obj_set_style_radius(main_screen_, LV_RADIUS_CIRCLE, 0);
@@ -892,6 +892,7 @@ void WXT185Display::CreateChatPage() {
     
     chat_page_ = lv_obj_create(main_screen_);
     lv_obj_set_size(chat_page_, width_, height_);
+    lv_obj_center(chat_page_);
     lv_obj_set_style_radius(chat_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(chat_page_, current_wxt185_theme_.background, 0);
     lv_obj_add_flag(chat_page_, LV_OBJ_FLAG_SCROLLABLE);
@@ -1014,6 +1015,7 @@ void WXT185Display::CreateCryptoPage() {
     // 1. 创建背景
     crypto_page_ = lv_obj_create(main_screen_);
     lv_obj_set_size(crypto_page_, width_, height_);
+    lv_obj_center(crypto_page_);
     lv_obj_set_style_radius(crypto_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(crypto_page_, current_wxt185_theme_.crypto_background, 0);
     lv_obj_add_flag(crypto_page_, LV_OBJ_FLAG_SCROLLABLE);
@@ -1208,6 +1210,7 @@ void WXT185Display::CreateSettingsPage() {
     settings_page_ = lv_obj_create(main_screen_);
     ESP_LOGI(TAG, "Settings page background created");
     lv_obj_set_size(settings_page_, width_, height_);
+    lv_obj_center(settings_page_);
     lv_obj_set_style_radius(settings_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(settings_page_, current_wxt185_theme_.background, 0);
     lv_obj_set_style_pad_all(settings_page_, 0, 0);
@@ -1363,10 +1366,14 @@ void WXT185Display::CreateSettingsPage() {
 
     settings_screensaver_switch_ = lv_switch_create(settings_page_);
     ESP_LOGI(TAG, "Screensaver switch created");
-    lv_obj_set_style_bg_color(settings_screensaver_switch_, current_wxt185_theme_.settings_screensaver_switch, 0);
+    
     if (screensaver_enabled) {
         lv_obj_add_state(settings_screensaver_switch_, LV_STATE_CHECKED);
+        lv_obj_set_style_bg_color(settings_screensaver_switch_, current_wxt185_theme_.settings_screensaver_switch_on_color, 0);
+    } else {
+        lv_obj_set_style_bg_color(settings_screensaver_switch_, current_wxt185_theme_.settings_screensaver_switch_off_color, 0);
     }
+
     lv_obj_add_event_cb(settings_screensaver_switch_, screensaver_switch_event_handler, LV_EVENT_VALUE_CHANGED, this);
     // 将屏保开关放置在标签旁边
     lv_obj_align_to(settings_screensaver_switch_, settings_screensaver_label_, LV_ALIGN_OUT_RIGHT_MID, 30, 0);
@@ -1380,7 +1387,7 @@ void WXT185Display::CreateSettingsPage() {
     lv_label_set_text(settings_save_label_, "Save");
     lv_obj_center(settings_save_label_);
 
-    lv_obj_set_style_bg_color(settings_save_button_, current_wxt185_theme_.settings_screensaver_switch, 0);
+    lv_obj_set_style_bg_color(settings_save_button_, current_wxt185_theme_.button_color, 0);
     lv_obj_set_size(settings_save_button_, 100, 40);
     lv_obj_align(settings_save_button_, LV_ALIGN_BOTTOM_MID, 0, -30);
 
@@ -1396,6 +1403,7 @@ void WXT185Display::CreateScreensaverPage() {
     // 1. 创建背景
     screensaver_page_ = lv_obj_create(main_screen_);
     lv_obj_set_size(screensaver_page_, width_, height_);
+    lv_obj_center(screensaver_page_);
     lv_obj_set_style_radius(screensaver_page_, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(screensaver_page_, current_wxt185_theme_.background, 0);
     // 设置可滚动（用于退出屏保）
